@@ -41,7 +41,6 @@ const navigation = [
   { name: 'Transactions', href: '/transactions' },
   { name: 'Investments', href: '/investments' },
   { name: 'Reports', href: '/reports' },
-  { name: 'Events Tracker', href: '/bau' },
 ]
 
 interface HeaderProps {

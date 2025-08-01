@@ -486,14 +486,6 @@ const TransactionsPage = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <nav className="hidden md:flex items-center gap-6 mr-6">
-            <Link
-              to="/bau"
-              className="text-sm font-medium leading-normal transition-colors hover:text-foreground text-foreground-secondary hover:text-primary"
-            >
-              Events Tracker
-            </Link>
-          </nav>
           <ThemeSwitcher />
           <motion.div
             whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
