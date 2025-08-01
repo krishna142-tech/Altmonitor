@@ -13,6 +13,7 @@ import InvestmentDetailPage from '@/components/InvestmentDetailPage'
 import DealDetailPage from '@/components/DealDetailPage'
 import FacilityDetailPage from '@/components/FacilityDetailPage'
 import CashTermsPage from '@/components/CashTermsPage'
+import BauTab from '@/components/BauTab'
 
 // SEO Component
 const SEO: React.FC<{ title: string; description: string }> = ({ title, description }) => {
@@ -129,45 +130,19 @@ function App() {
               }
             />
             
-            {/* Modern Layout Routes */}
-            <Route path="/dashboard" element={<Layout />}>
-              <Route
-                index
-                element={
-                  <>
-                    <SEO
-                      title="Investment Dashboard | AltMonitor"
-                      description="Monitor your investment portfolio with real-time data, performance analytics, and comprehensive reporting tools."
-                    />
-                    <DashboardPage />
-                  </>
-                }
-              />
-            </Route>
-            
-            <Route path="/reports" element={<Layout />}>
-              <Route
-                index
-                element={
-                  <>
-                    <SEO
-                      title="Investment Reports | AltMonitor"
-                      description="Generate comprehensive investment reports with detailed analytics, performance metrics, and compliance documentation."
-                    />
-                    <div className="min-h-screen bg-background flex items-center justify-center">
-                      <div className="text-center">
-                        <h1 className="text-4xl font-bold text-foreground mb-4">
-                          Investment Reports
-                        </h1>
-                        <p className="text-foreground-secondary text-lg">
-                          Comprehensive reporting and analytics suite
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                }
-              />
-            </Route>
+            {/* BAU Tab - Standalone */}
+            <Route
+              path="/bau"
+              element={
+                <>
+                  <SEO
+                    title="BAU Operations | AltMonitor"
+                    description="Manage BAU operations including prepayments, investor changes, and commitment adjustments."
+                  />
+                  <BauTab />
+                </>
+              }
+            />
           </Routes>
         </div>
       </Router>

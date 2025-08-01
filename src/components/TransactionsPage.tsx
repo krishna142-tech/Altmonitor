@@ -486,6 +486,14 @@ const TransactionsPage = () => {
         </div>
         
         <div className="flex items-center gap-3">
+          <nav className="hidden md:flex items-center gap-6 mr-6">
+            <Link
+              to="/bau"
+              className="text-sm font-medium leading-normal transition-colors hover:text-foreground text-foreground-secondary hover:text-primary"
+            >
+              Events Tracker
+            </Link>
+          </nav>
           <ThemeSwitcher />
           <motion.div
             whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
@@ -493,9 +501,9 @@ const TransactionsPage = () => {
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard" className="flex items-center gap-2">
+              <Link to="/login" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                
+                Back
               </Link>
             </Button>
           </motion.div>

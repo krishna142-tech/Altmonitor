@@ -23,7 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ className, children }) => {
         <Sidebar isOpen={sidebarOpen} />
         <main className={cn(
           "flex-1 transition-all duration-300 ease-in-out",
-          sidebarOpen ? "ml-64" : "ml-0"
+          sidebarOpen ? "ml-0" : "ml-0"
         )}>
           {children || <Outlet />}
         </main>

@@ -215,12 +215,11 @@ const InvestmentDetailPage = () => {
   const [facilities, setFacilities] = useState(mockFacilities);
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
-
-  const navigateToBau = () => {
+  const navigateToBau = () =e {
     navigate('/bau');
   };
 
-  const handleAddFacility = (data) => {
+  const handleAddFacility = (data) =e {
     setFacilities([...facilities, {
       investmentName: data.investmentName,
       facilityType: data.investmentType,
@@ -264,7 +263,7 @@ const InvestmentDetailPage = () => {
               </defs>
             </svg>
           </div>
-          <Link to="/transactions" className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em] hover:text-primary transition-colors duration-200">
+          <Link to="/main" className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em] hover:text-primary transition-colors duration-200">
             AltMonitor
           </Link>
         </div>
@@ -276,9 +275,9 @@ const InvestmentDetailPage = () => {
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             <Button variant="outline" size="sm" asChild>
-              <Link to="/transactions" className="flex items-center gap-2">
+              <Link to="/main" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                Back
+                
               </Link>
             </Button>
           </motion.div>
@@ -341,9 +340,7 @@ const InvestmentDetailPage = () => {
                   <tbody className="divide-y divide-[#40484f]">
                     {facilities.map((f, idx) => (
                       <tr key={idx} className="hover:bg-[#2c3135]/50 transition-all duration-200">
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-[#c5daeb] underline cursor-pointer font-medium hover:text-white transition-colors" onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}>
-                          {f.investmentName}
-                        </td>
+                        <td className="px-4 md:px-6 py-3 md:py-4 text-[#c5daeb] underline cursor-pointer font-medium hover:text-white transition-colors" onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}>{f.investmentName}</td>
                         <td className="px-4 md:px-6 py-3 md:py-4 text-[#c5daeb] font-medium">{f.facilityType}</td>
                         <td className="px-4 md:px-6 py-3 md:py-4 text-amber-400 font-semibold">{f.paymentRank}</td>
                         <td className="px-4 md:px-6 py-3 md:py-4 text-[#a2acb3]">{f.seniority}</td>
