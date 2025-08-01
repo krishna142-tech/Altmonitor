@@ -1,0 +1,183 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Receipt, LogOut, BarChart3, FileText, Settings } from 'lucide-react';
+
+interface SidebarProps {
+  isOpen?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
+  const location = useLocation();
+
+  const navItems = [
+    { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
+    { path: '/transactions', icon: Receipt, label: 'Transactions' },
+    { path: '/reports', icon: FileText, label: 'Reports' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
+  ];
+
+  if (!isOpen) {
+    return (
+      <div className="w-16 bg-background-secondary border-r border-border/30 min-h-screen relative transition-all duration-300">
+        <div className="p-4 border-b border-border/30">
+          <Link 
+            to="/dashboard" 
+            className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
+          >
+            AM
+          </Link>
+        </div>
+        <nav className="mt-4">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center justify-center px-4 py-3 text-xs font-medium transition-all duration-300 transform hover:scale-[1.02] ${
+                  isActive
+                    ? 'text-primary bg-primary/10 border-r-2 border-primary'
+                    : 'text-foreground-secondary hover:text-white hover:bg-background/50'
+                }`}
+                title={item.label}
+              >
+                <Icon className={`w-4 h-4 transition-all duration-300 ${
+                  isActive ? 'text-primary' : 'text-foreground-secondary'
+                }`} />
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-48 bg-background-secondary border-r border-border/30 min-h-screen relative transition-all duration-300">
+      {/* Dark Grid Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 opacity-[0.02]">
+          <svg width="100%" height="100%" className="absolute inset-0">
+            <defs>
+              <pattern id="sidebarGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#sidebarGrid)" className="text-border" />
+          </svg>
+        </div>
+
+        {/* Small Accent Elements */}
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute bg-gradient-to-br from-primary/5 to-border/5 backdrop-blur-[0.2px] border border-primary/10 animate-float-crystal"
+            style={{
+              width: `${20 + Math.random() * 15}px`,
+              height: `${20 + Math.random() * 15}px`,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              transform: `rotate(${Math.random() * 360}deg)`,
+              clipPath: `polygon(50% 0%, ${60 + Math.random() * 40}% ${20 + Math.random() * 30}%, 100% 50%, ${60 + Math.random() * 40}% ${70 + Math.random() * 30}%, 50% 100%, ${Math.random() * 40}% ${70 + Math.random() * 30}%, 0% 50%, ${Math.random() * 40}% ${20 + Math.random() * 30}%)`,
+              animationDelay: `${i * 1.5}s`,
+              animationDuration: `${15 + Math.random() * 5}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Subtle background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background-secondary/30 to-border/20 pointer-events-none" />
+      
+      <div className="relative z-10">
+        <div className="p-4 border-b border-border/30">
+          <Link 
+            to="/dashboard" 
+            className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
+          >
+            AltMonitor
+          </Link>
+        </div>
+
+        <nav className="mt-4">
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center px-4 py-3 text-sm font-medium transition-all duration-300 transform hover:scale-[1.02] animate-slide-in-left ${
+                  isActive
+                    ? 'text-primary bg-primary/10 border-r-2 border-primary shadow-sm'
+                    : 'text-foreground-secondary hover:text-white hover:bg-background/50'
+                }`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <Icon className={`w-4 h-4 mr-3 transition-all duration-300 ${
+                  isActive ? 'text-primary' : 'text-foreground-secondary'
+                }`} />
+                {item.label}
+              </Link>
+            );
+          })}
+
+          <Link
+            to="/login"
+            className="flex items-center px-4 py-3 mt-8 text-sm font-medium text-foreground-secondary hover:text-white hover:bg-background/50 transition-all duration-300 transform hover:scale-[1.02] animate-slide-in-left animation-delay-200"
+          >
+            <LogOut className="w-4 h-4 mr-3 text-foreground-secondary" />
+            Logout
+          </Link>
+        </nav>
+      </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes slide-in-left {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes float-crystal {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1);
+            opacity: 0.2;
+          }
+          33% {
+            transform: translateY(-4px) rotate(120deg) scale(1.01);
+            opacity: 0.4;
+          }
+          66% {
+            transform: translateY(-2px) rotate(240deg) scale(0.99);
+            opacity: 0.3;
+          }
+        }
+        
+        .animate-slide-in-left {
+          animation: slide-in-left 0.6s ease-out forwards;
+          opacity: 0;
+        }
+        
+        .animate-float-crystal {
+          animation: float-crystal 18s ease-in-out infinite;
+        }
+        
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default Sidebar;
