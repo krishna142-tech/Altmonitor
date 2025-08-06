@@ -7,23 +7,23 @@ export default {
       colors: {
         // AltMonitor Brand Colors - Premium Financial Dashboard
         primary: {
-          DEFAULT: '#c5daeb',
-          foreground: '#121516',
+          DEFAULT: 'rgb(var(--primary))',
+          foreground: 'rgb(var(--primary-foreground))',
         },
         background: {
-          DEFAULT: '#ffffff',
-          secondary: '#f8fafc',
-          tertiary: '#f1f5f9',
+          DEFAULT: 'rgb(var(--background))',
+          secondary: 'rgb(var(--background-secondary))',
+          tertiary: 'rgb(var(--background-tertiary))',
         },
         foreground: {
-          DEFAULT: '#0f172a',
-          secondary: '#64748b',
-          tertiary: '#94a3b8',
+          DEFAULT: 'rgb(var(--foreground))',
+          secondary: 'rgb(var(--foreground-secondary))',
+          tertiary: 'rgb(var(--foreground-tertiary))',
         },
         border: {
-          DEFAULT: '#e2e8f0',
-          secondary: '#f1f5f9',
-          accent: '#cbd5e1',
+          DEFAULT: 'rgb(var(--border))',
+          secondary: 'rgb(var(--border-secondary))',
+          accent: 'rgb(var(--border-accent))',
         },
         // Legacy colors for backwards compatibility
         primaryGreen: {
@@ -127,31 +127,6 @@ export default {
   },
   plugins: [
     require('@tailwindcss/container-queries'),
-    function({ addBase, theme }) {
-      addBase({
-        '.dark': {
-          '--background': '#0a0a0a',
-          '--background-secondary': '#1a1a1a',
-          '--background-tertiary': '#2a2a2a',
-          '--foreground': '#ffffff',
-          '--foreground-secondary': '#a2acb3',
-          '--foreground-tertiary': '#6b7280',
-          '--border': '#2a2a2a',
-          '--border-secondary': '#1a1a1a',
-          '--border-accent': '#3a3a3a',
-        },
-        ':root': {
-          '--background': '#ffffff',
-          '--background-secondary': '#f8fafc',
-          '--background-tertiary': '#f1f5f9',
-          '--foreground': '#0f172a',
-          '--foreground-secondary': '#64748b',
-          '--foreground-tertiary': '#94a3b8',
-          '--border': '#e2e8f0',
-          '--border-secondary': '#f1f5f9',
-          '--border-accent': '#cbd5e1',
-        },
-      })
-    }
+// CSS variables are handled in index.css
   ],
 };

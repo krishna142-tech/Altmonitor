@@ -37,7 +37,6 @@ const Logo = () => (
 )
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard' },
   { name: 'Transactions', href: '/transactions' },
   { name: 'Investments', href: '/investments' },
   { name: 'Reports', href: '/reports' },
@@ -73,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ className, onSidebarToggle, side
             {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         )}
-        <Link to="/dashboard" className="flex items-center space-x-2">
+        <Link to="/main" className="flex items-center space-x-2">
           <Logo />
         </Link>
       </div>

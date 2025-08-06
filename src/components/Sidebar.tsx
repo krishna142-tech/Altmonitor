@@ -10,7 +10,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
   const location = useLocation();
 
   const navItems = [
-    { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
     { path: '/transactions', icon: Receipt, label: 'Transactions' },
     { path: '/reports', icon: FileText, label: 'Reports' },
     { path: '/settings', icon: Settings, label: 'Settings' },
@@ -21,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
       <div className="w-16 bg-background-secondary border-r border-border/30 min-h-screen relative transition-all duration-300">
         <div className="p-4 border-b border-border/30">
           <Link 
-            to="/dashboard" 
+            to="/main" 
             className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
           >
             AM
@@ -94,7 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
       <div className="relative z-10">
         <div className="p-4 border-b border-border/30">
           <Link 
-            to="/dashboard" 
+            to="/main" 
             className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
           >
             AltMonitor

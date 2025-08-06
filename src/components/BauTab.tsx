@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const BauTab: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('prepayment');
   const [prepaymentHappened, setPrepaymentHappened] = useState('No');
   const [portfolioLevelEnabled, setPortfolioLevelEnabled] = useState('No');
@@ -40,7 +41,7 @@ const BauTab: React.FC = () => {
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center gap-3">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -61,7 +62,7 @@ const BauTab: React.FC = () => {
           <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
             AltMonitor
           </span>
-        </div>
+        </Link>
         
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
@@ -70,11 +71,14 @@ const BauTab: React.FC = () => {
             whileTap={{ scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/transactions" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Button>
           </motion.div>
         </div>
@@ -112,9 +116,9 @@ const BauTab: React.FC = () => {
         </motion.div>
 
         {/* Dynamic Form Panels */}
-        <div className="flex flex-col space-y-6 mx-auto max-w-4xl px-4 py-6">
+        <div className="flex flex-col space-y-6 px-4 py-6">
         <motion.div 
-          className="w-full"
+          className="w-full max-w-4xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
@@ -552,6 +556,8 @@ const BauTab: React.FC = () => {
                             allocationPercent: '',
                             amount: ''
                           });
+                        } else {
+                          alert('Please fill in at least Old Investor Name, New Investor Name, and Transfer Date before adding.');
                         }
                       }}
                     >
@@ -560,32 +566,32 @@ const BauTab: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Transfers Table */}
-                {investorTransfers.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground">Investor Transfers</h3>
-                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Old Investor Name</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Investor</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Add</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {investorTransfers.map((transfer, index) => (
+                {/* Transfers Table - Always visible */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">Investor Transfers</h3>
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Old Investor Name</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">New Investor</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {investorTransfers.length > 0 ? (
+                            investorTransfers.map((transfer, index) => (
                               <tr key={transfer.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900">{transfer.oldInvestorName}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900">{transfer.newInvestorName}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900">{transfer.transferDate}</td>
-                                <td className="px-4 py-3 text-sm text-gray-900">{transfer.amount}</td>
+                                <td className="px-4 py-3 text-sm text-gray-900">{transfer.amount || '-'}</td>
                                 <td className="px-4 py-3 text-sm text-gray-900">-</td>
                                 <td className="px-4 py-3 text-sm text-gray-900">
                                   <button 
@@ -598,20 +604,26 @@ const BauTab: React.FC = () => {
                                   </button>
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      {/* Summary Row */}
-                      <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">No Investor transferred: {investorTransfers.length}</span>
-                        </div>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500">
+                                No transfers added yet. Fill out the form above and click "Add Transfer" to add entries.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Summary Row */}
+                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Total Investor Transfers: {investorTransfers.length}</span>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 
@@ -677,7 +689,7 @@ const BauTab: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-8 flex justify-end gap-3">
+            <div className="mt-8 flex justify-start gap-3">
               <Button variant="outline" className="rounded-lg border-green-600 text-green-600 hover:bg-green-50">Cancel</Button>
               <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg">Save Changes</Button>
             </div>

@@ -402,28 +402,20 @@ function ManageTransactionModal({ isOpen, onClose }) {
 
 const TransactionsPage = () => {
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isFilterOpen, setFilterOpen] = useState(false);
   const [transactions, setTransactions] = useState(mockTransactions);
-  const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', country: '' });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDeal, setSelectedDeal] = useState('');
+  const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
   const navigate = useNavigate();
 
-  // Filter by search term and selected deal
-  let filteredTransactions = transactions;
-  if (selectedDeal) {
-    filteredTransactions = transactions.filter(t => t.deal === selectedDeal);
-  } else if (searchTerm) {
-    filteredTransactions = transactions.filter(t =>
-      t.deal.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  } else {
-    filteredTransactions = transactions.filter((t) =>
+  // Filter transactions based on filters
+  const filteredTransactions = transactions.filter(t => {
+    return (
       (!filters.deal || t.deal === filters.deal) &&
       (!filters.issuer || t.issuer === filters.issuer) &&
       (!filters.currency || t.currency === filters.currency) &&
-      (!filters.country || t.countryOfRisk === filters.country)
+      (!filters.countryOfRisk || t.countryOfRisk === filters.countryOfRisk)
     );
-  }
+  });
 
   const handleAddTransaction = (data) => {
     setTransactions([...transactions, {
@@ -453,6 +445,105 @@ const TransactionsPage = () => {
     }
   };
 
+  // Filter modal component
+  const FilterModal = ({ isOpen, onClose, filters, setFilters }) => {
+    if (!isOpen) return null;
+
+    const handleChange = (e) => {
+      const { name, value } = e.target;
+      setFilters((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const clearAll = () => {
+      setFilters({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <motion.div 
+          className="bg-background-secondary border border-border rounded-xl shadow-2xl w-[600px] max-w-full mx-auto p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-foreground">Filter Transactions</h2>
+            <button onClick={onClose} aria-label="Close filter modal" className="text-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <form className="space-y-4">
+            <div>
+              <label htmlFor="deal" className="block text-sm font-medium text-foreground mb-1">Deal</label>
+              <select
+                id="deal"
+                name="deal"
+                value={filters.deal}
+                onChange={handleChange}
+                className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option value="">All Deals</option>
+                {dealNames.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="issuer" className="block text-sm font-medium text-foreground mb-1">Issuer</label>
+              <select
+                id="issuer"
+                name="issuer"
+                value={filters.issuer}
+                onChange={handleChange}
+                className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option value="">All Issuers</option>
+                {issuers.map(i => (
+                  <option key={i} value={i}>{i}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="currency" className="block text-sm font-medium text-foreground mb-1">Currency</label>
+              <select
+                id="currency"
+                name="currency"
+                value={filters.currency}
+                onChange={handleChange}
+                className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option value="">All Currencies</option>
+                {currencies.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="countryOfRisk" className="block text-sm font-medium text-foreground mb-1">Country of Risk</label>
+              <select
+                id="countryOfRisk"
+                name="countryOfRisk"
+                value={filters.countryOfRisk}
+                onChange={handleChange}
+                className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+              >
+                <option value="">All Countries</option>
+                {countries.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-between mt-6">
+              <button type="button" onClick={clearAll} className="px-4 py-2 rounded-lg border border-border text-foreground hover:bg-background-tertiary transition">Clear All</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/80 transition">Apply Filters</button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
       {/* Header */}
@@ -462,7 +553,7 @@ const TransactionsPage = () => {
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center gap-3">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -480,10 +571,10 @@ const TransactionsPage = () => {
               </defs>
             </svg>
           </div>
-          <Link to="/dashboard" className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em] hover:text-primary transition-colors duration-200">
+          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
             AltMonitor
-          </Link>
-        </div>
+          </span>
+        </Link>
         
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
@@ -503,7 +594,7 @@ const TransactionsPage = () => {
       </motion.header>
 
       {/* Main Content */}
-      <main className="flex-1 container-responsive py-6">
+      <main className="flex-1 p-4 md:p-10 bg-background">
         
         {/* Page Title */}
         <motion.div 
@@ -517,14 +608,14 @@ const TransactionsPage = () => {
 
         {/* Actions Bar */}
         <motion.div 
-          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6"
+          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <motion.button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-success hover:bg-success/90 text-white font-semibold px-4 py-2 rounded-lg shadow-glow-green transition-all duration-200"
+            className="flex items-center gap-2 bg-success hover:bg-success/90 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200"
             whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(16, 185, 129, 0.25)' }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -533,52 +624,16 @@ const TransactionsPage = () => {
             Add Transaction
           </motion.button>
 
-            <motion.div
-              className="relative"
-              whileFocus={{ scale: 1.03, boxShadow: '0 2px 12px 0 rgba(197,218,235,0.10)' }}
-              whileHover={{ scale: 1.03, boxShadow: '0 2px 12px 0 rgba(197,218,235,0.10)' }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            >
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setSelectedDeal(''); }}
-                placeholder="Search transactions..."
-                className="pl-10 pr-4 py-2 bg-background-secondary border border-border/50 rounded-xl text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 shadow-soft"
-              />
-              {searchTerm && (
-                <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-foreground-secondary hover:text-primary"
-                  onClick={() => { setSearchTerm(''); setSelectedDeal(''); }}
-                  type="button"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </motion.div>
-            <motion.select 
-              value={filters.deal} 
-              onChange={e => setFilters(f => ({ ...f, deal: e.target.value }))} 
-              className="px-3 py-2 bg-background-secondary border border-border/50 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 shadow-soft"
-              whileFocus={{ scale: 1.02, boxShadow: '0 0 15px rgba(197,218,235,0.15)' }}
-              whileHover={{ scale: 1.02, boxShadow: '0 0 15px rgba(197,218,235,0.15)' }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            >
-              <option value="">All Deals</option>
-              {dealNames.map(d => <option key={d} value={d}>{d}</option>)}
-            </motion.select>
-            <motion.select 
-              value={filters.currency} 
-              onChange={e => setFilters(f => ({ ...f, currency: e.target.value }))} 
-              className="px-3 py-2 bg-background-secondary border border-border/50 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 shadow-soft"
-              whileFocus={{ scale: 1.02, boxShadow: '0 0 15px rgba(197,218,235,0.15)' }}
-              whileHover={{ scale: 1.02, boxShadow: '0 0 15px rgba(197,218,235,0.15)' }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            >
-              <option value="">All Currencies</option>
-              {currencies.map(c => <option key={c} value={c}>{c}</option>)}
-            </motion.select>
+          <motion.button
+            onClick={() => setFilterOpen(true)}
+            className="flex items-center gap-2 bg-background-secondary hover:bg-background-tertiary border border-border/50 text-foreground font-medium px-6 py-3 rounded-xl shadow-soft transition-all duration-200"
+            whileHover={{ scale: 1.02, boxShadow: '0 2px 12px 0 rgba(197,218,235,0.10)' }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          >
+            <Filter className="w-4 h-4" />
+            Filter
+          </motion.button>
         </motion.div>
 
         {/* Transactions Table */}
@@ -612,7 +667,7 @@ const TransactionsPage = () => {
                   >
                     <td className="px-6 py-3">
                       <button
-                        className="text-primary hover:text-primary/80 font-medium transition-colors duration-200 text-sm"
+                        className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
                         onClick={() => navigate(`/investments/${encodeURIComponent(t.deal)}`)}
                       >
                         {t.deal}
@@ -647,6 +702,13 @@ const TransactionsPage = () => {
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         onSave={handleAddTransaction}
+      />
+      
+      <FilterModal 
+        isOpen={isFilterOpen} 
+        onClose={() => setFilterOpen(false)} 
+        filters={filters} 
+        setFilters={setFilters} 
       />
     </div>
   );

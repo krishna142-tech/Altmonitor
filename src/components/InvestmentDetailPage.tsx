@@ -32,7 +32,7 @@ const sidebarItems = [
   'Static Data',
   'Events Tracker',
   'Reporting Tracking',
-  'Investment Summary',
+  'Portfolio Tracking',
 ];
 
 function AddFacilityModal({ isOpen, onClose, onSave }) {
@@ -246,7 +246,7 @@ const InvestmentDetailPage = () => {
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center gap-3">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -264,10 +264,10 @@ const InvestmentDetailPage = () => {
               </defs>
             </svg>
           </div>
-          <Link to="/transactions" className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em] hover:text-primary transition-colors duration-200">
+          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
             AltMonitor
-          </Link>
-        </div>
+          </span>
+        </Link>
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
           <motion.div
@@ -325,49 +325,56 @@ const InvestmentDetailPage = () => {
                   Add Facility
                 </button>
               </div>
-              <div className="overflow-x-auto rounded-xl shadow-lg bg-[#1e2124] border border-[#40484f]">
-                <table className="min-w-full text-sm md:text-base">
-                  <thead>
-                    <tr className="bg-[#2c3135] text-white">
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase">Investment Name</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase">Facility Type</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase text-amber-400">Payment Rank</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase">Seniority</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase text-green-400">Currency</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase text-amber-400">From Date</th>
-                      <th className="px-4 md:px-6 py-3 md:py-4 text-left font-semibold text-xs md:text-sm tracking-wide uppercase text-blue-400">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#40484f]">
-                    {facilities.map((f, idx) => (
-                      <tr key={idx} className="hover:bg-[#2c3135]/50 transition-all duration-200">
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-[#c5daeb] underline cursor-pointer font-medium hover:text-white transition-colors" onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}>
-                          {f.investmentName}
-                        </td>
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-[#c5daeb] font-medium">{f.facilityType}</td>
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-amber-400 font-semibold">{f.paymentRank}</td>
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-[#a2acb3]">{f.seniority}</td>
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-green-400 font-semibold">{f.currency}</td>
-                        <td className="px-4 md:px-6 py-3 md:py-4 text-amber-400 font-medium">{f.fromDate}</td>
-                        <td className="px-4 md:px-6 py-3 md:py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                            f.status === 'Active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
-                            f.status === 'Inactive' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
-                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
-                            {f.status}
-                          </span>
-                        </td>
+              <div className="bg-background-secondary border border-border/50 rounded-xl overflow-hidden shadow-medium">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="bg-background border-b border-border">
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Investment Name</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Facility Type</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Payment Rank</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Seniority</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Currency</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">From Date</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {facilities.map((f, idx) => (
+                        <tr key={idx} className="hover:bg-background transition-colors duration-200">
+                          <td className="px-6 py-3">
+                            <button
+                              className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
+                              onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
+                            >
+                              {f.investmentName}
+                            </button>
+                          </td>
+                          <td className="px-6 py-3 text-foreground-secondary text-sm">{f.facilityType}</td>
+                          <td className="px-6 py-3 text-accentGold font-semibold text-sm">{f.paymentRank}</td>
+                          <td className="px-6 py-3 text-foreground-secondary text-sm">{f.seniority}</td>
+                          <td className="px-6 py-3 text-primaryGreen font-semibold text-sm">{f.currency}</td>
+                          <td className="px-6 py-3 text-accentGold text-sm">{f.fromDate}</td>
+                          <td className="px-6 py-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                              f.status === 'Active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                              f.status === 'Inactive' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
+                              'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
+                              {f.status}
+                            </span>
+                          </td>
+                        </tr>
                     ))}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-          </div>
-          <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
-        </motion.div>
-      </>
-    );
+            </div>
+            <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
+          </motion.div>
+        </>
+      );
 };
 
 export default InvestmentDetailPage;

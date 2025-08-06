@@ -1,9 +1,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, Search, TrendingUp, LogOut } from 'lucide-react'
+import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 const MainPage = () => {
   const navigationCards = [
@@ -17,6 +18,15 @@ const MainPage = () => {
       bgColor: 'bg-primaryGreen/10'
     },
     {
+      title: 'User Portfolio',
+      icon: Briefcase,
+      path: '/portfolio',
+      description: 'Manage your investment portfolio',
+      gradient: 'from-accentGold to-accentGold-light',
+      iconColor: 'text-accentGold',
+      bgColor: 'bg-accentGold/10'
+    },
+    {
       title: 'Calendar',
       icon: Calendar,
       path: '/calendar',
@@ -24,15 +34,6 @@ const MainPage = () => {
       gradient: 'from-primaryBlue to-primaryBlue-light',
       iconColor: 'text-primaryBlue',
       bgColor: 'bg-primaryBlue/10'
-    },
-    {
-      title: 'Dashboard',
-      icon: BarChart3,
-      path: '/dashboard',
-      description: 'Analytics and insights',
-      gradient: 'from-accentGold to-accentGold-light',
-      iconColor: 'text-accentGold',
-      bgColor: 'bg-accentGold/10'
     },
     {
       title: 'User Management',
@@ -88,14 +89,7 @@ const MainPage = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              className="w-64 pl-10 pr-4 py-2 bg-background-secondary border border-border rounded-xl text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
-            />
-          </div>
+          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link to="/" className="flex items-center gap-2">
               <LogOut className="w-4 h-4" />

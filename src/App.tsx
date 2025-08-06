@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider } from '@/lib/theme'
 import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
-import DashboardPage from '@/pages/DashboardPage'
 
 // Import existing pages
 import LoginPage from '@/components/LoginPage'
@@ -56,8 +55,8 @@ function App() {
               element={
                 <>
                   <SEO
-                    title="Dashboard | AltMonitor"
-                    description="Access your investment portfolio and manage your transactions with our comprehensive dashboard."
+                    title="Main | AltMonitor"
+                    description="Access your investment portfolio and manage your transactions with AltMonitor's comprehensive platform."
                   />
                   <MainPage />
                 </>
@@ -143,6 +142,9 @@ function App() {
                 </>
               }
             />
+            
+            {/* Catch-all route - redirect to main */}
+            <Route path="*" element={<Navigate to="/main" replace />} />
           </Routes>
         </div>
       </Router>
