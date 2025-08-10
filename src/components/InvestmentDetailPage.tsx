@@ -100,7 +100,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="hasTranche">Has Tranche?</Label>
-              <select id="hasTranche" {...register('hasTranche')} className="w-full px-3 py-2 rounded border bg-[#1e2124] text-white">
+              <select id="hasTranche" {...register('hasTranche')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
                 <option value="">Select</option>
                 {yesNo.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
@@ -146,7 +146,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="assetClassification">Asset Classification</Label>
-                <select id="assetClassification" {...register('assetClassification')} className="w-full px-3 py-2 rounded border bg-[#1e2124] text-white">
+                <select id="assetClassification" {...register('assetClassification')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
                   <option value="">Select Classification</option>
                   {assetClassifications.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
@@ -165,14 +165,14 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="instrumentType">Instrument Type</Label>
-                <select id="instrumentType" {...register('instrumentType')} className="w-full px-3 py-2 rounded border bg-[#1e2124] text-white">
+                <select id="instrumentType" {...register('instrumentType')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
                   <option value="">Select Instrument</option>
                   {instrumentTypes.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="countryOfRisk">Country of Risk</Label>
-                <select id="countryOfRisk" {...register('countryOfRisk')} className="w-full px-3 py-2 rounded border bg-[#1e2124] text-white">
+                <select id="countryOfRisk" {...register('countryOfRisk')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
                   <option value="">Select Country</option>
                   {allCountries.map(country => <option key={country} value={country}>{country}</option>)}
                 </select>
@@ -187,7 +187,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="facilityStatus">Facility Status</Label>
-                <select id="facilityStatus" {...register('facilityStatus')} className="w-full px-3 py-2 rounded border bg-[#1e2124] text-white">
+                <select id="facilityStatus" {...register('facilityStatus')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
                   <option value="">Select Status</option>
                   {facilityStatuses.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>

@@ -539,7 +539,7 @@ const BauTab: React.FC = () => {
                   {/* Add Button */}
                   <div className="mt-6 flex justify-end">
                     <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                      className="bg-success hover:bg-success/90 text-white rounded-lg"
                       onClick={() => {
                         if (investorChangeForm.oldInvestorName && investorChangeForm.newInvestorName && investorChangeForm.transferDate) {
                           const newTransfer = {
@@ -690,8 +690,8 @@ const BauTab: React.FC = () => {
             )}
 
             <div className="mt-8 flex justify-start gap-3">
-              <Button variant="outline" className="rounded-lg border-green-600 text-green-600 hover:bg-green-50">Cancel</Button>
-              <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg">Save Changes</Button>
+              <Button variant="outline" className="rounded-lg border-success text-success hover:bg-success/10">Cancel</Button>
+              <Button className="bg-success hover:bg-success/90 text-white rounded-lg">Save Changes</Button>
             </div>
           </div>
           </motion.div>
