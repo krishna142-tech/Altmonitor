@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase } from 'lucide-react'
+import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
@@ -16,6 +16,15 @@ const MainPage = () => {
       gradient: 'from-primaryGreen to-primaryGreen-light',
       iconColor: 'text-primaryGreen',
       bgColor: 'bg-primaryGreen/10'
+    },
+    {
+      title: 'Portfolio View',
+      icon: PieChart,
+      path: '/portfolio-view',
+      description: 'Visualize portfolio analytics',
+      gradient: 'from-purple-500 to-purple-300',
+      iconColor: 'text-purple-500',
+      bgColor: 'bg-purple-500/10'
     },
     {
       title: 'User Portfolio',

@@ -6,6 +6,7 @@ import { Plus, Filter, Search, X, ArrowLeft } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { useData } from '@/context/DataContext'
 
 // Mocked data for table and dropdowns
 const mockTransactions = [
@@ -401,9 +402,9 @@ function ManageTransactionModal({ isOpen, onClose }) {
 }
 
 const TransactionsPage = () => {
+  const { transactions, addTransaction } = useData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
-  const [transactions, setTransactions] = useState(mockTransactions);
   const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
   const navigate = useNavigate();
 
@@ -418,18 +419,18 @@ const TransactionsPage = () => {
   });
 
   const handleAddTransaction = (data) => {
-    setTransactions([...transactions, {
-      deal: data.dealName,
-      issuer: data.issuer,
-      currency: data.currency,
-      countryOfRisk: data.countryOfRisk,
-      collateralDescription: data.collateralDescription,
-      contractDate: data.contractDate,
+    addTransaction({
+      deal: data.dealName || '',
+      issuer: data.issuer || '',
+      currency: data.currency || '',
+      countryOfRisk: data.countryOfRisk || '',
+      collateralDescription: data.collateralDescription || '',
+      contractDate: data.contractDate || '',
       assetManager: 'New Manager',
       assetManagerName: 'New Manager Name',
-      amount: data.amount,
+      amount: data.amount || '',
       status: 'Pending'
-    }]);
+    });
   };
 
   const getStatusColor = (status) => {

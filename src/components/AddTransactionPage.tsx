@@ -5,8 +5,10 @@ import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useData } from '@/context/DataContext';
 
 const AddTransactionPage = () => {
+  const { addTransaction } = useData();
   const navigate = useNavigate();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [formData, setFormData] = useState({
@@ -98,8 +100,26 @@ const AddTransactionPage = () => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Here you would typically send the data to your backend
-      console.log('Transaction submitted:', formData);
+      // Add transaction to global state
+      addTransaction({
+        deal: formData.fundName,
+        issuer: formData.investorName,
+        currency: formData.currency,
+        countryOfRisk: '',
+        collateralDescription: formData.notes,
+        contractDate: formData.transactionDate,
+        assetManager: 'Default Manager',
+        assetManagerName: 'Default Manager Name',
+        amount: formData.totalValue || formData.amount,
+        status: formData.status as 'Active' | 'Pending' | 'Completed' | 'Failed' | 'Cancelled',
+        investorName: formData.investorName,
+        fundName: formData.fundName,
+        transactionType: formData.transactionType,
+        sharePrice: formData.sharePrice,
+        numberOfShares: formData.numberOfShares,
+        totalValue: formData.totalValue,
+        notes: formData.notes
+      });
       
       // Navigate back to transactions page
       navigate('/transactions');

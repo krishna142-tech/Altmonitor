@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
+import { DataProvider } from '@/context/DataContext'
 import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
 
@@ -29,9 +30,10 @@ const SEO: React.FC<{ title: string; description: string }> = ({ title, descript
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <div className="min-h-screen bg-background text-foreground">
-          <Routes>
+      <DataProvider>
+        <Router>
+          <div className="min-h-screen bg-background text-foreground">
+            <Routes>
             {/* Redirect root to login */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             
@@ -145,9 +147,10 @@ function App() {
             
             {/* Catch-all route - redirect to main */}
             <Route path="*" element={<Navigate to="/main" replace />} />
-          </Routes>
-        </div>
-      </Router>
+            </Routes>
+          </div>
+        </Router>
+      </DataProvider>
     </ThemeProvider>
   )
 }
