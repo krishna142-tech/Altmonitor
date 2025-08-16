@@ -14,18 +14,8 @@ import { PlusCircle, Edit, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { useData } from '@/context/DataContext';
 
-const mockFacilities = [
-  {
-    investmentName: 'SBI SPV Limited',
-    facilityType: 'Debt',
-    paymentRank: 'Senior Secured',
-    seniority: '',
-    currency: 'USD',
-    fromDate: '',
-    status: 'Active',
-  },
-];
 
 const sidebarItems = [
   'Investment Data',
@@ -212,24 +202,29 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
 const InvestmentDetailPage = () => {
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
-  const [facilities, setFacilities] = useState(mockFacilities);
+  const { facilities, addFacility } = useData();
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
+  const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
 
   const navigateToBau = () => {
     navigate('/bau');
   };
 
-  const handleAddFacility = (data) => {
-    setFacilities([...facilities, {
-      investmentName: data.investmentName,
+  const handleAddFacility = (data: any) => {
+    // Persist via shared DataContext so stored data is consistent across the app
+    addFacility({
+      // link facility to the current investment/deal so each deal has its own facilities
+      transactionId: currentInvestmentName || '',
+      // always save the canonical investment name from the route to avoid mismatch
+      investmentName: currentInvestmentName,
       facilityType: data.investmentType,
       paymentRank: data.ranking,
       seniority: '',
       currency: data.currency,
       fromDate: '',
       status: data.facilityStatus,
-    }]);
+    });
   };
 
   if (activeSidebarItem === 2) {
@@ -340,7 +335,9 @@ const InvestmentDetailPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {facilities.map((f, idx) => (
+                      {facilities
+                        .filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName)
+                        .map((f, idx) => (
                         <tr key={idx} className="hover:bg-background transition-colors duration-200">
                           <td className="px-6 py-3">
                             <button

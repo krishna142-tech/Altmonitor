@@ -64,6 +64,15 @@ export interface CalendarEvent {
   updatedAt: string;
 }
 
+// Basic cashflow item shape used by facilities' generated schedules
+export interface CashflowItem {
+  period?: number;
+  date: string;
+  principal: number;
+  interest: number;
+  total: number;
+}
+
 export interface Facility {
   id: string;
   transactionId: string; // Links facility to specific transaction
@@ -91,6 +100,9 @@ export interface Facility {
   subSector?: string;
   instrumentType?: string;
   countryOfRisk?: string;
+  // Persisted UI data: general terms and any generated cashflows
+  generalTerms?: any;
+  cashflows?: CashflowItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -209,6 +221,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Transaction CRUD operations
   const addTransaction = (transactionData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Prevent accidental duplicate inserts: if a transaction with the same
+    // deal, issuer, contractDate and amount already exists, skip adding.
+    const exists = transactions.some(t => 
+      t.deal === transactionData.deal &&
+      t.issuer === transactionData.issuer &&
+      (t.contractDate || '') === (transactionData.contractDate || '') &&
+      (t.amount || '') === (transactionData.amount || '')
+    );
+    if (exists) {
+      console.warn('Duplicate transaction detected — skipping add', transactionData);
+      return;
+    }
+
     const newTransaction: Transaction = {
       ...transactionData,
       id: generateId(),
@@ -341,8 +366,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       investments,
       transactions,
       users,
-      calendarEvents,
-      dashboardStats,
+  calendarEvents,
+  facilities,
+  dashboardStats,
       timestamp: new Date().toISOString()
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -357,6 +383,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setTransactions(data.transactions || []);
         setUsers(data.users || []);
         setCalendarEvents(data.calendarEvents || []);
+        // load facilities if present, but filter out any known dummy/test rows
+        const loadedFacilities = (data.facilities || []).filter((f: any) => {
+          const name = (f.investmentName || '').toString().toLowerCase();
+          // remove specific dummy entry by name
+          if (name.includes('sbi spv limited')) return false;
+          return true;
+        });
+        setFacilities(loadedFacilities);
+        // If any dummy rows were filtered out, persist the cleaned payload back to storage
+        try {
+          const cleaned = {
+            investments: data.investments || [],
+            transactions: data.transactions || [],
+            users: data.users || [],
+            calendarEvents: data.calendarEvents || [],
+            facilities: loadedFacilities,
+            dashboardStats: data.dashboardStats || dashboardStats,
+            timestamp: new Date().toISOString()
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+        } catch (e) {
+          console.error('Failed to persist cleaned storage payload:', e);
+        }
         if (data.dashboardStats) {
           setDashboardStats(data.dashboardStats);
         }
@@ -386,7 +435,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Auto-save to localStorage whenever data changes
   useEffect(() => {
     saveToStorage();
-  }, [investments, transactions, users, calendarEvents, dashboardStats]);
+  }, [investments, transactions, users, calendarEvents, facilities, dashboardStats]);
 
   // Load data on mount
   useEffect(() => {
@@ -403,7 +452,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     transactions,
     users,
     calendarEvents,
-    dashboardStats,
+  facilities,
+  dashboardStats,
     addInvestment,
     updateInvestment,
     deleteInvestment,
@@ -412,6 +462,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateTransaction,
     deleteTransaction,
     getTransaction,
+  addFacility,
+  updateFacility,
+  deleteFacility,
+  getFacility,
+  getFacilitiesForTransaction,
     addUser,
     updateUser,
     deleteUser,

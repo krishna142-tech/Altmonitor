@@ -109,10 +109,12 @@ const MainPage = () => {
       </motion.header>
 
       {/* Main Content */}
-      <main className="flex-1 container-responsive py-6">
+  {/* Use full width layout so cards can span the entire viewport */}
+  <main className="flex-1 w-full px-6 py-6">
         {/* Navigation Cards */}
         <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {/* Layout cards in a single row on large screens: 6 columns on lg+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-start">
             {navigationCards.map((card, index) => {
               const Icon = card.icon
               return (
@@ -126,18 +128,18 @@ const MainPage = () => {
                 >
                   <Card className="group hover:shadow-xl hover:shadow-primary/10 transition-all duration-300" variant="interactive">
                     <Link to={card.path} className="block">
-                      <CardContent className="p-4 text-center">
+                      <CardContent className="p-6 text-center flex flex-col items-center justify-center">
                         <motion.div 
                           className={`w-12 h-12 ${card.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}
                           whileHover={{ scale: 1.1 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <Icon className={`w-6 h-6 ${card.iconColor}`} />
+                          <Icon className={`w-5 h-5 ${card.iconColor}`} />
                         </motion.div>
-                        <CardTitle className="text-base mb-1 group-hover:text-primary transition-colors duration-300">
+                        <CardTitle className="text-lg mb-1 group-hover:text-primary transition-colors duration-300">
                           {card.title}
                         </CardTitle>
-                        <CardDescription className="text-xs">
+                        <CardDescription className="text-sm">
                           {card.description}
                         </CardDescription>
                       </CardContent>

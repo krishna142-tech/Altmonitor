@@ -1,59 +1,18 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { useData } from '@/context/DataContext';
+import CashflowScheduler, { CashflowRow } from './CashflowScheduler';
 
 const allCountries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini (fmr. \"Swaziland\")", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
 ];
 
-const mockGeneral = {
-  'Calculation Start Date': '11-02-2025',
-  'Agreement Date': '11-02-2025',
-  'Maturity Date': '31-12-2029',
-  'S&P': '',
-  'Fitch': '',
-  "Moody's": '',
-  'Others': '',
-};
-const mockConfig = {
-  'Extension Option': 'No',
-  'Commitment Fee': 'No',
-  'Amortisation': 'No',
-  'Fee and Expenses': 'Yes',
-  'Interest Type': 'Cash Interest',
-  'Revolving Facility': 'No',
-};
-const mockDayOne = {
-  'Initial Commitment': '100000000',
-  'Price': '',
-  'Ratings Agency': "Fitch, S&P, Moody's, Others",
-  'Ratings': 'AA, AA, Aa, ',
-};
-const mockDefault = {
-  'First Interest Payment Date': '31-06-2025',
-  'InterestType': 'Floating',
-  'Interval Tenor': '12',
-  'Scheduled On': 'Extra',
-  'Day Count Convention': '365',
-  'Day of Month': '',
-  'Interval Rate Type': '',
-  'Margin': '',
-  'Default Rate': '',
-  'Interest Payment Dates': '30-Jun, 31-Dec',
-  'Holiday Adjustment': 'Yes',
-  'Holiday Convention': 'Following',
-  'Holidays': '',
-};
-const mockAdditional = {
-  'Different convention Maturity': 'Yes',
-  'Holiday Adjustent on Calculation start date': 'Yes',
-  'Payment Date': '',
-};
 
 const yesNo = ["Yes", "No"];
 const interestTypes = ["Cash Interest", "Floating", "Fixed", "Other"];
@@ -87,6 +46,32 @@ const FacilityDetailPage = () => {
   const [scheduledType, setScheduledType] = useState('Scheduled');
   const [drawdownAmount, setDrawdownAmount] = useState('');
   const [drawdownDate, setDrawdownDate] = useState('');
+  const { facilities, addFacility, updateFacility } = useData();
+  const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
+  const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
+
+  // controlled general form state
+  const [generalData, setGeneralData] = useState<any>({});
+
+  useEffect(() => {
+    if (currentFacility) {
+      // load general terms if present
+      setGeneralData((currentFacility as any).generalTerms || {});
+      // load cashflows if present
+      if ((currentFacility as any).cashflows) {
+        // store as payments array or as rows
+        const existing = (currentFacility as any).cashflows;
+        // if existing is array of objects with date/principal/interest etc map to rows
+        if (Array.isArray(existing) && existing.length && existing[0].date) {
+          setCashflowData({ payments: existing });
+        } else {
+          setCashflowData({ payments: existing });
+        }
+      }
+    } else {
+      setGeneralData({});
+    }
+  }, [currentFacility]);
   
   const handleGenerateCashflow = async () => {
     setIsGenerating(true);
@@ -107,8 +92,9 @@ const FacilityDetailPage = () => {
         ]
       };
       
-      setCashflowData(mockCashflow);
-      alert('Cashflow generated successfully! Check console for details.');
+  // set local generated payments only; do NOT persist automatically
+  setCashflowData(mockCashflow);
+  alert('Cashflow generated locally. Click "Save Schedule" to persist to facility.');
       console.log('Generated Cashflow:', mockCashflow);
     } catch (error) {
       console.error('Error generating cashflow:', error);
@@ -360,6 +346,30 @@ const FacilityDetailPage = () => {
                 <button 
                   type="button"
                   className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
+                  onClick={() => {
+                    try {
+                      if (currentFacility) {
+                        updateFacility(currentFacility.id, { ...currentFacility, generalTerms: generalData });
+                        alert('General terms saved');
+                      } else {
+                        addFacility({
+                          transactionId: facilityKey || '',
+                          investmentName: facilityKey || '',
+                          facilityType: '',
+                          paymentRank: '',
+                          seniority: '',
+                          currency: '',
+                          fromDate: '',
+                          status: 'Active',
+                          generalTerms: generalData
+                        });
+                        alert('General terms saved (new facility created)');
+                      }
+                    } catch (e) {
+                      console.error('Failed to save general terms', e);
+                      alert('Failed to save general terms');
+                    }
+                  }}
                 >
                   Save
                 </button>
@@ -489,6 +499,58 @@ const FacilityDetailPage = () => {
                 >
                   {isGenerating ? 'Generating...' : 'Generate Cashflow'}
                 </button>
+              </div>
+              {/* Cashflow Scheduler component */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Cashflow Schedule</h3>
+                <CashflowScheduler
+                  initialRows={
+                    cashflowData && cashflowData.payments ? cashflowData.payments.map((p: any) => ({ date: p.date, drawdown: p.principal || 0, repayment: 0 })) : undefined
+                  }
+                  initialOpeningBalance={0}
+                  initialRate={5}
+                  initialDayCount={365}
+                  onChange={(calculated) => {
+                    // update local UI state only; persistence will happen when user clicks Save Schedule
+                    setCashflowData({ payments: calculated });
+                  }}
+                />
+                <div className="flex justify-end mt-4">
+                  <button
+                    type="button"
+                    className="px-4 py-2 rounded bg-primary text-white"
+                    onClick={() => {
+                      try {
+                        if (!cashflowData || !cashflowData.payments) {
+                          alert('No schedule to save');
+                          return;
+                        }
+                        if (currentFacility) {
+                          updateFacility(currentFacility.id, { ...currentFacility, cashflows: cashflowData.payments });
+                          alert('Cashflow schedule saved to facility');
+                        } else {
+                          addFacility({
+                            transactionId: facilityKey || '',
+                            investmentName: facilityKey || '',
+                            facilityType: '',
+                            paymentRank: '',
+                            seniority: '',
+                            currency: '',
+                            fromDate: '',
+                            status: 'Active',
+                            cashflows: cashflowData.payments
+                          });
+                          alert('Cashflow schedule saved (new facility created)');
+                        }
+                      } catch (e) {
+                        console.error('Failed to save cashflow schedule', e);
+                        alert('Failed to save cashflow schedule');
+                      }
+                    }}
+                  >
+                    Save Schedule
+                  </button>
+                </div>
               </div>
             </form>
           </motion.div>

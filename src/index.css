@@ -40,6 +40,17 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  /* Global visual scaling to emulate browser zoom-out (75%)
+     Add/remove the class `site-zoom-75` on the root element to change
+     the entire UI scale without changing component sizes. This keeps
+     layout proportions but reduces the rendered size similar to browser zoom.
+  */
+  .site-zoom-75 > #root, .site-zoom-75 > body > #root, .site-zoom-75 > .app-root {
+    transform-origin: top center;
+    transform: scale(0.75);
+    width: 133.3333%; /* 1 / 0.75 to avoid horizontal clipping */
+  }
+
   /* Smooth transitions for theme switching */
   * {
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
