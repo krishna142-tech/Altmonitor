@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Receipt, LogOut, BarChart3, FileText, Settings } from 'lucide-react';
+import { Receipt, LogOut, FileText, Settings } from 'lucide-react';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -27,7 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
           </Link>
         </div>
         <nav className="mt-4">
-          {navItems.map((item, index) => {
+          {navItems.map((item, _index) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             
@@ -60,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
         <div className="absolute inset-0 opacity-[0.02]">
           <svg width="100%" height="100%" className="absolute inset-0">
             <defs>
-              <pattern id="sidebarGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <pattern id="sidebarGrid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="0.5"/>
               </pattern>
             </defs>
@@ -74,8 +74,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
             key={i}
             className="absolute bg-gradient-to-br from-primary/5 to-border/5 backdrop-blur-[0.2px] border border-primary/10 animate-float-crystal"
             style={{
-              width: `${20 + Math.random() * 15}px`,
-              height: `${20 + Math.random() * 15}px`,
+              width: `${(20 + Math.random() * 15) / 12}rem`,
+              height: `${(20 + Math.random() * 15) / 12}rem`,
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               transform: `rotate(${Math.random() * 360}deg)`,
@@ -134,47 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
         </nav>
       </div>
 
-      {/* Custom CSS for animations */}
-      <style jsx>{`
-        @keyframes slide-in-left {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes float-crystal {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
-            opacity: 0.2;
-          }
-          33% {
-            transform: translateY(-4px) rotate(120deg) scale(1.01);
-            opacity: 0.4;
-          }
-          66% {
-            transform: translateY(-2px) rotate(240deg) scale(0.99);
-            opacity: 0.3;
-          }
-        }
-        
-        .animate-slide-in-left {
-          animation: slide-in-left 0.6s ease-out forwards;
-          opacity: 0;
-        }
-        
-        .animate-float-crystal {
-          animation: float-crystal 18s ease-in-out infinite;
-        }
-        
-        .animation-delay-200 {
-          animation-delay: 0.2s;
-        }
-      `}</style>
+  {/* Keyframes moved to src/index.css to avoid JSX style typing issues */}
     </div>
   );
 };

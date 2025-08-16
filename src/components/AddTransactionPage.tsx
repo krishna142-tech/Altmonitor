@@ -263,7 +263,7 @@ const AddTransactionPage = () => {
 
         <div className="bg-[#1e2124] border border-[#40484f] rounded-xl p-8 animate-scale-in animation-delay-200 hover:border-[#c5daeb]/50 transition-all duration-300">
           <div className="w-full overflow-x-auto">
-            <form onSubmit={handleSubmit} className="space-y-6 min-w-[700px]">
+            <form onSubmit={handleSubmit} className="space-y-6 min-w-[58.333rem]">
               {/* Row 1: Investor Name and Fund Name */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up animation-delay-400">
                 <div>
@@ -511,7 +511,7 @@ const AddTransactionPage = () => {
         @keyframes slide-in-down {
           from {
             opacity: 0;
-            transform: translateY(-30px);
+            transform: translateY(-2.5rem); /* 30px -> 30/12 = 2.5rem */
           }
           to {
             opacity: 1;
@@ -533,7 +533,7 @@ const AddTransactionPage = () => {
         @keyframes fade-in-up {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(1.667rem); /* 20px -> 20/12 = 1.667rem */
           }
           to {
             opacity: 1;

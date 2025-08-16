@@ -31,6 +31,11 @@
     --primary-foreground: 18 21 22;
   }
 
+  /* Make the root font-size 75% (12px base) so rem units scale down globally */
+  html {
+    font-size: 75%; /* 16px * 0.75 = 12px */
+  }
+
   * {
     @apply border-border;
   }
@@ -45,10 +50,35 @@
      the entire UI scale without changing component sizes. This keeps
      layout proportions but reduces the rendered size similar to browser zoom.
   */
-  .site-zoom-75 > #root, .site-zoom-75 > body > #root, .site-zoom-75 > .app-root {
+  /* Prefer using the non-standard CSS `zoom` where supported because it
+     behaves like browser zoom and doesn't change layout geometry (no wide
+     container). If `zoom` isn't supported, fall back to transform scale and
+     center the root. Also hide horizontal overflow when zooming to avoid
+     unwanted horizontal scrollbars. */
+
+  /* Hide horizontal overflow when zoom active */
+  html.site-zoom-75, body.site-zoom-75 {
+    overflow-x: hidden;
+  }
+
+  /* Use zoom if supported */
+  @supports (zoom: 1) {
+    html.site-zoom-75, body.site-zoom-75, #root.site-zoom-75, .site-zoom-75 > #root, .site-zoom-75 > body > #root {
+      zoom: 0.75;
+    }
+  }
+
+  /* Fallback for browsers without zoom support: scale and center the root */
+  #root.site-zoom-75,
+  .site-zoom-75 > #root,
+  .site-zoom-75 > body > #root,
+  .site-zoom-75 > .app-root {
     transform-origin: top center;
     transform: scale(0.75);
-    width: 133.3333%; /* 1 / 0.75 to avoid horizontal clipping */
+    margin-left: auto;
+    margin-right: auto;
+    /* do not expand container width; let scaled content fit */
+    width: 100%;
   }
 
   /* Smooth transitions for theme switching */
@@ -58,8 +88,8 @@
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 0.667rem; /* was 8px -> 8/12 = 0.667rem */
+    height: 0.667rem; /* was 8px */
   }
 
   ::-webkit-scrollbar-track {
@@ -97,7 +127,7 @@
   @keyframes slide-up {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(1.667rem); /* 20px -> 20/12 = 1.667rem */
     }
     to {
       opacity: 1;
@@ -108,7 +138,7 @@
   @keyframes slide-in {
     from {
       opacity: 0;
-      transform: translateX(-20px);
+      transform: translateX(-1.667rem); /* 20px -> 1.667rem */
     }
     to {
       opacity: 1;
@@ -126,6 +156,46 @@
 
   .animate-slide-in {
     animation: slide-in 0.5s ease-out;
+  }
+
+  /* Sidebar animations moved here */
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-1.667rem); /* 20px -> 1.667rem */
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes float-crystal {
+    0%, 100% {
+      transform: translateY(0rem) rotate(0deg) scale(1);
+      opacity: 0.2;
+    }
+    33% {
+      transform: translateY(-0.333rem) rotate(120deg) scale(1.01); /* -4px -> -0.333rem */
+      opacity: 0.4;
+    }
+    66% {
+      transform: translateY(-0.167rem) rotate(240deg) scale(0.99); /* -2px -> -0.167rem */
+      opacity: 0.3;
+    }
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-float-crystal {
+    animation: float-crystal 18s ease-in-out infinite;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 0.2s;
   }
 }
 

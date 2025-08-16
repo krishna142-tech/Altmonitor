@@ -281,7 +281,7 @@ const InvestmentDetailPage = () => {
       </motion.header>
       {/* Second Navigation Bar (Tabs) */}
       <motion.div 
-        className="sticky top-[73px] z-40 bg-background-secondary border-b border-border/30 px-4 md:px-6 py-2"
+  className="sticky top-[6.083rem] z-40 bg-background-secondary border-b border-border/30 px-4 md:px-6 py-2"
         initial={{ y: -50 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}

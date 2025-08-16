@@ -79,7 +79,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <motion.div 
-        className="bg-background-secondary border border-border rounded-xl shadow-2xl w-[900px] max-w-3xl mx-auto"        
+        className="bg-background-secondary border border-border rounded-xl shadow-2xl w-[75rem] max-w-3xl mx-auto"        
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -386,7 +386,7 @@ function ManageTransactionModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <motion.div 
-        className="bg-background-secondary border border-border rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+  className="bg-background-secondary border border-border rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -400,7 +400,7 @@ function ManageTransactionModal({ isOpen, onClose }) {
           </CardHeader>
           <CardContent>
             <div className="w-full overflow-x-auto">
-              <form className="space-y-6 min-w-[700px]">
+              <form className="space-y-6 min-w-[58.333rem]">
               {/* First Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -602,7 +602,7 @@ const TransactionsPage = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
         <motion.div 
-          className="bg-background-secondary border border-border rounded-xl shadow-2xl w-[600px] max-w-full mx-auto p-6"
+          className="bg-background-secondary border border-border rounded-xl shadow-2xl w-[50rem] max-w-full mx-auto p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}

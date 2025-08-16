@@ -43,18 +43,18 @@ const HomePage = () => {
             </div>
             <Link
               to="/login"
-              className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em]"
+              className="flex min-w-[7rem] max-w-[40rem] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em]"
             >
               <span className="truncate">Login</span>
             </Link>
           </div>
         </header>
         <div className="px-40 flex flex-1 justify-center py-5">
-          <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
+          <div className="layout-content-container flex flex-col max-w-[80rem] flex-1">
             <div className="@container">
               <div className="@[480px]:p-4">
                 <div
-                  className="flex min-h-[480px] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-center justify-center p-4"
+                  className="flex min-h-[40rem] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-center justify-center p-4"
                   style={{
                     backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.4) 100%), url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpGhuVdpllKJbEdPcMerLoIEYFYyOuDkkU9mmSNsgb4oan5sWj8B4_WkcLNtqaHp_oU5nSWde_aqXoqEscoBesUKdg96b5z5wKdF625TWy9ObJcx88QadX4tqyrsPKA7-MHXNvx9Qb_vRb2Qc1ZgT9as8mK1JsijfkKSI6pLhinK9tMtupTE7Iod3iAt8nEgUKQ9mgPi0GB0Kb4SMDS0FdXFunVRJHAsH4krKR_DPnQPl57VsNCuvWA4N6GqYXrJjErn3QGmXdhGE")`
                   }}
@@ -69,14 +69,14 @@ const HomePage = () => {
                   </div>
                   <Link
                     to="/login"
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em]"
+                    className="flex min-w-[7rem] max-w-[40rem] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em]"
                   >
                     <span className="truncate">Login</span>
                   </Link>
                 </div>
               </div>
             </div>
-            <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">What is AltMonitor?</h2>
+            <h2 className="text-white text-[1.833rem] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">What is AltMonitor?</h2>
             <p className="text-white text-base font-normal leading-normal pb-3 pt-1 px-4">
               AltMonitor is a cutting-edge platform designed to provide investors with real-time insights into their private equity transactions. With a focus on security and user
               experience, AltMonitor offers a comprehensive suite of tools to track investments, analyze performance, and make informed decisions. Our intuitive interface and
@@ -85,7 +85,7 @@ const HomePage = () => {
             <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Key Features</h2>
             <div className="flex flex-col gap-10 px-4 py-10 @container">
               <div className="flex flex-col gap-4">
-                <h1 className="text-white tracking-light text-[32px] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
+                <h1 className="text-white tracking-light text-[2.667rem] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[60rem]">
                   Empowering Investors with Advanced Tools
                 </h1>
                 <p className="text-white text-base font-normal leading-normal max-w-[720px]">
@@ -133,7 +133,7 @@ const HomePage = () => {
             <div className="@container">
               <div className="flex flex-col justify-end gap-6 px-4 py-10 @[480px]:gap-8 @[480px]:px-10 @[480px]:py-20">
                 <div className="flex flex-col gap-2 text-center">
-                  <h1 className="text-white tracking-light text-[32px] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
+                  <h1 className="text-white tracking-light text-[2.667rem] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[60rem]">
                     Ready to Take Control of Your Investments?
                   </h1>
                   <p className="text-white text-base font-normal leading-normal max-w-[720px]">Join AltMonitor today and experience the future of private equity management.</p>
@@ -142,7 +142,7 @@ const HomePage = () => {
                   <div className="flex justify-center">
                     <Link
                       to="/login"
-                      className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em] grow"
+                      className="flex min-w-[7rem] max-w-[40rem] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#c5daeb] text-[#121516] text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em] grow"
                     >
                       <span className="truncate">Get Started</span>
                     </Link>

@@ -98,7 +98,7 @@ const CallToActionSection: React.FC = () => {
             >
               <Button 
                 size="lg" 
-                className="min-w-[200px] hover:shadow-lg hover:shadow-primary/20"
+                className="min-w-[16.667rem] hover:shadow-lg hover:shadow-primary/20"
                 asChild
               >
                 <Link to="/login">
@@ -108,7 +108,7 @@ const CallToActionSection: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="min-w-[200px]"
+                className="min-w-[16.667rem]"
               >
                 Schedule Demo
               </Button>

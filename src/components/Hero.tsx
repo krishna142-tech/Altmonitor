@@ -22,7 +22,7 @@ const Hero: React.FC<HeroProps> = ({ className }) => {
     >
       <div className="@[480px]:p-4">
         <motion.div
-          className="flex min-h-[480px] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-center justify-center p-8 md:p-12 lg:p-16 relative overflow-hidden"
+          className="flex min-h-[40rem] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-xl items-center justify-center p-8 md:p-12 lg:p-16 relative overflow-hidden"
           style={{
             backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.6) 100%), url("https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80")`
           }}
@@ -65,7 +65,7 @@ const Hero: React.FC<HeroProps> = ({ className }) => {
             >
               <Button 
                 size="lg" 
-                className="min-w-[200px] hover:shadow-lg"
+                className="min-w-[16.667rem] hover:shadow-lg"
                 asChild
               >
                 <Link to="/login">
@@ -75,7 +75,7 @@ const Hero: React.FC<HeroProps> = ({ className }) => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="min-w-[200px] border-foreground/20 text-foreground hover:bg-foreground/10"
+                className="min-w-[16.667rem] border-foreground/20 text-foreground hover:bg-foreground/10"
               >
                 Watch Demo
               </Button>
@@ -84,7 +84,7 @@ const Hero: React.FC<HeroProps> = ({ className }) => {
           
           {/* Floating elements for visual interest */}
           <motion.div
-            className="absolute top-20 left-10 w-2 h-2 bg-primary rounded-full opacity-60"
+            className="absolute top-5 left-2.5 w-0.167rem h-0.167rem bg-primary rounded-full opacity-60"
             animate={{ 
               y: [0, -10, 0],
               opacity: [0.4, 0.8, 0.4]
@@ -96,7 +96,7 @@ const Hero: React.FC<HeroProps> = ({ className }) => {
             }}
           />
           <motion.div
-            className="absolute bottom-20 right-20 w-3 h-3 bg-primaryBlue rounded-full opacity-50"
+            className="absolute bottom-5 right-5 w-0.25rem h-0.25rem bg-primaryBlue rounded-full opacity-50"
             animate={{ 
               y: [0, 15, 0],
               opacity: [0.3, 0.7, 0.3]
