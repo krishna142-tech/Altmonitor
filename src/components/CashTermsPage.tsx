@@ -1,10 +1,5 @@
-import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Loader2, TrendingUp, Calendar, Star, DollarSign, Settings, Clock, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 
 const mockGeneral = {
   'Calculation Start Date': '11-02-2025',
@@ -51,41 +46,7 @@ const mockAdditional = {
 };
 
 const CashTermsPage = () => {
-  const { facilityId } = useParams();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [cashflowData, setCashflowData] = useState(null);
-  
-  const handleGenerateCashflow = async () => {
-    setIsGenerating(true);
-    try {
-      // Simulate cashflow generation API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock cashflow data based on current terms
-      const mockCashflow = {
-        facilityId,
-        totalCommitment: mockDayOne['Initial Commitment'],
-        interestType: mockDefault['InterestType'],
-        dayCountConvention: mockDefault['Day Count Convention'],
-        firstPaymentDate: mockDefault['First Interest Payment Date'],
-        paymentDates: mockDefault['Interest Payment Dates'],
-        calculations: [
-          { period: 1, startDate: '2025-06-01', endDate: '2025-06-30', days: 30, interest: 458333 },
-          { period: 2, startDate: '2025-12-01', endDate: '2025-12-31', days: 31, interest: 465000 },
-          // ... more calculations
-        ]
-      };
-      
-      setCashflowData(mockCashflow);
-      alert('Cashflow generated successfully! Check console for details.');
-      console.log('Generated Cashflow:', mockCashflow);
-    } catch (error) {
-      console.error('Error generating cashflow:', error);
-      alert('Error generating cashflow. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  useParams();
   
   return (
 <Card className="min-h-screen bg-[#121516] p-6" style={{ fontFamily: 'Inter, "Noto Sans", sans-serif' }}>
@@ -234,17 +195,7 @@ const CashTermsPage = () => {
           </div>
           
           <div className="flex justify-end mt-8 mb-4">
-<Button 
-              onClick={handleGenerateCashflow}
-              disabled={isGenerating}
-              className={`px-8 py-3 rounded-xl shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl ${
-                isGenerating 
-                  ? 'bg-gray-500 cursor-not-allowed text-white' 
-                  : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
-            >
-              {isGenerating ? 'Generating...' : 'Generate Cashflow'}
-            </Button>
+            {/* Cashflow schedule feature removed */}
           </div>
         </CardContent>
       </CardContent>

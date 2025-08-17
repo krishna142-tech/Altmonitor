@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
@@ -7,7 +7,7 @@ import { FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
-import CashflowScheduler, { CashflowRow } from './CashflowScheduler';
+// Cashflow scheduler moved to its own page
 
 const allCountries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini (fmr. \"Swaziland\")", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
@@ -37,7 +37,7 @@ const FacilityDetailPage = () => {
   const { facilityId } = useParams();
   const [activeTab, setActiveTab] = useState('general');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [cashflowData, setCashflowData] = useState<any>(null);
+  // cashflow schedule moved to separate page; no local cashflow state here
   const [amortisationValue, setAmortisationValue] = useState('Yes');
   const [drawdownType, setDrawdownType] = useState('Scheduled');
   const [drawOn, setDrawOn] = useState('');
@@ -52,53 +52,188 @@ const FacilityDetailPage = () => {
 
   // controlled general form state
   const [generalData, setGeneralData] = useState<any>({});
+  // controlled fields used for cashflow generation
+  const [calcStartDateState, setCalcStartDateState] = useState('');
+  const [agreementDateState, setAgreementDateState] = useState('');
+  const [maturityDateState, setMaturityDateState] = useState('');
+  const [initialCommitmentState, setInitialCommitmentState] = useState('100000000');
+  const [marginRateState, setMarginRateState] = useState('5%');
+  const [interestTypeState, setInterestTypeState] = useState('Cash Interest');
+  const [paymentFrequencyState, setPaymentFrequencyState] = useState('12'); // months
+  const [dayCountConventionState, setDayCountConventionState] = useState('Actual/365');
+  const [holidayConventionState, setHolidayConventionState] = useState('Following');
+  const [holidayAdjustmentState, setHolidayAdjustmentState] = useState('Yes');
+  const [cashflowSchedule, setCashflowSchedule] = useState<any[]>([]);
+  const scheduleRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (currentFacility) {
       // load general terms if present
       setGeneralData((currentFacility as any).generalTerms || {});
-      // load cashflows if present
-      if ((currentFacility as any).cashflows) {
-        // store as payments array or as rows
-        const existing = (currentFacility as any).cashflows;
-        // if existing is array of objects with date/principal/interest etc map to rows
-        if (Array.isArray(existing) && existing.length && existing[0].date) {
-          setCashflowData({ payments: existing });
-        } else {
-          setCashflowData({ payments: existing });
-        }
-      }
+      const gt = (currentFacility as any).generalTerms || {};
+      if (gt.calculationStartDate) setCalcStartDateState(gt.calculationStartDate);
+      if (gt.agreementDate) setAgreementDateState(gt.agreementDate);
+      if (gt.maturityDate) setMaturityDateState(gt.maturityDate);
+      if (gt.initialCommitment) setInitialCommitmentState(String(gt.initialCommitment));
+      if (gt.marginRate) setMarginRateState(String(gt.marginRate));
+      if (gt.interestType) setInterestTypeState(gt.interestType);
     } else {
       setGeneralData({});
     }
   }, [currentFacility]);
-  
-  const handleGenerateCashflow = async () => {
+
+  // when schedule is generated and user is on cashflow tab, scroll/focus the results
+  useEffect(() => {
+    if (activeTab === 'cashflow' && cashflowSchedule && cashflowSchedule.length > 0 && scheduleRef.current) {
+      try {
+        scheduleRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        (scheduleRef.current as HTMLDivElement).focus();
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [cashflowSchedule, activeTab]);
+
+  const handleGenerateCashflow = async (): Promise<boolean> => {
     setIsGenerating(true);
     try {
-      // Simulate cashflow generation API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock cashflow data
-      const mockCashflow = {
-        totalAmount: 100000000,
-        interestRate: 5.5,
-        tenor: 60, // months
-        payments: [
-          { date: '2025-06-30', principal: 1666667, interest: 458333, total: 2125000 },
-          { date: '2025-12-31', principal: 1666667, interest: 450000, total: 2116667 },
-          { date: '2026-06-30', principal: 1666667, interest: 441667, total: 2108334 },
-          // ... more payments
-        ]
+      // allow fallback: use Calculation Start Date, else Agreement Date, else today
+      const parseDate = (s: string) => {
+        if (!s) return null;
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
       };
-      
-  // set local generated payments only; do NOT persist automatically
-  setCashflowData(mockCashflow);
-  alert('Cashflow generated locally. Click "Save Schedule" to persist to facility.');
-      console.log('Generated Cashflow:', mockCashflow);
-    } catch (error) {
-      console.error('Error generating cashflow:', error);
-      alert('Error generating cashflow. Please try again.');
+
+      const addMonths = (d: Date, months: number) => {
+        const nd = new Date(d.getTime());
+        const day = nd.getDate();
+        nd.setMonth(nd.getMonth() + months);
+        if (nd.getDate() < day) nd.setDate(0);
+        return nd;
+      };
+
+      const addDays = (d: Date, days: number) => {
+        const nd = new Date(d.getTime());
+        nd.setDate(nd.getDate() + days);
+        return nd;
+      };
+
+      const diffDays = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+
+      const yearFraction = (a: Date, b: Date, convention: string) => {
+        const days = diffDays(a, b);
+        const c = (convention || '').toLowerCase();
+        if (c.includes('actual') && c.includes('360')) return days / 360;
+        if (c.includes('actual') && c.includes('365')) return days / 365;
+        if (c === '360') return days / 360;
+        if (c === '365') return days / 365;
+        if (c.includes('30/360')) {
+          // naive 30/360
+          const da = a.getDate();
+          const db = b.getDate();
+          const ma = a.getMonth() + 1;
+          const mb = b.getMonth() + 1;
+          const ya = a.getFullYear();
+          const yb = b.getFullYear();
+          const d1 = Math.min(30, da);
+          const d2 = Math.min(30, db);
+          const days360 = 360 * (yb - ya) + 30 * (mb - ma) + (d2 - d1);
+          return days360 / 360;
+        }
+        return days / 365;
+      };
+
+      const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
+
+      const adjustBusinessDay = (d: Date, convention: string) => {
+        const conv = (convention || 'Following').toLowerCase();
+        let nd = new Date(d.getTime());
+        if (!isWeekend(nd)) return nd;
+        if (conv.includes('following')) {
+          while (isWeekend(nd)) nd.setDate(nd.getDate() + 1);
+          return nd;
+        }
+        if (conv.includes('preceding')) {
+          while (isWeekend(nd)) nd.setDate(nd.getDate() - 1);
+          return nd;
+        }
+        if (conv.includes('modified')) {
+          const origMonth = nd.getMonth();
+          const following = new Date(nd.getTime());
+          while (isWeekend(following)) following.setDate(following.getDate() + 1);
+          if (following.getMonth() !== origMonth) {
+            const preceding = new Date(nd.getTime());
+            while (isWeekend(preceding)) preceding.setDate(preceding.getDate() - 1);
+            return preceding;
+          }
+          return following;
+        }
+        return nd;
+      };
+
+      const startString = calcStartDateState || agreementDateState || new Date().toISOString().slice(0,10);
+      const startDate = parseDate(startString);
+      const maturityDate = parseDate(maturityDateState);
+
+      if (!startDate || !maturityDate) {
+        alert('Invalid or missing dates. Please provide a valid Calculation Start Date or Agreement Date, and a valid Maturity Date.');
+        return false;
+      }
+
+      if (startDate.getTime() >= maturityDate.getTime()) {
+        alert('Calculation Start Date must be before Maturity Date.');
+        return false;
+      }
+
+      const principal = Number(String(initialCommitmentState).replace(/,/g, '')) || 0;
+      const marginNum = Number(String(marginRateState).replace('%', '')) || 0;
+      const freqMonths = Math.max(1, Number(paymentFrequencyState) || 12);
+
+      const rows: any[] = [];
+      let periodStart = new Date(startDate.getTime());
+      // generate periods until maturity
+      let safety = 0;
+      while (periodStart.getTime() < maturityDate.getTime() && safety < 1000) {
+        safety += 1;
+        let periodEnd = addMonths(periodStart, freqMonths);
+        if (periodEnd.getTime() > maturityDate.getTime()) periodEnd = new Date(maturityDate.getTime());
+        const days = diffDays(periodStart, periodEnd);
+        const yf = yearFraction(periodStart, periodEnd, dayCountConventionState);
+        const adjPayment = adjustBusinessDay(periodEnd, holidayConventionState);
+        const interest = principal * (marginNum / 100) * yf;
+        rows.push({
+          fromDate: periodStart.toISOString().slice(0,10),
+          toDate: periodEnd.toISOString().slice(0,10),
+          expectedPaymentDate: adjPayment.toISOString().slice(0,10),
+          numberOfDays: days,
+          dayCount: dayCountConventionState,
+          marginRate: marginRateState,
+          interest: Number(interest.toFixed(2))
+        });
+        // advance to the day after period end to avoid infinite loops
+        periodStart = addDays(periodEnd, 1);
+      }
+
+      if (safety >= 1000) {
+        alert('Failed to generate schedule: exceeded iteration limit. Check frequency and dates.');
+        return false;
+      }
+
+      setCashflowSchedule(rows);
+      // persist to facility if available
+      try {
+        if (currentFacility) {
+          const updated = { ...currentFacility, cashflows: rows } as any;
+          updateFacility(currentFacility.id, updated);
+        }
+      } catch (e) {
+        console.error('Failed to persist cashflow schedule to facility', e);
+      }
+      return true;
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate cashflow schedule');
+      return false;
     } finally {
       setIsGenerating(false);
     }
@@ -201,6 +336,17 @@ const FacilityDetailPage = () => {
           >
             Drawdown
           </button>
+          <button
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+              activeTab === 'cashflow' 
+                ? 'bg-primary text-primary-foreground shadow-soft' 
+                : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
+            }`}
+            onClick={() => setActiveTab('cashflow')}
+          >
+            Cashflow Schedule
+          </button>
+          {/* Cashflow Schedule removed — navigation link intentionally omitted */}
         </div>
       </motion.div>
 
@@ -220,15 +366,15 @@ const FacilityDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Calculation Start Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <input type="date" value={calcStartDateState} onChange={e => setCalcStartDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Agreement Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <input type="date" value={agreementDateState} onChange={e => setAgreementDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Maturity Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <input type="date" value={maturityDateState} onChange={e => setMaturityDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                 </div>
               </div>
@@ -282,12 +428,7 @@ const FacilityDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Initial Commitment</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      <option>100000000</option>
-                      <option>50000000</option>
-                      <option>25000000</option>
-                      <option>Other</option>
-                    </select>
+                    <input type="text" value={initialCommitmentState} onChange={e => setInitialCommitmentState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Price</label>
@@ -395,17 +536,17 @@ const FacilityDetailPage = () => {
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">InterestType</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select value={interestTypeState} onChange={e => setInterestTypeState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {interestTypes.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Interval Tenor</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      <option>12</option>
-                      <option>6</option>
-                      <option>3</option>
-                      <option>Other</option>
+                    <select value={paymentFrequencyState} onChange={e => setPaymentFrequencyState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                      <option value="12">12</option>
+                      <option value="6">6</option>
+                      <option value="3">3</option>
+                      <option value="1">1</option>
                     </select>
                   </div>
                   <div>
@@ -416,7 +557,7 @@ const FacilityDetailPage = () => {
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Day Count Convention</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select value={dayCountConventionState} onChange={e => setDayCountConventionState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {dayCountConventions.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
@@ -451,13 +592,13 @@ const FacilityDetailPage = () => {
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Holiday Adjustment</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select value={holidayAdjustmentState} onChange={e => setHolidayAdjustmentState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {yesNo.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Holiday Convention</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select value={holidayConventionState} onChange={e => setHolidayConventionState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {holidayConventions.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
@@ -494,63 +635,14 @@ const FacilityDetailPage = () => {
                 <button 
                   type="button"
                   className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
-                  onClick={handleGenerateCashflow}
+                  onClick={async () => {
+                    const ok = await handleGenerateCashflow();
+                    if (ok) setActiveTab('cashflow');
+                  }}
                   disabled={isGenerating}
                 >
                   {isGenerating ? 'Generating...' : 'Generate Cashflow'}
                 </button>
-              </div>
-              {/* Cashflow Scheduler component */}
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-3">Cashflow Schedule</h3>
-                <CashflowScheduler
-                  initialRows={
-                    cashflowData && cashflowData.payments ? cashflowData.payments.map((p: any) => ({ date: p.date, drawdown: p.principal || 0, repayment: 0 })) : undefined
-                  }
-                  initialOpeningBalance={0}
-                  initialRate={5}
-                  initialDayCount={365}
-                  onChange={(calculated) => {
-                    // update local UI state only; persistence will happen when user clicks Save Schedule
-                    setCashflowData({ payments: calculated });
-                  }}
-                />
-                <div className="flex justify-end mt-4">
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded bg-primary text-white"
-                    onClick={() => {
-                      try {
-                        if (!cashflowData || !cashflowData.payments) {
-                          alert('No schedule to save');
-                          return;
-                        }
-                        if (currentFacility) {
-                          updateFacility(currentFacility.id, { ...currentFacility, cashflows: cashflowData.payments });
-                          alert('Cashflow schedule saved to facility');
-                        } else {
-                          addFacility({
-                            transactionId: facilityKey || '',
-                            investmentName: facilityKey || '',
-                            facilityType: '',
-                            paymentRank: '',
-                            seniority: '',
-                            currency: '',
-                            fromDate: '',
-                            status: 'Active',
-                            cashflows: cashflowData.payments
-                          });
-                          alert('Cashflow schedule saved (new facility created)');
-                        }
-                      } catch (e) {
-                        console.error('Failed to save cashflow schedule', e);
-                        alert('Failed to save cashflow schedule');
-                      }
-                    }}
-                  >
-                    Save Schedule
-                  </button>
-                </div>
               </div>
             </form>
           </motion.div>
@@ -675,6 +767,80 @@ const FacilityDetailPage = () => {
                   </Dialog>
                 </div>
               </div>
+            </form>
+          </motion.div>
+        )}
+        {activeTab === 'cashflow' && (
+          <motion.div 
+            className="w-full px-2 sm:px-4 md:px-8 lg:px-12"
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 40, scale: 0.98 }}
+          >
+            <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
+              <div className="mb-6">
+                {cashflowSchedule.length === 0 ? (
+                  <div className="p-6 border rounded text-center text-foreground-secondary">No cashflow generated. Use the <strong>Generate Cashflow</strong> button in the <em>Cash Term</em> tab to create a schedule.</div>
+                ) : null}
+              </div>
+              {cashflowSchedule.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center justify-end gap-2 mb-3">
+                    <button type="button" className="px-3 py-2 rounded bg-background-secondary border" onClick={() => {
+                      // export csv
+                      const headers = ['From Date','To Date','Expected Payment Date','Number of Days','Day Count','Margin Rate','Interest'];
+                      const lines = [headers.join(',')];
+                      for (const r of cashflowSchedule) {
+                        lines.push([r.fromDate, r.toDate, r.expectedPaymentDate, String(r.numberOfDays), r.dayCount, String(r.marginRate), String(r.interest)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+                      }
+                      const csv = lines.join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'cashflow_schedule.csv';
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    }}>Export CSV</button>
+                    <button type="button" className="px-3 py-2 rounded bg-red-600 text-white" onClick={() => {
+                      setCashflowSchedule([]);
+                      if (currentFacility) updateFacility(currentFacility.id, { ...currentFacility, cashflows: [] } as any);
+                    }}>Clear</button>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Cashflow Schedule</h3>
+                  <div className="overflow-auto border rounded">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-background-secondary">
+                        <tr>
+                          <th className="px-3 py-2">From Date</th>
+                          <th className="px-3 py-2">To Date</th>
+                          <th className="px-3 py-2">Expected Payment Date</th>
+                          <th className="px-3 py-2">Number of Days</th>
+                          <th className="px-3 py-2">Day Count</th>
+                          <th className="px-3 py-2">Margin Rate</th>
+                          <th className="px-3 py-2">Interest</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashflowSchedule.map((r, idx) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-background' : ''}>
+                            <td className="px-3 py-2">{r.fromDate}</td>
+                            <td className="px-3 py-2">{r.toDate}</td>
+                            <td className="px-3 py-2">{r.expectedPaymentDate}</td>
+                            <td className="px-3 py-2">{r.numberOfDays}</td>
+                            <td className="px-3 py-2">{r.dayCount}</td>
+                            <td className="px-3 py-2">{r.marginRate}</td>
+                            <td className="px-3 py-2">{r.interest}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </form>
           </motion.div>
         )}

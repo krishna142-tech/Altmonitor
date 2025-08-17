@@ -8,22 +8,27 @@ import { cn } from '@/lib/utils'
 interface LayoutProps {
   className?: string
   children?: React.ReactNode
+  showSidebar?: boolean
 }
 
-const Layout: React.FC<LayoutProps> = ({ className, children }) => {
+const Layout: React.FC<LayoutProps> = ({ className, children, showSidebar = true }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const hasSidebar = Boolean(showSidebar)
 
   return (
     <div className={cn(
       'relative flex min-h-screen flex-col bg-background text-foreground font-sans',
       className
     )}>
-      <Header onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
+      <Header
+        onSidebarToggle={hasSidebar ? () => setSidebarOpen(!sidebarOpen) : undefined}
+        sidebarOpen={sidebarOpen}
+      />
       <div className="flex flex-1">
-        <Sidebar isOpen={sidebarOpen} />
+        {hasSidebar && <Sidebar isOpen={sidebarOpen} />}
         <main className={cn(
           "flex-1 transition-all duration-300 ease-in-out",
-          sidebarOpen ? "ml-0" : "ml-0"
+          hasSidebar && sidebarOpen ? "ml-0" : "ml-0"
         )}>
           {children || <Outlet />}
         </main>

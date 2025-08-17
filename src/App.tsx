@@ -2,7 +2,6 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DataProvider } from '@/context/DataContext'
-import Layout from '@/components/Layout'
 import HomePage from '@/pages/HomePage'
 
 // Import existing pages
@@ -130,6 +129,8 @@ function App() {
                 </>
               }
             />
+
+            {/* (Cashflow Schedule removed) */}
             
             {/* BAU Tab - Standalone */}
             <Route
