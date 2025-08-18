@@ -18,10 +18,10 @@ const MainPage = () => {
       bgColor: 'bg-primaryGreen/10'
     },
     {
-      title: 'Portfolio View',
+      title: 'Portfolio Tracking',
       icon: PieChart,
-      path: '/portfolio-view',
-      description: 'Visualize portfolio analytics',
+      path: '/portfolio-tracking',
+      description: 'Bloomberg-style portfolio summaries',
       gradient: 'from-purple-500 to-purple-300',
       iconColor: 'text-purple-500',
       bgColor: 'bg-purple-500/10'

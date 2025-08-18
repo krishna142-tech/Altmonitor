@@ -13,6 +13,7 @@ import DealDetailPage from '@/components/DealDetailPage'
 import FacilityDetailPage from '@/components/FacilityDetailPage'
 import CashTermsPage from '@/components/CashTermsPage'
 import BauTab from '@/components/BauTab'
+import PortfolioTrackingPage from '@/components/PortfolioTrackingPage'
 
 // SEO Component
 const SEO: React.FC<{ title: string; description: string }> = ({ title, description }) => {
@@ -142,6 +143,20 @@ function App() {
                     description="Manage BAU operations including prepayments, investor changes, and commitment adjustments."
                   />
                   <BauTab />
+                </>
+              }
+            />
+            
+            {/* Portfolio Tracking - Standalone */}
+            <Route
+              path="/portfolio-tracking"
+              element={
+                <>
+                  <SEO
+                    title="Portfolio Tracking | AltMonitor"
+                    description="Track and analyze your investment portfolio with Bloomberg-style summaries and detailed metrics."
+                  />
+                  <PortfolioTrackingPage />
                 </>
               }
             />

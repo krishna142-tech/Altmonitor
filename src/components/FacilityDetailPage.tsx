@@ -97,8 +97,16 @@ const FacilityDetailPage = () => {
       if (gt.marginRate) setMarginRateState(String(gt.marginRate));
       if (gt.interestType) setInterestTypeState(gt.interestType);
       if (gt.currency) setCurrencyState(gt.currency);
+      
+      // Load cashflow schedule if it exists for this specific facility
+      if ((currentFacility as any).cashflows && Array.isArray((currentFacility as any).cashflows)) {
+        setCashflowSchedule((currentFacility as any).cashflows);
+      } else {
+        setCashflowSchedule([]); // Clear cashflows when switching facilities
+      }
     } else {
       setGeneralData({});
+      setCashflowSchedule([]); // Clear cashflows when no facility
     }
   }, [currentFacility]);
 

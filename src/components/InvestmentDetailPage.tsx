@@ -232,11 +232,18 @@ const InvestmentDetailPage = () => {
           returnPath: `/investments/${encodeURIComponent(currentInvestmentName)}`
         }
       });
+    } else if (activeSidebarItem === 4) {
+      navigate('/portfolio-tracking', {
+        state: {
+          selectedDeal: currentInvestmentName,
+          returnPath: `/investments/${encodeURIComponent(currentInvestmentName)}`
+        }
+      });
     }
   }, [activeSidebarItem, navigate, currentInvestmentName]);
 
-  // Don't render content if navigating to BAU
-  if (activeSidebarItem === 2) {
+  // Don't render content if navigating to BAU or Portfolio Tracking
+  if (activeSidebarItem === 2 || activeSidebarItem === 4) {
     return null;
   }
 
