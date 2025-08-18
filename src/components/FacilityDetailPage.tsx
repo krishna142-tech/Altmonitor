@@ -19,6 +19,13 @@ const interestTypes = ["Cash Interest", "Floating", "Fixed", "Other"];
 const holidayConventions = ["Following", "Modified Following", "Preceding", "Modified Preceding", "None"];
 const dayCountConventions = ["360", "365", "Actual/360", "Actual/365", "30/360", "Other"];
 const intervalRateTypes = ["Fixed", "Floating", "Other"];
+const referenceRateOptions = ["6 Months Sonia", "3 Montsh", "3 montsh Euribor", "6 Months Euribor"];
+const referenceRateNumeric = {
+  "6 Months Sonia": 5,
+  "3 Montsh": 4,
+  "3 montsh Euribor": 3,
+  "6 Months Euribor": 3.5
+};
 const marginOptions = ["0.5%", "1%", "1.5%", "2%", "Other"];
 const defaultRates = ["5%", "10%", "15%", "Other"];
 const extensionOptions = yesNo;
@@ -56,8 +63,9 @@ const FacilityDetailPage = () => {
   const [calcStartDateState, setCalcStartDateState] = useState('');
   const [agreementDateState, setAgreementDateState] = useState('');
   const [maturityDateState, setMaturityDateState] = useState('');
-  const [initialCommitmentState, setInitialCommitmentState] = useState('100000000');
-  const [marginRateState, setMarginRateState] = useState('5%');
+  const [initialCommitmentState, setInitialCommitmentState] = useState('');
+  const [marginRateState, setMarginRateState] = useState('5');
+  const [referenceRateState, setReferenceRateState] = useState(referenceRateOptions[0]);
   const [interestTypeState, setInterestTypeState] = useState('Cash Interest');
   const [paymentFrequencyState, setPaymentFrequencyState] = useState('12'); // months
   const [dayCountConventionState, setDayCountConventionState] = useState('Actual/365');
@@ -200,7 +208,9 @@ const FacilityDetailPage = () => {
         const days = diffDays(periodStart, periodEnd);
         const yf = yearFraction(periodStart, periodEnd, dayCountConventionState);
         const adjPayment = adjustBusinessDay(periodEnd, holidayConventionState);
-        const interest = principal * (marginNum / 100) * yf;
+        const refRateNum = Number(referenceRateNumeric[referenceRateState] ?? 0);
+        const allIn = (marginNum + refRateNum) / 100;
+        const interest = principal * allIn * yf;
         rows.push({
           fromDate: periodStart.toISOString().slice(0,10),
           toDate: periodEnd.toISOString().slice(0,10),
@@ -354,13 +364,13 @@ const FacilityDetailPage = () => {
       <div className="flex-1 overflow-auto">
         {activeTab === 'general' && (
           <motion.div 
-            className="w-full px-4 md:px-8 lg:px-12 py-6"
+            className="w-full px-2 sm:px-4 md:px-8 lg:px-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             exit={{ opacity: 0, y: 20 }}
           >
-            <form className="max-w-6xl mx-auto">
+            <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">General Terms</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -428,7 +438,7 @@ const FacilityDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Initial Commitment</label>
-                    <input type="text" value={initialCommitmentState} onChange={e => setInitialCommitmentState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <input type="text" placeholder="Enter amount" value={initialCommitmentState} onChange={e => setInitialCommitmentState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Price</label>
@@ -459,27 +469,6 @@ const FacilityDetailPage = () => {
                     <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {paymentRanks.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
-                  </div>
-                </div>
-              </div>
-              <div className="mb-8">
-                <h2 className="text-2xl font-light text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Additional Option</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Different convention Maturity</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {yesNo.map(opt => <option key={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Holiday Adjustent on Calculation start date</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {yesNo.map(opt => <option key={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Payment Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                 </div>
               </div>
@@ -562,7 +551,7 @@ const FacilityDetailPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Day of Month</label>
+                    <label className="text-primary text-sm font-semibold mb-2 block">End of Month</label>
                     <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {[...Array(31)].map((_, i) => <option key={i+1}>{i+1}</option>)}
                       <option>Other</option>
@@ -575,16 +564,14 @@ const FacilityDetailPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Margin</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {marginOptions.map(opt => <option key={opt}>{opt}</option>)}
+                    <label className="text-primary text-sm font-semibold mb-2 block">Reference Rate</label>
+                    <select value={referenceRateState} onChange={e => setReferenceRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                      {referenceRateOptions.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Default Rate</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {defaultRates.map(opt => <option key={opt}>{opt}</option>)}
-                    </select>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Margin (in %)</label>
+                    <input type="number" step="0.01" min="0" value={marginRateState} onChange={e => setMarginRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Interest Payment Dates</label>
@@ -607,27 +594,6 @@ const FacilityDetailPage = () => {
                     <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
                       {allCountries.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
-                  </div>
-                </div>
-              </div>
-              <div className="mb-8">
-                <h2 className="text-2xl font-light text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Additional Option</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Different convention Maturity</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {yesNo.map(opt => <option key={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Holiday Adjustent on Calculation start date</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {yesNo.map(opt => <option key={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Payment Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                 </div>
               </div>
@@ -789,7 +755,7 @@ const FacilityDetailPage = () => {
                   <div className="flex items-center justify-end gap-2 mb-3">
                     <button type="button" className="px-3 py-2 rounded bg-background-secondary border" onClick={() => {
                       // export csv
-                      const headers = ['From Date','To Date','Expected Payment Date','Number of Days','Day Count','Margin Rate','Interest'];
+                      const headers = ['From Date','End of Date','Expected Payment Date','Number of Days','Day Count','Margin Rate (in %)','Interest'];
                       const lines = [headers.join(',')];
                       for (const r of cashflowSchedule) {
                         lines.push([r.fromDate, r.toDate, r.expectedPaymentDate, String(r.numberOfDays), r.dayCount, String(r.marginRate), String(r.interest)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
@@ -816,11 +782,11 @@ const FacilityDetailPage = () => {
                       <thead className="bg-background-secondary">
                         <tr>
                           <th className="px-3 py-2">From Date</th>
-                          <th className="px-3 py-2">To Date</th>
+                          <th className="px-3 py-2">End of Date</th>
                           <th className="px-3 py-2">Expected Payment Date</th>
                           <th className="px-3 py-2">Number of Days</th>
                           <th className="px-3 py-2">Day Count</th>
-                          <th className="px-3 py-2">Margin Rate</th>
+                          <th className="px-3 py-2">Margin Rate (in %)</th>
                           <th className="px-3 py-2">Interest</th>
                         </tr>
                       </thead>
