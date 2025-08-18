@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -8,7 +8,12 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const BauTab: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('prepayment');
+  
+  // Get navigation state passed from InvestmentDetailPage
+  const navigationState = location.state as { investmentId?: string; returnPath?: string } | null;
+  const investmentId = navigationState?.investmentId;
   const [prepaymentHappened, setPrepaymentHappened] = useState('No');
   const [portfolioLevelEnabled, setPortfolioLevelEnabled] = useState('No');
   const [investorLevelEnabled, setInvestorLevelEnabled] = useState('No');
@@ -33,10 +38,10 @@ const BauTab: React.FC = () => {
   ];
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
+    <div className="flex h-screen bg-background">
       {/* Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -84,20 +89,19 @@ const BauTab: React.FC = () => {
         </div>
       </motion.header>
 
-      {/* Main Content */}
-          <main className="flex-1 w-full">
-        {/* Navigation Bar - repositioned to top */}
-        <motion.div 
-          className="bg-background px-4 py-4 border-b border-border/50"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <div className="flex items-center gap-1 overflow-x-auto">
+      {/* Sidebar */}
+      <motion.div 
+        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
+        initial={{ x: -250 }}
+        animate={{ x: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <div className="p-4">
+          <nav className="space-y-2">
             {navItems.map((item, index) => (
               <motion.button
                 key={item.id}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
                   activeTab === item.id
                     ? 'bg-primary text-primary-foreground shadow-soft'
                     : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
@@ -105,18 +109,21 @@ const BauTab: React.FC = () => {
                 onClick={() => setActiveTab(item.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, x: -10 }}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
+                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
               >
                 {item.label}
               </motion.button>
             ))}
-          </div>
-        </motion.div>
+          </nav>
+        </div>
+      </motion.div>
 
+      {/* Main Content */}
+      <main className="flex-1 ml-64 mt-16 p-4 md:p-10 bg-background overflow-y-auto">
         {/* Dynamic Form Panels */}
-        <div className="flex flex-col space-y-6 px-4 py-6">
+        <div className="flex flex-col space-y-6">
         <motion.div 
           className="w-full max-w-4xl"
           initial={{ opacity: 0, y: 20 }}

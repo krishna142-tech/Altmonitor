@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -207,10 +207,6 @@ const InvestmentDetailPage = () => {
   const navigate = useNavigate();
   const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
 
-  const navigateToBau = () => {
-    navigate('/bau');
-  };
-
   const handleAddFacility = (data: any) => {
     // Persist via shared DataContext so stored data is consistent across the app
     addFacility({
@@ -227,16 +223,28 @@ const InvestmentDetailPage = () => {
     });
   };
 
+  // Use useEffect to handle navigation to prevent multiple calls
+  useEffect(() => {
+    if (activeSidebarItem === 2) {
+      navigate('/bau', { 
+        state: { 
+          investmentId: currentInvestmentName,
+          returnPath: `/investments/${encodeURIComponent(currentInvestmentName)}`
+        }
+      });
+    }
+  }, [activeSidebarItem, navigate, currentInvestmentName]);
+
+  // Don't render content if navigating to BAU
   if (activeSidebarItem === 2) {
-    navigateToBau();
     return null;
   }
 
   return (
-    <>
+    <div className="flex h-screen bg-background">
       {/* Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -279,99 +287,107 @@ const InvestmentDetailPage = () => {
           </motion.div>
         </div>
       </motion.header>
-      {/* Second Navigation Bar (Tabs) */}
+
+      {/* Sidebar */}
       <motion.div 
-  className="sticky top-[6.083rem] z-40 bg-background-secondary border-b border-border/30 px-4 md:px-6 py-2"
-        initial={{ y: -50 }}
-        animate={{ y: 0 }}
+        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
+        initial={{ x: -250 }}
+        animate={{ x: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {sidebarItems.map((item, idx) => (
-            <button
-              key={item}
-              onClick={() => setActiveSidebarItem(idx)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-                idx === activeSidebarItem 
-                  ? 'bg-primary text-primary-foreground shadow-soft' 
-                  : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
+        <div className="p-4">
+          <nav className="space-y-2">
+            {sidebarItems.map((item, idx) => (
+              <motion.button
+                key={item}
+                onClick={() => setActiveSidebarItem(idx)}
+                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                  idx === activeSidebarItem 
+                    ? 'bg-primary text-primary-foreground shadow-soft' 
+                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
+              >
+                {item}
+              </motion.button>
+            ))}
+          </nav>
         </div>
       </motion.div>
 
       {/* Main Content */}
       <motion.div 
-        className="flex-1 p-4 md:p-10 bg-background"
+        className="flex-1 ml-64 mt-16 p-4 md:p-10 bg-background overflow-y-auto"
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-          <div className="w-full">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Investment Facilities</h1>
-                <button 
-                  className="w-full md:w-auto bg-success hover:bg-success/90 text-white px-6 md:px-8 py-3 rounded-xl shadow-lg font-medium text-base md:text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl" 
-                  onClick={() => setModalOpen(true)}
-                >
-                  Add Facility
-                </button>
-              </div>
-              <div className="bg-background-secondary border border-border/50 rounded-xl overflow-hidden shadow-medium">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-background border-b border-border">
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Investment Name</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Facility Type</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Payment Rank</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Seniority</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Currency</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">From Date</th>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {facilities
-                        .filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName)
-                        .map((f, idx) => (
-                        <tr key={idx} className="hover:bg-background transition-colors duration-200">
-                          <td className="px-6 py-3">
-                            <button
-                              className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
-                              onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
-                            >
-                              {f.investmentName}
-                            </button>
-                          </td>
-                          <td className="px-6 py-3 text-foreground-secondary text-sm">{f.facilityType}</td>
-                          <td className="px-6 py-3 text-accentGold font-semibold text-sm">{f.paymentRank}</td>
-                          <td className="px-6 py-3 text-foreground-secondary text-sm">{f.seniority}</td>
-                          <td className="px-6 py-3 text-primaryGreen font-semibold text-sm">{f.currency}</td>
-                          <td className="px-6 py-3 text-accentGold text-sm">{f.fromDate}</td>
-                          <td className="px-6 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                              f.status === 'Active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
-                              f.status === 'Inactive' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
-                              'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            }`}>
-                              {f.status}
-                            </span>
-                          </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+        <div className="w-full">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Investment Facilities</h1>
+            <button 
+              className="w-full md:w-auto bg-success hover:bg-success/90 text-white px-6 md:px-8 py-3 rounded-xl shadow-lg font-medium text-base md:text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl" 
+              onClick={() => setModalOpen(true)}
+            >
+              Add Facility
+            </button>
+          </div>
+          <div className="bg-background-secondary border border-border/50 rounded-xl overflow-hidden shadow-medium">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-background border-b border-border">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Investment Name</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Facility Type</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Payment Rank</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Seniority</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Currency</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">From Date</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {facilities
+                    .filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName)
+                    .map((f, idx) => (
+                    <tr key={idx} className="hover:bg-background transition-colors duration-200">
+                      <td className="px-6 py-3">
+                        <button
+                          className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
+                          onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
+                        >
+                          {f.investmentName}
+                        </button>
+                      </td>
+                      <td className="px-6 py-3 text-foreground-secondary text-sm">{f.facilityType}</td>
+                      <td className="px-6 py-3 text-accentGold font-semibold text-sm">{f.paymentRank}</td>
+                      <td className="px-6 py-3 text-foreground-secondary text-sm">{f.seniority}</td>
+                      <td className="px-6 py-3 text-primaryGreen font-semibold text-sm">{f.currency}</td>
+                      <td className="px-6 py-3 text-accentGold text-sm">{f.fromDate}</td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                          f.status === 'Active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                          f.status === 'Inactive' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
+                          'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}>
+                          {f.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
-          </motion.div>
-        </>
-      );
+          </div>
+        </div>
+        <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
+      </motion.div>
+    </div>
+  );
 };
 
 export default InvestmentDetailPage;

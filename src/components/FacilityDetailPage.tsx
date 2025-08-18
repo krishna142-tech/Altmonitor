@@ -26,6 +26,16 @@ const referenceRateNumeric = {
   "3 montsh Euribor": 3,
   "6 Months Euribor": 3.5
 };
+const currencyOptions = ["USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD"];
+const currencySymbols = {
+  "USD": "$",
+  "EUR": "€",
+  "GBP": "£",
+  "CHF": "CHF",
+  "JPY": "¥",
+  "CAD": "C$",
+  "AUD": "A$"
+};
 const marginOptions = ["0.5%", "1%", "1.5%", "2%", "Other"];
 const defaultRates = ["5%", "10%", "15%", "Other"];
 const extensionOptions = yesNo;
@@ -71,6 +81,7 @@ const FacilityDetailPage = () => {
   const [dayCountConventionState, setDayCountConventionState] = useState('Actual/365');
   const [holidayConventionState, setHolidayConventionState] = useState('Following');
   const [holidayAdjustmentState, setHolidayAdjustmentState] = useState('Yes');
+  const [currencyState, setCurrencyState] = useState('USD');
   const [cashflowSchedule, setCashflowSchedule] = useState<any[]>([]);
   const scheduleRef = useRef<HTMLDivElement | null>(null);
 
@@ -85,6 +96,7 @@ const FacilityDetailPage = () => {
       if (gt.initialCommitment) setInitialCommitmentState(String(gt.initialCommitment));
       if (gt.marginRate) setMarginRateState(String(gt.marginRate));
       if (gt.interestType) setInterestTypeState(gt.interestType);
+      if (gt.currency) setCurrencyState(gt.currency);
     } else {
       setGeneralData({});
     }
@@ -249,11 +261,19 @@ const FacilityDetailPage = () => {
     }
   };
   
+  const sidebarItems = [
+    { id: 'general', label: 'General' },
+    { id: 'cash', label: 'Cash Term' },
+    ...(amortisationValue === 'Yes' ? [{ id: 'amortisation', label: 'Amortisation' }] : []),
+    { id: 'drawdown', label: 'Drawdown' },
+    { id: 'cashflow', label: 'Cashflow Schedule' },
+  ];
+
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden h-screen">
-      {/* Main Header */}
+    <div className="flex h-screen bg-background">
+      {/* Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -290,78 +310,46 @@ const FacilityDetailPage = () => {
             <Button variant="outline" size="sm" asChild>
               <Link to="/main" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
+                Back
               </Link>
             </Button>
           </motion.div>
         </div>
       </motion.header>
 
-      {/* Second Navigation Bar (Tabs) */}
+      {/* Sidebar */}
       <motion.div 
-        className="sticky top-[6.083rem] z-40 bg-background-secondary border-b border-border/30 px-4 md:px-6 py-2"
-        initial={{ y: -50 }}
-        animate={{ y: 0 }}
+        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
+        initial={{ x: -250 }}
+        animate={{ x: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <div className="flex items-center gap-1 overflow-x-auto">
-          <button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'general' 
-                ? 'bg-primary text-primary-foreground shadow-soft' 
-                : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-            }`}
-            onClick={() => setActiveTab('general')}
-          >
-            General
-          </button>
-          <button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'cash' 
-                ? 'bg-primary text-primary-foreground shadow-soft' 
-                : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-            }`}
-            onClick={() => setActiveTab('cash')}
-          >
-            Cash Term
-          </button>
-          {amortisationValue === 'Yes' && (
-            <button
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-                activeTab === 'amortisation' 
-                  ? 'bg-primary text-primary-foreground shadow-soft' 
-                  : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-              }`}
-              onClick={() => setActiveTab('amortisation')}
-            >
-              Amortisation
-            </button>
-          )}
-          <button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'drawdown' 
-                ? 'bg-primary text-primary-foreground shadow-soft' 
-                : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-            }`}
-            onClick={() => setActiveTab('drawdown')}
-          >
-            Drawdown
-          </button>
-          <button
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'cashflow' 
-                ? 'bg-primary text-primary-foreground shadow-soft' 
-                : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-            }`}
-            onClick={() => setActiveTab('cashflow')}
-          >
-            Cashflow Schedule
-          </button>
-          {/* Cashflow Schedule removed — navigation link intentionally omitted */}
+        <div className="p-4">
+          <nav className="space-y-2">
+            {sidebarItems.map((item, index) => (
+              <motion.button
+                key={item.id}
+                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                  activeTab === item.id
+                    ? 'bg-primary text-primary-foreground shadow-soft'
+                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
+                }`}
+                onClick={() => setActiveTab(item.id)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
+              >
+                {item.label}
+              </motion.button>
+            ))}
+          </nav>
         </div>
       </motion.div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 ml-64 mt-16 overflow-auto">
         {activeTab === 'general' && (
           <motion.div 
             className="w-full px-2 sm:px-4 md:px-8 lg:px-12"
@@ -478,8 +466,18 @@ const FacilityDetailPage = () => {
                   className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
                   onClick={() => {
                     try {
+                      const updatedGeneralData = {
+                        ...generalData,
+                        calculationStartDate: calcStartDateState,
+                        agreementDate: agreementDateState,
+                        maturityDate: maturityDateState,
+                        initialCommitment: initialCommitmentState,
+                        marginRate: marginRateState,
+                        interestType: interestTypeState,
+                        currency: currencyState
+                      };
                       if (currentFacility) {
-                        updateFacility(currentFacility.id, { ...currentFacility, generalTerms: generalData });
+                        updateFacility(currentFacility.id, { ...currentFacility, generalTerms: updatedGeneralData });
                         alert('General terms saved');
                       } else {
                         addFacility({
@@ -488,10 +486,10 @@ const FacilityDetailPage = () => {
                           facilityType: '',
                           paymentRank: '',
                           seniority: '',
-                          currency: '',
+                          currency: currencyState,
                           fromDate: '',
                           status: 'Active',
-                          generalTerms: generalData
+                          generalTerms: updatedGeneralData
                         });
                         alert('General terms saved (new facility created)');
                       }
@@ -752,58 +750,131 @@ const FacilityDetailPage = () => {
               </div>
               {cashflowSchedule.length > 0 && (
                 <div className="mt-8">
-                  <div className="flex items-center justify-end gap-2 mb-3">
-                    <button type="button" className="px-3 py-2 rounded bg-background-secondary border" onClick={() => {
-                      // export csv
-                      const headers = ['From Date','End of Date','Expected Payment Date','Number of Days','Day Count','Margin Rate (in %)','Interest'];
-                      const lines = [headers.join(',')];
-                      for (const r of cashflowSchedule) {
-                        lines.push([r.fromDate, r.toDate, r.expectedPaymentDate, String(r.numberOfDays), r.dayCount, String(r.marginRate), String(r.interest)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
-                      }
-                      const csv = lines.join('\n');
-                      const blob = new Blob([csv], { type: 'text/csv' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'cashflow_schedule.csv';
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      URL.revokeObjectURL(url);
-                    }}>Export CSV</button>
-                    <button type="button" className="px-3 py-2 rounded bg-red-600 text-white" onClick={() => {
-                      setCashflowSchedule([]);
-                      if (currentFacility) updateFacility(currentFacility.id, { ...currentFacility, cashflows: [] } as any);
-                    }}>Clear</button>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-foreground tracking-tight">Cashflow Schedule</h3>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button" 
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        onClick={() => {
+                          // export csv
+                          const headers = ['From Date','End of Date','Expected Payment Date','Number of Days','Day Count','Margin Rate (in %)','Interest'];
+                          const lines = [headers.join(',')];
+                          for (const r of cashflowSchedule) {
+                            lines.push([r.fromDate, r.toDate, r.expectedPaymentDate, String(r.numberOfDays), r.dayCount, String(r.marginRate), String(r.interest)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+                          }
+                          const csv = lines.join('\n');
+                          const blob = new Blob([csv], { type: 'text/csv' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = 'cashflow_schedule.csv';
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Export CSV
+                      </button>
+                      <button 
+                        type="button" 
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success-dark to-success hover:from-success hover:to-success-dark text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        onClick={() => {
+                          setCashflowSchedule([]);
+                          if (currentFacility) updateFacility(currentFacility.id, { ...currentFacility, cashflows: [] } as any);
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">Cashflow Schedule</h3>
-                  <div className="overflow-auto border rounded">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-background-secondary">
-                        <tr>
-                          <th className="px-3 py-2">From Date</th>
-                          <th className="px-3 py-2">End of Date</th>
-                          <th className="px-3 py-2">Expected Payment Date</th>
-                          <th className="px-3 py-2">Number of Days</th>
-                          <th className="px-3 py-2">Day Count</th>
-                          <th className="px-3 py-2">Margin Rate (in %)</th>
-                          <th className="px-3 py-2">Interest</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cashflowSchedule.map((r, idx) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-background' : ''}>
-                            <td className="px-3 py-2">{r.fromDate}</td>
-                            <td className="px-3 py-2">{r.toDate}</td>
-                            <td className="px-3 py-2">{r.expectedPaymentDate}</td>
-                            <td className="px-3 py-2">{r.numberOfDays}</td>
-                            <td className="px-3 py-2">{r.dayCount}</td>
-                            <td className="px-3 py-2">{r.marginRate}</td>
-                            <td className="px-3 py-2">{r.interest}</td>
+                  
+                  <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-border/20 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-success/10 to-success-dark/10 border-b border-success/20">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">From Date</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">End Date</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">Payment Date</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-success uppercase tracking-wider">Days</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-success uppercase tracking-wider">Day Count</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-success uppercase tracking-wider">Margin Rate (%)</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-success uppercase tracking-wider">Interest</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-border/10">
+                          {cashflowSchedule.map((r, idx) => (
+                            <tr 
+                              key={idx} 
+                              className={`transition-colors duration-200 hover:bg-success/5 ${
+                                idx % 2 === 0 ? 'bg-background/50' : 'bg-background-secondary/30'
+                              }`}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                {new Date(r.fromDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                {new Date(r.toDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                {new Date(r.expectedPaymentDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-mono text-foreground-secondary">
+                                {r.numberOfDays}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-foreground-secondary">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
+                                  {r.dayCount}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">
+                                  {r.marginRate}%
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-bold">
+                                <span className="text-success">
+                                  {currencySymbols[currencyState]}{Number(r.interest).toLocaleString('en-GB', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  })}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-gradient-to-r from-success/5 to-success-dark/5 border-t-2 border-success/20">
+                            <td colSpan={6} className="px-6 py-4 text-right text-sm font-bold text-foreground">
+                              Total Interest:
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-bold">
+                              <span className="text-success text-lg">
+                                {currencySymbols[currencyState]}{cashflowSchedule.reduce((sum, r) => sum + Number(r.interest), 0).toLocaleString('en-GB', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}
+                              </span>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
