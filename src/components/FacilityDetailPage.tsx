@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Settings, CreditCard, TrendingUp, Download, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FileSpreadsheet } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
@@ -270,23 +270,23 @@ const FacilityDetailPage = () => {
   };
   
   const sidebarItems = [
-    { id: 'general', label: 'General' },
-    { id: 'cash', label: 'Cash Term' },
-    ...(amortisationValue === 'Yes' ? [{ id: 'amortisation', label: 'Amortisation' }] : []),
-    { id: 'drawdown', label: 'Drawdown' },
-    { id: 'cashflow', label: 'Cashflow Schedule' },
+    { id: 'general', label: 'General', icon: Settings },
+    { id: 'cash', label: 'Cash Term', icon: CreditCard },
+    ...(amortisationValue === 'Yes' ? [{ id: 'amortisation', label: 'Amortisation', icon: TrendingUp }] : []),
+    { id: 'drawdown', label: 'Drawdown', icon: Download },
+    { id: 'cashflow', label: 'Cashflow Schedule', icon: CalendarDays },
   ];
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center gap-3">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -304,71 +304,73 @@ const FacilityDetailPage = () => {
               </defs>
             </svg>
           </div>
-          <Link to="/main" className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em] hover:text-primary transition-colors duration-200">
-            AltMonitor
-          </Link>
-        </div>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
+        </Link>
+        
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
-          <motion.div
-            whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/main" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-            </Button>
-          </motion.div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/main" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Link>
+          </Button>
         </div>
       </motion.header>
 
-      {/* Sidebar */}
-      <motion.div 
-        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
-        initial={{ x: -250 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <div className="p-4">
-          <nav className="space-y-2">
-            {sidebarItems.map((item, index) => (
-              <motion.button
-                key={item.id}
-                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  activeTab === item.id
-                    ? 'bg-primary text-primary-foreground shadow-soft'
-                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-                }`}
-                onClick={() => setActiveTab(item.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
-              >
-                {item.label}
-              </motion.button>
-            ))}
+      <div className="flex flex-1 bg-gray-50">
+        {/* Enhanced Sidebar with Icons */}
+        <div className="w-64 bg-slate-800 flex flex-col">
+          <div className="p-4 border-b border-slate-700">
+            <div className="flex items-center gap-2 text-white">
+              <CreditCard className="w-5 h-5" />
+              <span className="font-medium">Facility Details</span>
+            </div>
+            <p className="text-slate-300 text-xs mt-1">{facilityKey || 'New Facility'}</p>
+          </div>
+          
+          <nav className="flex-1 p-4 space-y-2">
+            {sidebarItems.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    activeTab === item.id 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                </motion.button>
+              );
+            })}
           </nav>
         </div>
-      </motion.div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 ml-64 mt-16 overflow-auto">
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 overflow-auto">
         {activeTab === 'general' && (
           <motion.div 
-            className="w-full px-2 sm:px-4 md:px-8 lg:px-12"
+            className="w-full"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             exit={{ opacity: 0, y: 20 }}
           >
-            <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
+            <Card className="bg-white shadow-sm p-6">
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">General Terms</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 tracking-tight border-b border-gray-200 pb-3">General Terms</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Calculation Start Date</label>
@@ -469,9 +471,8 @@ const FacilityDetailPage = () => {
                 </div>
               </div>
               <div className="flex justify-end mt-10">
-                <button 
+                <Button
                   type="button"
-                  className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
                   onClick={() => {
                     try {
                       const updatedGeneralData = {
@@ -506,11 +507,12 @@ const FacilityDetailPage = () => {
                       alert('Failed to save general terms');
                     }
                   }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
                   Save
-                </button>
+                </Button>
               </div>
-            </form>
+            </Card>
           </motion.div>
                 )}
         {activeTab === 'cash' && (
@@ -889,6 +891,7 @@ const FacilityDetailPage = () => {
             </form>
           </motion.div>
         )}
+        </div>
       </div>
     </div>
   );

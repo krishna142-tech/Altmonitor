@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Activity, TrendingUp, TrendingDown, DollarSign, Globe, Menu } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const BauTab: React.FC = () => {
   const navigate = useNavigate();
@@ -30,23 +29,23 @@ const BauTab: React.FC = () => {
   const [investorTransfers, setInvestorTransfers] = useState([]);
 
   const navItems = [
-    { id: 'prepayment', label: 'Prepayment' },
-    { id: 'change-investor', label: 'Change of Investor' },
-    { id: 'commitment-downsize', label: 'Commitment Downsize' },
-    { id: 'commitment-upsize', label: 'Commitment Upsize' },
-    { id: 'multi-currency', label: 'Multi-Currency Mechanisms' },
+    { id: 'prepayment', label: 'Prepayment', icon: DollarSign },
+    { id: 'change-investor', label: 'Change of Investor', icon: Activity },
+    { id: 'commitment-downsize', label: 'Commitment Downsize', icon: TrendingDown },
+    { id: 'commitment-upsize', label: 'Commitment Upsize', icon: TrendingUp },
+    { id: 'multi-currency', label: 'Multi-Currency Mechanisms', icon: Globe },
   ];
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Modern Header - matching MainPage design */}
       <motion.header 
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
+        <div className="flex items-center gap-3">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -64,78 +63,77 @@ const BauTab: React.FC = () => {
               </defs>
             </svg>
           </div>
-          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
-            AltMonitor
-          </span>
-        </Link>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
+        </div>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
-          <motion.div
-            whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2"
           >
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-          </motion.div>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
         </div>
       </motion.header>
 
-      {/* Sidebar */}
-      <motion.div 
-        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
-        initial={{ x: -250 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <div className="p-4">
-          <nav className="space-y-2">
-            {navItems.map((item, index) => (
-              <motion.button
-                key={item.id}
-                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  activeTab === item.id
-                    ? 'bg-primary text-primary-foreground shadow-soft'
-                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-                }`}
-                onClick={() => setActiveTab(item.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
-              >
-                {item.label}
-              </motion.button>
-            ))}
+      <div className="flex flex-1 bg-gray-50">
+        {/* Enhanced Sidebar with Icons - matching InvestmentDetailPage */}
+        <div className="w-64 bg-slate-800 flex flex-col">
+          <div className="p-4 border-b border-slate-700">
+            <div className="flex items-center gap-2 text-white">
+              <Activity className="w-5 h-5" />
+              <span className="font-medium">Events Tracker</span>
+            </div>
+            <p className="text-slate-300 text-xs mt-1">{investmentId || 'BAU Operations'}</p>
+          </div>
+          
+          <nav className="flex-1 p-4 space-y-2">
+            {navItems.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    activeTab === item.id 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                </motion.button>
+              );
+            })}
           </nav>
         </div>
-      </motion.div>
 
-      {/* Main Content */}
-      <main className="flex-1 ml-64 mt-16 p-4 md:p-10 bg-background overflow-y-auto">
-        {/* Dynamic Form Panels */}
-        <div className="flex flex-col space-y-6">
-        <motion.div 
-          className="w-full max-w-4xl"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <div className="space-y-6">
+        {/* Main Content */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          <motion.div 
+            className="w-full max-w-4xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <div className="space-y-6">
             {activeTab === 'general' && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-foreground">General Terms</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-white shadow-sm p-6">
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-bold text-foreground">General Terms</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                       <label className="block text-xs font-medium mb-2 text-blue-400">Calculation Start Date</label>
                       <div className="relative">
@@ -271,25 +269,31 @@ const BauTab: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+                </div>
+              </Card>
             )}
 
             {activeTab === 'prepayment' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Prepayment</h2>
-                
-                {/* Main Prepayment Section */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Happened</label>
-                    <select 
-                      className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                      value={prepaymentHappened}
-                      onChange={(e) => setPrepaymentHappened(e.target.value)}
-                    >
-                      <option value="No">No</option>
-                      <option value="Yes">Yes</option>
-                    </select>
+              <Card className="bg-white shadow-sm p-6">
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <h2 className="text-xl font-bold text-gray-900">Prepayment</h2>
+                  </div>
+                  
+                  {/* Main Prepayment Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-700">Prepayment Happened</label>
+                      <select 
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={prepaymentHappened}
+                        onChange={(e) => setPrepaymentHappened(e.target.value)}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -451,12 +455,15 @@ const BauTab: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {activeTab === 'change-investor' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Change of Investor</h2>
+              <Card className="bg-white shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Activity className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Change of Investor</h2>
+                </div>
                 
                 {/* Form Fields */}
                 <div className="bg-gray-50 p-6 rounded-lg border">
@@ -631,79 +638,74 @@ const BauTab: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
 
             {activeTab === 'commitment-downsize' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Commitment Downsize</h2>
+              <Card className="bg-white shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <TrendingDown className="w-5 h-5 text-red-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Commitment Downsize</h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Downsize Amount</label>
-                    <input type="text" placeholder="Enter downsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Downsize Amount</label>
+                    <input type="text" placeholder="Enter downsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Downsize Date</label>
-                    <div className="relative">
-                      <input type="text" placeholder="dd-mm-yyyy" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
-                      <div className="absolute right-3 top-3">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Downsize Date</label>
+                    <input type="date" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
 
             {activeTab === 'commitment-upsize' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Commitment Upsize</h2>
+              <Card className="bg-white shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Commitment Upsize</h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Upsize Amount</label>
-                    <input type="text" placeholder="Enter upsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Upsize Amount</label>
+                    <input type="text" placeholder="Enter upsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Upsize Date</label>
-                    <div className="relative">
-                      <input type="text" placeholder="dd-mm-yyyy" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
-                      <div className="absolute right-3 top-3">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Upsize Date</label>
+                    <input type="date" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
 
             {activeTab === 'multi-currency' && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Multi-Currency Mechanisms</h2>
+              <Card className="bg-white shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Multi-Currency Mechanisms</h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Currency Type</label>
-                    <input type="text" placeholder="Enter currency type" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Currency Type</label>
+                    <input type="text" placeholder="Enter currency type" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-gray-400">Exchange Rate</label>
-                    <input type="text" placeholder="Enter exchange rate" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Exchange Rate</label>
+                    <input type="text" placeholder="Enter exchange rate" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                 </div>
-              </div>
+              </Card>
             )}
 
-            <div className="mt-8 flex justify-start gap-3">
-              <Button variant="outline" className="rounded-lg border-success text-success hover:bg-success/10">Cancel</Button>
-              <Button className="bg-success hover:bg-success/90 text-white rounded-lg">Save Changes</Button>
+            <div className="mt-8 flex justify-end gap-3">
+              <Button variant="outline" className="rounded-lg">Cancel</Button>
+              <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg">Save Changes</Button>
             </div>
           </div>
           </motion.div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

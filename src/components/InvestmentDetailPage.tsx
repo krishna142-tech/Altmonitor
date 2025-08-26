@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Separator } from './ui/separator';
-import { PlusCircle, Edit, Trash2, Eye } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Activity, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
@@ -18,11 +18,11 @@ import { useData } from '@/context/DataContext';
 
 
 const sidebarItems = [
-  'Investment Data',
-  'Static Data',
-  'Events Tracker',
-  'Reporting Tracking',
-  'Portfolio Tracking',
+  { name: 'Investment Data', icon: Building2 },
+  { name: 'Static Data', icon: Database },
+  { name: 'Events Tracker', icon: Activity },
+  { name: 'Reporting Tracking', icon: BarChart3 },
+  { name: 'Portfolio Tracking', icon: Calendar },
 ];
 
 function AddFacilityModal({ isOpen, onClose, onSave }) {
@@ -248,10 +248,10 @@ const InvestmentDetailPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -274,125 +274,139 @@ const InvestmentDetailPage = () => {
               </defs>
             </svg>
           </div>
-          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
-            AltMonitor
-          </span>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
         </Link>
+        
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
-          <motion.div
-            whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/transactions" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-            </Button>
-          </motion.div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/transactions" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Link>
+          </Button>
         </div>
       </motion.header>
 
-      {/* Sidebar */}
-      <motion.div 
-        className="fixed left-0 top-[4rem] h-[calc(100vh-4rem)] w-64 bg-background-secondary border-r border-border/30 z-40"
-        initial={{ x: -250 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <div className="p-4">
-          <nav className="space-y-2">
-            {sidebarItems.map((item, idx) => (
-              <motion.button
-                key={item}
-                onClick={() => setActiveSidebarItem(idx)}
-                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  idx === activeSidebarItem 
-                    ? 'bg-primary text-primary-foreground shadow-soft' 
-                    : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary/50'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
-              >
-                {item}
-              </motion.button>
-            ))}
+      <div className="flex flex-1 bg-gray-50">
+        {/* Enhanced Sidebar with Icons */}
+        <div className="w-64 bg-slate-800 flex flex-col">
+          <div className="p-4 border-b border-slate-700">
+            <div className="flex items-center gap-2 text-white">
+              <Building2 className="w-5 h-5" />
+              <span className="font-medium">Investment Details</span>
+            </div>
+            <p className="text-slate-300 text-xs mt-1">{currentInvestmentName}</p>
+          </div>
+          
+          <nav className="flex-1 p-4 space-y-2">
+            {sidebarItems.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <motion.button
+                  key={item.name}
+                  onClick={() => setActiveSidebarItem(idx)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    idx === activeSidebarItem 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 + idx * 0.1 }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.name}
+                </motion.button>
+              );
+            })}
           </nav>
         </div>
-      </motion.div>
 
-      {/* Main Content */}
-      <motion.div 
-        className="flex-1 ml-64 mt-16 p-4 md:p-10 bg-background overflow-y-auto"
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-      >
-        <div className="w-full">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Investment Facilities</h1>
-            <button 
-              className="w-full md:w-auto bg-success hover:bg-success/90 text-white px-6 md:px-8 py-3 rounded-xl shadow-lg font-medium text-base md:text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl" 
+        {/* Main Content */}
+        <div className="flex-1 p-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-gray-600" />
+              <h1 className="text-xl font-semibold text-gray-900">Investment Facilities</h1>
+              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">
+                {facilities.filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName).length}
+              </span>
+            </div>
+            <Button
               onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
             >
+              <PlusCircle className="w-4 h-4" />
               Add Facility
-            </button>
+            </Button>
           </div>
-          <div className="bg-background-secondary border border-border/50 rounded-xl overflow-hidden shadow-medium">
+
+          {/* Facilities Table */}
+          <Card className="bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-background border-b border-border">
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Investment Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Facility Type</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Payment Rank</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Seniority</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Currency</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">From Date</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Status</th>
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Investment Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Facility Type</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Payment Rank</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Seniority</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">From Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody>
                   {facilities
                     .filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName)
                     .map((f, idx) => (
-                    <tr key={idx} className="hover:bg-background transition-colors duration-200">
-                      <td className="px-6 py-3">
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
                         <button
-                          className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
+                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
                           onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
                         >
                           {f.investmentName}
                         </button>
                       </td>
-                      <td className="px-6 py-3 text-foreground-secondary text-sm">{f.facilityType}</td>
-                      <td className="px-6 py-3 text-accentGold font-semibold text-sm">{f.paymentRank}</td>
-                      <td className="px-6 py-3 text-foreground-secondary text-sm">{f.seniority}</td>
-                      <td className="px-6 py-3 text-primaryGreen font-semibold text-sm">{f.currency}</td>
-                      <td className="px-6 py-3 text-accentGold text-sm">{f.fromDate}</td>
-                      <td className="px-6 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                          f.status === 'Active' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
-                          f.status === 'Inactive' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
-                          'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      <td className="py-3 px-4 text-gray-600">{f.facilityType}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{f.paymentRank}</td>
+                      <td className="py-3 px-4 text-gray-600">{f.seniority}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{f.currency}</td>
+                      <td className="py-3 px-4 text-gray-600">{f.fromDate}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          f.status === 'Active' ? 'bg-green-100 text-green-800' :
+                          f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
                         }`}>
                           {f.status}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {facilities.filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName).length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
+                        No facilities found for this investment.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </div>
-        <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
-      </motion.div>
+      </div>
+        
+      <AddFacilityModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleAddFacility} />
     </div>
   );
 };

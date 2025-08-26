@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3, Menu, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 
 // Bloomberg-style Portfolio Summary Component
 const PortfolioSummary = ({ deal, transaction, facilities }) => {
@@ -362,7 +363,6 @@ const PortfolioSummary = ({ deal, transaction, facilities }) => {
 
 const PortfolioTrackingPage = () => {
   const { transactions, facilities } = useData();
-  const [selectedDeal, setSelectedDeal] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const navigate = useNavigate();
@@ -389,43 +389,57 @@ const PortfolioTrackingPage = () => {
     });
   }, [deals, searchTerm, filterStatus]);
 
-  // Get facilities for selected deal
-  const selectedDealFacilities = useMemo(() => {
-    if (!selectedDeal) return [];
-    return facilities.filter(f => 
-      f.transactionId === selectedDeal.deal || 
-      f.investmentName === selectedDeal.deal
-    );
-  }, [selectedDeal, facilities]);
+  // Calculate dynamic portfolio stats from actual data
+  const portfolioStats = useMemo(() => {
+    let totalCommitment = 0;
+    let totalFunded = 0;
+    let activeDeals = 0;
+    let totalFacilities = 0;
 
-  // Handle pre-selected deal from navigation state or auto-select first deal
-  useEffect(() => {
-    const preSelectedDealName = location.state?.selectedDeal;
-    if (preSelectedDealName && deals.length > 0) {
-      const preSelectedDeal = deals.find(deal => deal.deal === preSelectedDealName);
-      if (preSelectedDeal) {
-        setSelectedDeal(preSelectedDeal);
-        return;
+    transactions.forEach(transaction => {
+      // Get facilities for this transaction
+      const transactionFacilities = facilities.filter(f => 
+        f.transactionId === transaction.deal || f.investmentName === transaction.deal
+      );
+      
+      totalFacilities += transactionFacilities.length;
+      
+      if (transaction.status === 'Active') {
+        activeDeals++;
       }
-    }
-    
-    if (!selectedDeal && filteredDeals.length > 0) {
-      setSelectedDeal(filteredDeals[0]);
-    }
-  }, [filteredDeals, selectedDeal, deals, location.state]);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'Pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'Completed': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
-    }
-  };
+      transactionFacilities.forEach(facility => {
+        const commitment = facility.generalTerms?.initialCommitment || 
+                          facility.generalTerms?.commitment || 0;
+        const commitmentValue = typeof commitment === 'number' ? commitment : 
+                               (typeof commitment === 'string' ? parseFloat(commitment) || 0 : 0);
+        totalCommitment += commitmentValue;
+
+        // Calculate funded from cashflows if available
+        if (facility.cashflows && facility.cashflows.length > 0) {
+          const funded = facility.cashflows
+            .filter(cf => cf.principal > 0)
+            .reduce((sum, cf) => sum + cf.principal, 0);
+          totalFunded += funded;
+        } else {
+          // Fallback to estimated utilization
+          totalFunded += commitmentValue * 0.65;
+        }
+      });
+    });
+
+    return {
+      totalCommitment,
+      totalFunded,
+      available: totalCommitment - totalFunded,
+      activeDeals,
+      totalFacilities
+    };
+  }, [transactions, facilities]);
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
         className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
@@ -450,154 +464,199 @@ const PortfolioTrackingPage = () => {
               </defs>
             </svg>
           </div>
-          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
-            AltMonitor
-          </span>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
         </Link>
         
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
-          <motion.div
-            whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/main" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-            </Button>
-          </motion.div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/main" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Link>
+          </Button>
         </div>
       </motion.header>
 
-      {/* Main Content */}
-      <div className="flex flex-1">
-        {/* Left Sidebar - Deal List */}
-        <motion.div 
-          className="w-80 bg-background-secondary border-r border-border/30 flex flex-col"
-          initial={{ x: -300 }}
-          animate={{ x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="p-4 border-b border-border/30">
-            <h2 className="text-xl font-bold text-foreground mb-4">Portfolio Tracking</h2>
-            
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-foreground-secondary" />
-              <input
-                type="text"
-                placeholder="Search deals..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-            </div>
+      <div className="flex flex-1 bg-gray-50">
+        {/* Sidebar */}
+        <div className="w-16 bg-slate-800 flex flex-col items-center py-4">
+          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
+            <Menu className="w-4 h-4 text-slate-800" />
+          </div>
+        </div>
 
-            {/* Filter */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full p-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="all">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Pending">Pending</option>
-              <option value="Completed">Completed</option>
-            </select>
+        {/* Main Content */}
+        <div className="flex-1 p-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-gray-600" />
+              <h1 className="text-xl font-semibold text-gray-900">All Deals</h1>
+              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{filteredDeals.length}</span>
+            </div>
           </div>
 
-          {/* Deal List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {filteredDeals.map((deal, idx) => (
-              <motion.div
-                key={deal.id || idx}
-                className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                  selectedDeal?.deal === deal.deal 
-                    ? 'bg-primary text-primary-foreground shadow-md' 
-                    : 'bg-background hover:bg-background-tertiary border border-border/50'
-                }`}
-                onClick={() => setSelectedDeal(deal)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: idx * 0.05 }}
-              >
-                <div className="font-medium text-sm mb-1">{deal.deal}</div>
-                <div className="text-xs opacity-80">{deal.issuer}</div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs opacity-70">{deal.currency}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                    selectedDeal?.deal === deal.deal 
-                      ? 'border-primary-foreground/20' 
-                      : getStatusColor(deal.status)
-                  }`}>
-                    {deal.status}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-            
-            {filteredDeals.length === 0 && (
-              <div className="text-center text-foreground-secondary py-8">
-                <p>No deals found</p>
-                <p className="text-sm mt-1">Try adjusting your search or filter</p>
-              </div>
-            )}
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="bg-white rounded-lg p-3 shadow-sm border">
+            <Input 
+              placeholder="Filter Lears"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border-0 focus-visible:ring-0 text-gray-600"
+            />
           </div>
-        </motion.div>
+        </div>
 
-        {/* Right Content - Portfolio Summary */}
-        <motion.div 
-          className="flex-1 overflow-y-auto"
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {selectedDeal ? (
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">{selectedDeal.deal}</h1>
-                  <p className="text-foreground-secondary mt-1">{selectedDeal.issuer}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => navigate(`/investments/${encodeURIComponent(selectedDeal.deal)}`)}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Details
-                  </Button>
-                </div>
-              </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <Card className="p-4 bg-white shadow-sm">
+            <div className="space-y-2">
+              <h3 className="font-medium text-gray-900">Total Commitment</h3>
+              <p className="text-xl font-semibold text-gray-900">
+                ${portfolioStats.totalCommitment.toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-500">Portfolio commitment</p>
+            </div>
+          </Card>
+          <Card className="p-4 bg-white shadow-sm">
+            <div className="space-y-2">
+              <h3 className="font-medium text-gray-900">Total Funded</h3>
+              <p className="text-xl font-semibold text-gray-900">
+                ${portfolioStats.totalFunded.toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-500">Disbursed amount</p>
+            </div>
+          </Card>
+          <Card className="p-4 bg-white shadow-sm">
+            <div className="space-y-2">
+              <h3 className="font-medium text-gray-900">Available</h3>
+              <p className="text-xl font-semibold text-gray-900">
+                ${portfolioStats.available.toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-500">Remaining capacity</p>
+            </div>
+          </Card>
+          <Card className="p-4 bg-white shadow-sm">
+            <div className="space-y-2">
+              <h3 className="font-medium text-gray-900">Active Deals</h3>
+              <p className="text-xl font-semibold text-gray-900">
+                {portfolioStats.activeDeals}
+              </p>
+              <p className="text-sm text-gray-500">Current investments</p>
+            </div>
+          </Card>
+        </div>
 
-              {/* Portfolio Summary */}
-              <PortfolioSummary 
-                deal={selectedDeal.deal}
-                transaction={selectedDeal}
-                facilities={selectedDealFacilities}
-              />
+        {/* Charts Section */}
+        <div className="grid grid-cols-3 gap-6 mb-6">
+          {/* Bar Chart */}
+          <Card className="col-span-2 p-4 bg-white shadow-sm">
+            <div className="mb-4">
+              <h3 className="font-medium text-gray-900 mb-2">Aconuecxista Redord</h3>
+              <div className="text-sm text-gray-600">0 1 6 5</div>
             </div>
-          ) : (
-            <div className="flex items-center justify-center h-full text-foreground-secondary">
-              <div className="text-center">
-                <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">Select a deal to view portfolio tracking</p>
-                <p className="text-sm mt-1">Choose from the deals listed on the left</p>
-              </div>
+            <div className="h-40 flex items-end justify-center space-x-2">
+              {/* Sample bar chart */}
+              <div className="w-12 h-20 bg-blue-300 rounded-t"></div>
+              <div className="w-12 h-32 bg-orange-400 rounded-t"></div>
+              <div className="w-12 h-16 bg-blue-400 rounded-t"></div>
             </div>
-          )}
-        </motion.div>
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>1.50</span>
+              <span>1.00</span>
+              <span>4.00</span>
+              <span>6.50</span>
+              <span>20</span>
+              <span>6.00</span>
+              <span>200</span>
+            </div>
+          </Card>
+
+          {/* Pie Chart */}
+          <Card className="p-4 bg-white shadow-sm">
+            <div className="mb-4">
+              <h3 className="font-medium text-gray-900">Split By Consort</h3>
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <div className="w-24 h-24 rounded-full border-8 border-teal-600 border-l-teal-200 border-b-teal-300"></div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search Input */}
+        <div className="mb-4">
+          <Input 
+            placeholder="Search"
+            className="w-64 bg-white shadow-sm"
+          />
+        </div>
+
+        {/* Data Table */}
+        <Card className="bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Deal Name</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Issuer</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Amount</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Country</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDeals.map((deal, index) => {
+                  const dealFacilities = facilities.filter(f => 
+                    f.transactionId === deal.deal || f.investmentName === deal.deal
+                  );
+                  const totalCommitment = dealFacilities.reduce((sum, f) => {
+                    const commitment = f.generalTerms?.initialCommitment || f.generalTerms?.commitment || 0;
+                    return sum + (typeof commitment === 'number' ? commitment : parseFloat(commitment) || 0);
+                  }, 0);
+                  
+                  return (
+                    <tr key={index} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 text-gray-900 font-medium">{deal.deal}</td>
+                      <td className="py-3 px-4 text-gray-600">{deal.issuer}</td>
+                      <td className="py-3 px-4 text-gray-900">
+                        {totalCommitment > 0 ? `$${totalCommitment.toLocaleString()}` : deal.amount || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{deal.currency}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          deal.status === 'Active' ? 'bg-green-100 text-green-800' :
+                          deal.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {deal.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{deal.countryOfRisk}</td>
+                      <td className="py-3 px-4">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => navigate(`/investments/${encodeURIComponent(deal.deal)}`)}
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        </div>
       </div>
     </div>
   );

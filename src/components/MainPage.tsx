@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart } from 'lucide-react'
+import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
@@ -61,6 +61,33 @@ const MainPage = () => {
       gradient: 'from-foreground-secondary to-foreground',
       iconColor: 'text-foreground-secondary',
       bgColor: 'bg-foreground-secondary/10'
+    },
+    {
+      title: 'Data feed',
+      icon: Database,
+      path: '/data-feed',
+      description: 'Real-time market data feeds',
+      gradient: 'from-blue-500 to-blue-300',
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-500/10'
+    },
+    {
+      title: 'Currency conversion',
+      icon: DollarSign,
+      path: '/currency-conversion',
+      description: 'Convert between currencies',
+      gradient: 'from-green-500 to-green-300',
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-500/10'
+    },
+    {
+      title: 'Holiday',
+      icon: CalendarDays,
+      path: '/holiday',
+      description: 'Market holidays and events',
+      gradient: 'from-red-500 to-red-300',
+      iconColor: 'text-red-500',
+      bgColor: 'bg-red-500/10'
     }
   ]
 
@@ -113,8 +140,8 @@ const MainPage = () => {
   <main className="flex-1 w-full px-6 py-6">
         {/* Navigation Cards */}
         <div>
-          {/* Layout cards in a single row on large screens: 6 columns on lg+ */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-start">
+          {/* Layout cards in a responsive grid using full width */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4 md:gap-6 items-start w-full">
             {navigationCards.map((card, index) => {
               const Icon = card.icon
               return (
@@ -128,13 +155,13 @@ const MainPage = () => {
                 >
                   <Card className="group hover:shadow-xl hover:shadow-primary/10 transition-all duration-300" variant="interactive">
                     <Link to={card.path} className="block">
-                      <CardContent className="p-6 text-center flex flex-col items-center justify-center">
+                      <CardContent className="p-4 md:p-6 text-center flex flex-col items-center justify-center">
                         <motion.div 
-                          className={`w-12 h-12 ${card.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}
+                          className={`w-16 h-16 md:w-12 md:h-12 ${card.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}
                           whileHover={{ scale: 1.1 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <Icon className={`w-5 h-5 ${card.iconColor}`} />
+                          <Icon className={`w-8 h-8 md:w-5 md:h-5 ${card.iconColor}`} />
                         </motion.div>
                         <CardTitle className="text-lg mb-1 group-hover:text-primary transition-colors duration-300">
                           {card.title}

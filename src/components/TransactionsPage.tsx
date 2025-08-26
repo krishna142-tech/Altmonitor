@@ -2,9 +2,10 @@ import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Filter, Search, X, ArrowLeft } from 'lucide-react'
+import { Plus, Filter, Search, X, ArrowLeft, Menu, Receipt } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { useData } from '@/context/DataContext'
 
@@ -550,6 +551,7 @@ const TransactionsPage = () => {
   const { transactions, addTransaction } = useData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
   // local, stateful deal names so user can add new deals from the modal
   const [localDealNames, setLocalDealNames] = useState(dealNames);
@@ -559,14 +561,22 @@ const TransactionsPage = () => {
   const [localDealTypes, setLocalDealTypes] = useState(['type1','type2']);
   const navigate = useNavigate();
 
-  // Filter transactions based on filters
+  // Filter transactions based on search and filters
   const filteredTransactions = transactions.filter(t => {
-    return (
+    const matchesSearch = !searchTerm || 
+      t.deal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.issuer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.currency.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.countryOfRisk.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilters = (
       (!filters.deal || t.deal === filters.deal) &&
       (!filters.issuer || t.issuer === filters.issuer) &&
       (!filters.currency || t.currency === filters.currency) &&
       (!filters.countryOfRisk || t.countryOfRisk === filters.countryOfRisk)
     );
+    
+    return matchesSearch && matchesFilters;
   });
 
   const handleAddTransaction = (data) => {
@@ -686,8 +696,8 @@ const TransactionsPage = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
         className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
@@ -712,130 +722,120 @@ const TransactionsPage = () => {
               </defs>
             </svg>
           </div>
-          <span className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
-            AltMonitor
-          </span>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
         </Link>
         
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
-          <motion.div
-            whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/login" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Link>
-            </Button>
-          </motion.div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/main" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Link>
+          </Button>
         </div>
       </motion.header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-10 bg-background">
-        
-        {/* Page Title */}
-        <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-foreground text-2xl md:text-3xl font-bold mb-2">Transactions</h1>
-        </motion.div>
-
-        {/* Actions Bar */}
-        <motion.div 
-          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <motion.button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-success hover:bg-success/90 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200"
-            whileHover={{ scale: 1.05, boxShadow: '0 0 25px rgba(16, 185, 129, 0.25)' }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Plus className="w-4 h-4" />
-            Add Transaction
-          </motion.button>
-
-          <motion.button
-            onClick={() => setFilterOpen(true)}
-            className="flex items-center gap-2 bg-background-secondary hover:bg-background-tertiary border border-border/50 text-foreground font-medium px-6 py-3 rounded-xl shadow-soft transition-all duration-200"
-            whileHover={{ scale: 1.02, boxShadow: '0 2px 12px 0 rgba(197,218,235,0.10)' }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Filter className="w-4 h-4" />
-            Filter
-          </motion.button>
-        </motion.div>
-
-        {/* Transactions Table */}
-        <motion.div 
-          className="bg-background-secondary border border-border/50 rounded-xl overflow-hidden shadow-medium"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="bg-background border-b border-border">
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Deal</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Issuer</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Currency</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Country of Risk</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Collateral Description</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Contract date</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Asset Manager</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Asset Manager Name</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredTransactions.map((t, idx) => (
-                  <motion.tr 
-                    key={idx} 
-                    className="hover:bg-background transition-colors duration-200"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.5 + idx * 0.1 }}
-                  >
-                    <td className="px-6 py-3">
-                      <button
-                        className="text-gray-800 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors duration-200 text-sm"
-                        onClick={() => navigate(`/investments/${encodeURIComponent(t.deal)}`)}
-                      >
-                        {t.deal}
-                      </button>
-                    </td>
-                    <td className="px-6 py-3 text-foreground-secondary text-sm">{t.issuer}</td>
-                    <td className="px-6 py-3 text-primaryBlue font-medium text-sm">{t.currency}</td>
-                    <td className="px-6 py-3 text-accentTeal text-sm">{t.countryOfRisk}</td>
-                    <td className="px-6 py-3 text-foreground-secondary text-sm">{t.collateralDescription}</td>
-                    <td className="px-6 py-3 text-accentGold text-sm">{t.contractDate}</td>
-                    <td className="px-6 py-3 text-foreground text-sm">{t.assetManager}</td>
-                    <td className="px-6 py-3 text-foreground text-sm">{t.assetManagerName}</td>
-                  </motion.tr>
-                ))}
-                {filteredTransactions.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-6 text-center text-foreground-secondary">
-                      No transactions found. Try adjusting your filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      <div className="flex flex-1 bg-gray-50">
+        {/* Sidebar */}
+        <div className="w-16 bg-slate-800 flex flex-col items-center py-4">
+          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
+            <Receipt className="w-4 h-4 text-slate-800" />
           </div>
-        </motion.div>
-      </main>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 p-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Receipt className="w-6 h-6 text-gray-600" />
+              <h1 className="text-xl font-semibold text-gray-900">All Transactions</h1>
+              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{filteredTransactions.length}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="w-4 h-4" />
+                Add Transaction
+              </Button>
+              <Button
+                onClick={() => setFilterOpen(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                Filter
+              </Button>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="mb-6">
+            <div className="bg-white rounded-lg p-3 shadow-sm border">
+              <Input 
+                placeholder="Search transactions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border-0 focus-visible:ring-0 text-gray-600"
+              />
+            </div>
+          </div>
+
+          {/* Transactions Table */}
+          <Card className="bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Deal</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Issuer</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Country of Risk</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Collateral Description</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Contract Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Asset Manager</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Asset Manager Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTransactions.map((t, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <button
+                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                          onClick={() => navigate(`/investments/${encodeURIComponent(t.deal)}`)}
+                        >
+                          {t.deal}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{t.issuer}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{t.currency}</td>
+                      <td className="py-3 px-4 text-gray-600">{t.countryOfRisk}</td>
+                      <td className="py-3 px-4 text-gray-600">{t.collateralDescription}</td>
+                      <td className="py-3 px-4 text-gray-900">{t.contractDate}</td>
+                      <td className="py-3 px-4 text-gray-600">{t.assetManager}</td>
+                      <td className="py-3 px-4 text-gray-600">{t.assetManagerName}</td>
+                    </tr>
+                  ))}
+                  {filteredTransactions.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-6 text-center text-gray-500">
+                        No transactions found. Try adjusting your search or filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      </div>
         
       <AddTransactionModal
         isOpen={isModalOpen}
