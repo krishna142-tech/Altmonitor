@@ -21,17 +21,17 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
         className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Link to="/" className="flex items-center gap-3 text-foreground">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
-            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
                 <path
                   fillRule="evenodd"
@@ -47,30 +47,35 @@ const LoginPage = () => {
               </defs>
             </svg>
           </div>
-          <span className="text-lg font-bold leading-tight tracking-[-0.015em]">
-            AltMonitor
-          </span>
+          <div>
+            <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
+            <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
+          </div>
         </Link>
         
         <div className="flex items-center gap-3">
-          {/* Theme switcher removed - AltMonitor is now light-only */}
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/" className="flex items-center gap-2">
+              Contact Sales
+            </Link>
+          </Button>
         </div>
       </motion.header>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="flex-1 bg-gray-50 flex items-center justify-center px-4 py-8">
         <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="bg-background-secondary border-border/50 shadow-medium">
+          <Card className="bg-white shadow-sm border border-gray-200">
             <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-2xl font-bold text-foreground">
+              <CardTitle className="text-2xl font-bold text-gray-900">
                 Welcome back
               </CardTitle>
-              <CardDescription className="text-foreground-secondary">
+              <CardDescription className="text-gray-600">
                 Sign in to your AltMonitor account
               </CardDescription>
             </CardHeader>
@@ -78,11 +83,11 @@ const LoginPage = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email Field */}
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-foreground">
+                  <label htmlFor="email" className="text-sm font-medium text-gray-900">
                     Email address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                     <input
                       id="email"
                       type="email"
@@ -90,18 +95,18 @@ const LoginPage = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full pl-10 pr-4 py-3 bg-background border border-border/50 rounded-xl text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 shadow-soft"
+                      className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     />
                   </div>
                 </div>
 
                 {/* Password Field */}
                 <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  <label htmlFor="password" className="text-sm font-medium text-gray-900">
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
@@ -109,12 +114,12 @@ const LoginPage = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full pl-10 pr-12 py-3 bg-background border border-border/50 rounded-xl text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 shadow-soft"
+                      className="w-full pl-10 pr-12 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary hover:text-foreground transition-colors duration-200"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-200"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -128,13 +133,13 @@ const LoginPage = () => {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary/50 focus:ring-offset-0"
+                      className="w-4 h-4 rounded border-gray-300 bg-white text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
                     />
-                    <span className="text-sm text-foreground">Remember me</span>
+                    <span className="text-sm text-gray-900">Remember me</span>
                   </label>
                   <Link 
                     to="/forgot-password" 
-                    className="text-sm text-primary hover:text-primary/80 transition-colors duration-200"
+                    className="text-sm text-blue-600 hover:text-blue-800 transition-colors duration-200"
                   >
                     Forgot password?
                   </Link>
@@ -143,9 +148,8 @@ const LoginPage = () => {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
                   size="lg"
-                  variant="premium"
                 >
                   Sign in
                 </Button>
@@ -153,9 +157,9 @@ const LoginPage = () => {
 
               {/* Footer */}
               <div className="mt-6 text-center">
-                <p className="text-sm text-foreground-secondary">
+                <p className="text-sm text-gray-600">
                   Don't have an account?{' '}
-                  <Link to="/register" className="text-primary hover:text-primary/80 transition-colors duration-200">
+                  <Link to="/register" className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
                     Contact Sales
                   </Link>
                 </p>

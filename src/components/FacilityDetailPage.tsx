@@ -124,9 +124,25 @@ const FacilityDetailPage = () => {
       } else {
         setCashflowSchedule([]); // Clear cashflows when switching facilities
       }
+      
+      // Load amortisation entries if they exist
+      if ((currentFacility as any).amortisationEntries && Array.isArray((currentFacility as any).amortisationEntries)) {
+        setAmortisationEntries((currentFacility as any).amortisationEntries);
+      } else {
+        setAmortisationEntries([]);
+      }
+      
+      // Load drawdown entries if they exist
+      if ((currentFacility as any).drawdownEntries && Array.isArray((currentFacility as any).drawdownEntries)) {
+        setDrawdownEntries((currentFacility as any).drawdownEntries);
+      } else {
+        setDrawdownEntries([]);
+      }
     } else {
       setGeneralData({});
       setCashflowSchedule([]); // Clear cashflows when no facility
+      setAmortisationEntries([]);
+      setDrawdownEntries([]);
     }
   }, [currentFacility]);
 
@@ -328,7 +344,14 @@ const FacilityDetailPage = () => {
       prepaymentAmount: Number(prepaymentAmount) || 0,
     };
     
-    setAmortisationEntries(prev => [...prev, newEntry]);
+    // Update state with new entry
+    const updatedEntries = [...amortisationEntries, newEntry];
+    setAmortisationEntries(updatedEntries);
+    
+    // Automatically update cashflow schedule
+    setTimeout(() => {
+      updateCashflowWithEntries();
+    }, 100);
     
     // Clear form
     setAmortisationDate('');
@@ -360,6 +383,11 @@ const FacilityDetailPage = () => {
   
   // Handler for adding drawdown entry
   const handleAddDrawdown = () => {
+    if (!drawDownDate) {
+      alert('Please provide at least Draw Down Date');
+      return;
+    }
+    
     const newEntry = {
       id: Date.now().toString(),
       drawDownDate,
@@ -372,7 +400,14 @@ const FacilityDetailPage = () => {
       drawdownDate
     };
     
-    setDrawdownEntries(prev => [...prev, newEntry]);
+    // Update state with new entry
+    const updatedEntries = [...drawdownEntries, newEntry];
+    setDrawdownEntries(updatedEntries);
+    
+    // Automatically update cashflow schedule
+    setTimeout(() => {
+      updateCashflowWithEntries();
+    }, 100);
     
     // Clear form
     setDrawDownDate('');
@@ -400,6 +435,154 @@ const FacilityDetailPage = () => {
       console.error('Failed to save drawdown data', error);
       alert('Failed to save drawdown data');
     }
+  };
+  
+  // Function to integrate amortisation and drawdown entries into cashflow schedule
+  const updateCashflowWithEntries = () => {
+    if (cashflowSchedule.length === 0) {
+      alert('Please generate the initial cashflow schedule first from the Cash Terms tab.');
+      return;
+    }
+    
+    // Create a copy of existing cashflow schedule
+    let updatedSchedule = [...cashflowSchedule];
+    
+    // Process amortisation entries
+    amortisationEntries.forEach(amortEntry => {
+      // Find if there's an existing row for this date or create a new one
+      let existingRowIndex = updatedSchedule.findIndex(row => 
+        row.fundingDate === amortEntry.amortisationDate || 
+        row.toDate === amortEntry.amortisationDate ||
+        row.scheduleIPD === amortEntry.amortisationDate
+      );
+      
+      if (existingRowIndex >= 0) {
+        // Update existing row
+        updatedSchedule[existingRowIndex] = {
+          ...updatedSchedule[existingRowIndex],
+          amortisationDate: amortEntry.amortisationDate,
+          amortisationDueAmount: amortEntry.amortisationDueAmount,
+          amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
+          repayment: amortEntry.repayment,
+          prepaymentDate: amortEntry.prepaymentDate,
+          prepaymentDate2: amortEntry.prepaymentDate2,
+          prepaymentYearFraction: amortEntry.prepaymentYearFraction,
+          prepaymentAmount: amortEntry.prepaymentAmount,
+        };
+      } else {
+        // Create new row for amortisation
+        const newRow = {
+          fundingDate: amortEntry.amortisationDate,
+          toDate: amortEntry.amortisationDate,
+          edate: amortEntry.amortisationDate,
+          emonth: new Date(amortEntry.amortisationDate).getMonth() + 1,
+          scheduleIPD: amortEntry.amortisationDate,
+          adjustedIPD: amortEntry.amortisationDate,
+          numberOfDays: 0,
+          yearFraction: 0,
+          commitment: updatedSchedule[0]?.commitment || 0,
+          drawDownDate: '',
+          drawDownDays: 0,
+          drawDownYearFraction: 0,
+          drawDownAmount: 0,
+          amortisationDate: amortEntry.amortisationDate,
+          amortisationDueAmount: amortEntry.amortisationDueAmount,
+          amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
+          prepaymentDate: amortEntry.prepaymentDate || '',
+          prepaymentDate2: amortEntry.prepaymentDate2 || '',
+          prepaymentYearFraction: amortEntry.prepaymentYearFraction,
+          prepaymentAmount: amortEntry.prepaymentAmount,
+          repayment: amortEntry.repayment,
+          margin: updatedSchedule[0]?.margin || 0,
+          referenceRate: updatedSchedule[0]?.referenceRate || 0,
+          indexRatio: updatedSchedule[0]?.indexRatio || 1,
+          interestDueAmount: 0,
+          interestReceivedAmount: 0,
+          closingBalance: 0
+        };
+        updatedSchedule.push(newRow);
+      }
+    });
+    
+    // Process drawdown entries
+    drawdownEntries.forEach(drawEntry => {
+      // Find if there's an existing row for this date or create a new one
+      let existingRowIndex = updatedSchedule.findIndex(row => 
+        row.fundingDate === drawEntry.drawDownDate || 
+        row.drawDownDate === drawEntry.drawDownDate
+      );
+      
+      if (existingRowIndex >= 0) {
+        // Update existing row
+        updatedSchedule[existingRowIndex] = {
+          ...updatedSchedule[existingRowIndex],
+          drawDownDate: drawEntry.drawDownDate,
+          drawDownDays: drawEntry.drawDownDays,
+          drawDownYearFraction: drawEntry.drawDownYearFraction,
+          drawDownAmount: drawEntry.drawDownAmount,
+          commitment: drawEntry.commitment,
+          closingBalance: drawEntry.closingBalance,
+        };
+      } else {
+        // Create new row for drawdown
+        const newRow = {
+          fundingDate: drawEntry.drawDownDate,
+          toDate: drawEntry.drawDownDate,
+          edate: drawEntry.drawDownDate,
+          emonth: new Date(drawEntry.drawDownDate).getMonth() + 1,
+          scheduleIPD: drawEntry.drawDownDate,
+          adjustedIPD: drawEntry.drawDownDate,
+          numberOfDays: drawEntry.drawDownDays,
+          yearFraction: drawEntry.drawDownYearFraction,
+          commitment: drawEntry.commitment,
+          drawDownDate: drawEntry.drawDownDate,
+          drawDownDays: drawEntry.drawDownDays,
+          drawDownYearFraction: drawEntry.drawDownYearFraction,
+          drawDownAmount: drawEntry.drawDownAmount,
+          amortisationDate: '',
+          amortisationDueAmount: 0,
+          amortisationReceivedAmount: 0,
+          prepaymentDate: '',
+          prepaymentDate2: '',
+          prepaymentYearFraction: 0,
+          prepaymentAmount: 0,
+          repayment: 0,
+          margin: updatedSchedule[0]?.margin || 0,
+          referenceRate: updatedSchedule[0]?.referenceRate || 0,
+          indexRatio: updatedSchedule[0]?.indexRatio || 1,
+          interestDueAmount: 0,
+          interestReceivedAmount: 0,
+          closingBalance: drawEntry.closingBalance
+        };
+        updatedSchedule.push(newRow);
+      }
+    });
+    
+    // Sort by date and recalculate closing balances
+    updatedSchedule.sort((a, b) => new Date(a.fundingDate).getTime() - new Date(b.fundingDate).getTime());
+    
+    // Recalculate closing balances based on the sequence
+    let runningBalance = updatedSchedule[0]?.commitment || 0;
+    updatedSchedule.forEach((row, index) => {
+      if (index === 0) {
+        row.closingBalance = runningBalance - (row.amortisationDueAmount || 0) + (row.drawDownAmount || 0);
+      } else {
+        runningBalance = updatedSchedule[index - 1].closingBalance;
+        row.closingBalance = runningBalance - (row.amortisationDueAmount || 0) + (row.drawDownAmount || 0) - (row.repayment || 0);
+      }
+      runningBalance = row.closingBalance;
+    });
+    
+    // Update the cashflow schedule
+    setCashflowSchedule(updatedSchedule);
+    
+    // Persist to facility
+    if (currentFacility) {
+      const updated = { ...currentFacility, cashflows: updatedSchedule } as any;
+      updateFacility(currentFacility.id, updated);
+    }
+    
+    alert('Cashflow schedule updated with amortisation and drawdown entries!');
   };
   
   const sidebarItems = [
@@ -955,7 +1138,14 @@ const FacilityDetailPage = () => {
                     />
                   </div>
                 </div>
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button
+                    type="button"
+                    onClick={updateCashflowWithEntries}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Update Cashflow Schedule
+                  </Button>
                   <Button
                     type="button"
                     onClick={handleSaveAmortisation}
@@ -1076,6 +1266,13 @@ const FacilityDetailPage = () => {
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Add Drawdown Entry
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={updateCashflowWithEntries}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Update Cashflow Schedule
                   </Button>
                   <Button
                     type="button"
