@@ -22,9 +22,9 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Consistent Header */}
+      {/* Desktop Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -62,15 +62,15 @@ const LoginPage = () => {
         </div>
       </motion.header>
 
-      {/* Main Content */}
-      <div className="flex-1 bg-gray-50 flex items-center justify-center px-4 py-8">
+      {/* Desktop Main Content */}
+      <div className="flex-1 bg-gray-50 flex items-center justify-center px-8 py-12">
         <motion.div
-          className="w-full max-w-md"
+          className="w-full max-w-lg"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="bg-white shadow-sm border border-gray-200">
+          <Card className="bg-white shadow-lg border border-gray-200">
             <CardHeader className="space-y-1 text-center">
               <CardTitle className="text-2xl font-bold text-gray-900">
                 Welcome back
@@ -87,15 +87,15 @@ const LoginPage = () => {
                     Email address
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                     <input
                       id="email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="Enter your email address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full pl-12 pr-4 py-4 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base"
                     />
                   </div>
                 </div>
@@ -106,7 +106,7 @@ const LoginPage = () => {
                     Password
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
+                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5" />
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
@@ -114,14 +114,14 @@ const LoginPage = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full pl-10 pr-12 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full pl-12 pr-14 py-4 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-200"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-900 transition-colors duration-200"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
@@ -133,9 +133,9 @@ const LoginPage = () => {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 bg-white text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+                      className="w-5 h-5 rounded border-gray-300 bg-white text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
                     />
-                    <span className="text-sm text-gray-900">Remember me</span>
+                    <span className="text-base text-gray-900">Remember me</span>
                   </label>
                   <Link 
                     to="/forgot-password" 
@@ -148,10 +148,9 @@ const LoginPage = () => {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
-                  size="lg"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 text-lg rounded-lg shadow-sm"
                 >
-                  Sign in
+                  Sign in to Dashboard
                 </Button>
               </form>
 
