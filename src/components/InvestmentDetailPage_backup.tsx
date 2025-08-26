@@ -13,7 +13,6 @@ import { Separator } from './ui/separator';
 import { PlusCircle, Edit, Trash2, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const mockFacilities = [
   {
@@ -268,7 +267,6 @@ const InvestmentDetailPage = () => {
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <motion.div
             whileHover={{ scale: 1.07, boxShadow: '0 4px 24px 0 rgba(34,197,94,0.15)' }}
             whileTap={{ scale: 0.96 }}

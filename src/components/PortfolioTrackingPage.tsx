@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3, Menu, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -471,7 +470,6 @@ const PortfolioTrackingPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link to="/main" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />

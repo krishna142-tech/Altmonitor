@@ -6,7 +6,6 @@ import { Plus, Filter, Search, X, ArrowLeft, Menu, Receipt } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { useData } from '@/context/DataContext'
 
 // Mocked data for table and dropdowns
@@ -729,7 +728,6 @@ const TransactionsPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link to="/main" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
@@ -739,16 +737,8 @@ const TransactionsPage = () => {
         </div>
       </motion.header>
 
-      <div className="flex flex-1 bg-gray-50">
-        {/* Sidebar */}
-        <div className="w-16 bg-slate-800 flex flex-col items-center py-4">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <Receipt className="w-4 h-4 text-slate-800" />
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 p-6">
+      {/* Main Content */}
+      <div className="flex-1 bg-gray-50 p-6">
           {/* Page Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -834,7 +824,6 @@ const TransactionsPage = () => {
               </table>
             </div>
           </Card>
-        </div>
       </div>
         
       <AddTransactionModal

@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
-import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('')
@@ -54,7 +53,7 @@ const LoginPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
+          {/* Theme switcher removed - AltMonitor is now light-only */}
         </div>
       </motion.header>
 

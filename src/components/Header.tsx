@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
-import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { cn } from '@/lib/utils'
 
 const Logo = () => (
@@ -95,7 +94,6 @@ export const Header: React.FC<HeaderProps> = ({ className, onSidebarToggle, side
       </nav>
       
       <div className="flex items-center gap-3">
-        <ThemeSwitcher />
         <Button variant="outline" size="sm" className="hidden sm:flex text-xs">
           Contact Sales
         </Button>

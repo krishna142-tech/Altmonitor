@@ -13,7 +13,6 @@ import { Separator } from './ui/separator';
 import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Activity, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
 
 
@@ -281,7 +280,6 @@ const InvestmentDetailPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link to="/transactions" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />

@@ -1,10 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays } from 'lucide-react'
+import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
-import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 const MainPage = () => {
   const navigationCards = [
@@ -92,15 +91,15 @@ const MainPage = () => {
   ]
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
-      {/* Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Consistent Header */}
       <motion.header 
         className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center gap-3">
+        <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
           <div className="size-6">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
               <g clipPath="url(#clip0_6_535)">
@@ -122,12 +121,11 @@ const MainPage = () => {
             <h1 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">AltMonitor</h1>
             <p className="text-foreground-secondary text-xs uppercase tracking-wide">Investment Dashboard</p>
           </div>
-        </div>
+        </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/login" className="flex items-center gap-2">
               <LogOut className="w-4 h-4" />
               Logout
             </Link>
@@ -136,12 +134,18 @@ const MainPage = () => {
       </motion.header>
 
       {/* Main Content */}
-  {/* Use full width layout so cards can span the entire viewport */}
-  <main className="flex-1 w-full px-6 py-6">
-        {/* Navigation Cards */}
-        <div>
-          {/* Layout cards in a responsive grid using full width */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4 md:gap-6 items-start w-full">
+      <div className="flex-1 bg-gray-50 p-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Home className="w-6 h-6 text-gray-600" />
+              <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{navigationCards.length} modules</span>
+            </div>
+          </div>
+
+          {/* Navigation Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
             {navigationCards.map((card, index) => {
               const Icon = card.icon
               return (
@@ -149,24 +153,24 @@ const MainPage = () => {
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
+                  transition={{ duration: 0.5, delay: 0.1 + index * 0.05 }}
                   whileHover={{ y: -4 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Card className="group hover:shadow-xl hover:shadow-primary/10 transition-all duration-300" variant="interactive">
+                  <Card className="bg-white shadow-sm hover:shadow-lg transition-all duration-300 group">
                     <Link to={card.path} className="block">
-                      <CardContent className="p-4 md:p-6 text-center flex flex-col items-center justify-center">
+                      <CardContent className="p-6 text-center">
                         <motion.div 
-                          className={`w-16 h-16 md:w-12 md:h-12 ${card.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}
+                          className={`w-12 h-12 ${card.bgColor} rounded-lg flex items-center justify-center mx-auto mb-4`}
                           whileHover={{ scale: 1.1 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <Icon className={`w-8 h-8 md:w-5 md:h-5 ${card.iconColor}`} />
+                          <Icon className={`w-6 h-6 ${card.iconColor}`} />
                         </motion.div>
-                        <CardTitle className="text-lg mb-1 group-hover:text-primary transition-colors duration-300">
+                        <CardTitle className="text-base font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
                           {card.title}
                         </CardTitle>
-                        <CardDescription className="text-sm">
+                        <CardDescription className="text-sm text-gray-600">
                           {card.description}
                         </CardDescription>
                       </CardContent>
@@ -176,8 +180,7 @@ const MainPage = () => {
               )
             })}
           </div>
-        </div>
-      </main>
+      </div>
     </div>
   )
 };

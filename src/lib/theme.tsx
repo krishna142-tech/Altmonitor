@@ -15,44 +15,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      setTheme(savedTheme)
-    } else {
-      // Default to light theme
-      setTheme('light')
-    }
+    // Always force light theme
+    setTheme('light')
+    setResolvedTheme('light')
+    
+    // Remove any existing theme from localStorage
+    localStorage.removeItem('theme')
+    
+    // Ensure the root element doesn't have dark class
+    const root = window.document.documentElement
+    root.classList.remove('dark')
   }, [])
 
   useEffect(() => {
+    // Always keep it light theme
     const root = window.document.documentElement
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-      setResolvedTheme(systemTheme)
-      root.classList.toggle('dark', systemTheme === 'dark')
-    } else {
-      setResolvedTheme(theme)
-      root.classList.toggle('dark', theme === 'dark')
-    }
-
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    
-    const handleChange = () => {
-      if (theme === 'system') {
-        const systemTheme = mediaQuery.matches ? 'dark' : 'light'
-        setResolvedTheme(systemTheme)
-        const root = window.document.documentElement
-        root.classList.toggle('dark', systemTheme === 'dark')
-      }
-    }
-
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
+    setResolvedTheme('light')
+    root.classList.remove('dark')
   }, [theme])
 
   return (

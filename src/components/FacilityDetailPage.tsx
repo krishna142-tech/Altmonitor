@@ -5,7 +5,6 @@ import { ArrowLeft, FileSpreadsheet, Settings, CreditCard, TrendingUp, Download,
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
-import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { useData } from '@/context/DataContext';
 // Cashflow scheduler moved to its own page
 
@@ -63,6 +62,27 @@ const FacilityDetailPage = () => {
   const [scheduledType, setScheduledType] = useState('Scheduled');
   const [drawdownAmount, setDrawdownAmount] = useState('');
   const [drawdownDate, setDrawdownDate] = useState('');
+  
+  // Amortisation state
+  const [amortisationEntries, setAmortisationEntries] = useState<any[]>([]);
+  const [amortisationDate, setAmortisationDate] = useState('');
+  const [amortisationDueAmount, setAmortisationDueAmount] = useState('');
+  const [amortisationReceivedAmount, setAmortisationReceivedAmount] = useState('');
+  const [repaymentAmount, setRepaymentAmount] = useState('');
+  const [prepaymentDate, setPrepaymentDate] = useState('');
+  const [prepaymentDate2, setPrepaymentDate2] = useState('');
+  const [prepaymentYearFraction, setPrepaymentYearFraction] = useState('');
+  const [prepaymentAmount, setPrepaymentAmount] = useState('');
+  
+  // Drawdown state
+  const [drawdownEntries, setDrawdownEntries] = useState<any[]>([]);
+  const [drawDownDate, setDrawDownDate] = useState('');
+  const [drawDownDays, setDrawDownDays] = useState('');
+  const [drawDownYearFraction, setDrawDownYearFraction] = useState('');
+  const [drawDownAmount, setDrawDownAmount] = useState('');
+  const [commitment, setCommitment] = useState('');
+  const [closingBalance, setClosingBalance] = useState('');
+  
   const { facilities, addFacility, updateFacility } = useData();
   const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
   const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
@@ -232,13 +252,33 @@ const FacilityDetailPage = () => {
         const allIn = (marginNum + refRateNum) / 100;
         const interest = principal * allIn * yf;
         rows.push({
-          fromDate: periodStart.toISOString().slice(0,10),
+          fundingDate: periodStart.toISOString().slice(0,10),
           toDate: periodEnd.toISOString().slice(0,10),
-          expectedPaymentDate: adjPayment.toISOString().slice(0,10),
+          edate: periodEnd.toISOString().slice(0,10),
+          emonth: periodEnd.getMonth() + 1,
+          scheduleIPD: adjPayment.toISOString().slice(0,10),
+          adjustedIPD: adjPayment.toISOString().slice(0,10),
           numberOfDays: days,
-          dayCount: dayCountConventionState,
-          marginRate: marginRateState,
-          interest: Number(interest.toFixed(2))
+          yearFraction: Number(yf.toFixed(6)),
+          commitment: principal,
+          drawDownDate: periodStart.toISOString().slice(0,10),
+          drawDownDays: days,
+          drawDownYearFraction: Number(yf.toFixed(6)),
+          drawDownAmount: principal * 0.5, // Example: 50% drawdown
+          amortisationDate: periodEnd.toISOString().slice(0,10),
+          amortisationDueAmount: principal * 0.1, // Example: 10% amortisation
+          amortisationReceivedAmount: principal * 0.1,
+          prepaymentDate: '',
+          prepaymentDate2: '',
+          prepaymentYearFraction: 0,
+          prepaymentAmount: 0,
+          repayment: principal * 0.1,
+          margin: marginNum,
+          referenceRate: refRateNum,
+          indexRatio: 1.0,
+          interestDueAmount: Number(interest.toFixed(2)),
+          interestReceivedAmount: Number(interest.toFixed(2)),
+          closingBalance: principal - (principal * 0.1 * (rows.length + 1))
         });
         // advance to the day after period end to avoid infinite loops
         periodStart = addDays(periodEnd, 1);
@@ -266,6 +306,99 @@ const FacilityDetailPage = () => {
       return false;
     } finally {
       setIsGenerating(false);
+    }
+  };
+  
+  // Handler for adding amortisation entry
+  const handleAddAmortisation = () => {
+    if (!amortisationDate || !amortisationDueAmount) {
+      alert('Please provide at least Amortisation Date and Due Amount');
+      return;
+    }
+    
+    const newEntry = {
+      id: Date.now().toString(),
+      amortisationDate,
+      amortisationDueAmount: Number(amortisationDueAmount),
+      amortisationReceivedAmount: Number(amortisationReceivedAmount) || 0,
+      repayment: Number(repaymentAmount) || 0,
+      prepaymentDate,
+      prepaymentDate2,
+      prepaymentYearFraction: Number(prepaymentYearFraction) || 0,
+      prepaymentAmount: Number(prepaymentAmount) || 0,
+    };
+    
+    setAmortisationEntries(prev => [...prev, newEntry]);
+    
+    // Clear form
+    setAmortisationDate('');
+    setAmortisationDueAmount('');
+    setAmortisationReceivedAmount('');
+    setRepaymentAmount('');
+    setPrepaymentDate('');
+    setPrepaymentDate2('');
+    setPrepaymentYearFraction('');
+    setPrepaymentAmount('');
+  };
+  
+  // Handler for saving amortisation data
+  const handleSaveAmortisation = () => {
+    try {
+      if (currentFacility) {
+        const updatedFacility = {
+          ...currentFacility,
+          amortisationEntries: amortisationEntries
+        };
+        updateFacility(currentFacility.id, updatedFacility as any);
+        alert('Amortisation data saved successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to save amortisation data', error);
+      alert('Failed to save amortisation data');
+    }
+  };
+  
+  // Handler for adding drawdown entry
+  const handleAddDrawdown = () => {
+    const newEntry = {
+      id: Date.now().toString(),
+      drawDownDate,
+      drawDownDays: Number(drawDownDays) || 0,
+      drawDownYearFraction: Number(drawDownYearFraction) || 0,
+      drawDownAmount: Number(drawDownAmount) || 0,
+      commitment: Number(commitment) || 0,
+      closingBalance: Number(closingBalance) || 0,
+      drawdownAmount: Number(drawdownAmount) || 0,
+      drawdownDate
+    };
+    
+    setDrawdownEntries(prev => [...prev, newEntry]);
+    
+    // Clear form
+    setDrawDownDate('');
+    setDrawDownDays('');
+    setDrawDownYearFraction('');
+    setDrawDownAmount('');
+    setCommitment('');
+    setClosingBalance('');
+    setDrawdownAmount('');
+    setDrawdownDate('');
+  };
+  
+  // Handler for saving drawdown data
+  const handleSaveDrawdown = () => {
+    try {
+      if (currentFacility) {
+        const updatedFacility = {
+          ...currentFacility,
+          drawdownEntries: drawdownEntries
+        };
+        updateFacility(currentFacility.id, updatedFacility as any);
+        alert('Drawdown data saved successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to save drawdown data', error);
+      alert('Failed to save drawdown data');
     }
   };
   
@@ -311,7 +444,6 @@ const FacilityDetailPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <ThemeSwitcher />
           <Button variant="outline" size="sm" asChild>
             <Link to="/main" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
@@ -373,7 +505,7 @@ const FacilityDetailPage = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 tracking-tight border-b border-gray-200 pb-3">General Terms</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Calculation Start Date</label>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Funding Date</label>
                     <input type="date" value={calcStartDateState} onChange={e => setCalcStartDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
@@ -383,6 +515,20 @@ const FacilityDetailPage = () => {
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Maturity Date</label>
                     <input type="date" value={maturityDateState} onChange={e => setMaturityDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Edate</label>
+                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Emonth</label>
+                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                      {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Index Ratio</label>
+                    <input type="number" step="0.01" min="0" placeholder="1.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                 </div>
               </div>
@@ -603,6 +749,22 @@ const FacilityDetailPage = () => {
                       {allCountries.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Schedule IPD</label>
+                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Adjusted IPD</label>
+                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Due Amount</label>
+                    <input type="number" step="0.01" min="0" placeholder="0.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Received Amount</label>
+                    <input type="number" step="0.01" min="0" placeholder="0.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end mt-10">
@@ -658,22 +820,149 @@ const FacilityDetailPage = () => {
                     <FileSpreadsheet className="w-6 h-6 text-success" />
                   </span>
                   <button type="button" className="px-4 py-2 rounded bg-background-secondary border border-border/50 text-foreground hover:bg-background-tertiary/50 transition-all font-semibold shadow-soft">
-                    Add
+                    Add Amortisation
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Date</label>
+                    <input 
+                      type="date" 
+                      value={amortisationDate}
+                      onChange={(e) => setAmortisationDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Amount</label>
-                    <input type="number" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" placeholder="Amount" />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Due Amount</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={amortisationDueAmount}
+                      onChange={(e) => setAmortisationDueAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Payable</label>
-                    <input type="text" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" placeholder="Payable" />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Received Amount</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={amortisationReceivedAmount}
+                      onChange={(e) => setAmortisationReceivedAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Repayment</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={repaymentAmount}
+                      onChange={(e) => setRepaymentAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button
+                    type="button"
+                    onClick={handleAddAmortisation}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Add Amortisation Entry
+                  </Button>
+                </div>
+                
+                {/* Display Added Amortisation Entries */}
+                {amortisationEntries.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Added Amortisation Entries</h3>
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Due Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Received Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Repayment</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {amortisationEntries.map((entry, idx) => (
+                            <tr key={entry.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-900">{entry.amortisationDate}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900">{entry.amortisationDueAmount.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900">{entry.amortisationReceivedAmount.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-sm text-right font-medium text-green-600">{entry.repayment.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Prepayment Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Date</label>
+                    <input 
+                      type="date" 
+                      value={prepaymentDate}
+                      onChange={(e) => setPrepaymentDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Date 2</label>
+                    <input 
+                      type="date" 
+                      value={prepaymentDate2}
+                      onChange={(e) => setPrepaymentDate2(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Year Fraction</label>
+                    <input 
+                      type="number" 
+                      step="0.000001" 
+                      min="0" 
+                      placeholder="0.000000" 
+                      value={prepaymentYearFraction}
+                      onChange={(e) => setPrepaymentYearFraction(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Amount</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={prepaymentAmount}
+                      onChange={(e) => setPrepaymentAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-6">
+                  <Button
+                    type="button"
+                    onClick={handleSaveAmortisation}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Save Amortisation Data
+                  </Button>
                 </div>
               </div>
             </form>
@@ -690,52 +979,183 @@ const FacilityDetailPage = () => {
             <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Default Settings</h2>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Drawdown Type</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={drawdownType} onChange={e => setDrawdownType(e.target.value)}>
-                      <option>Scheduled</option>
-                      <option>Custom</option>
-                    </select>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down Date</label>
+                    <input 
+                      type="date" 
+                      value={drawDownDate}
+                      onChange={(e) => setDrawDownDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Draw on</label>
-                    <input type="text" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={drawOn} onChange={e => setDrawOn(e.target.value)} />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down No of Days</label>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      placeholder="Days" 
+                      value={drawDownDays}
+                      onChange={(e) => setDrawDownDays(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Available From</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={availableFrom} onChange={e => setAvailableFrom(e.target.value)} />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down Year Fraction</label>
+                    <input 
+                      type="number" 
+                      step="0.000001" 
+                      min="0" 
+                      placeholder="0.000000" 
+                      value={drawDownYearFraction}
+                      onChange={(e) => setDrawDownYearFraction(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down Amount</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={drawDownAmount}
+                      onChange={(e) => setDrawDownAmount(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Commitment</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={commitment}
+                      onChange={(e) => setCommitment(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Closing Balance</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00" 
+                      value={closingBalance}
+                      onChange={(e) => setClosingBalance(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Available Until</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={availableUntil} onChange={e => setAvailableUntil(e.target.value)} />
+                    <input 
+                      type="date" 
+                      value={availableUntil}
+                      onChange={(e) => setAvailableUntil(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Scheduled</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={scheduledType} onChange={e => setScheduledType(e.target.value)}>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Scheduled Type</label>
+                    <select 
+                      value={scheduledType}
+                      onChange={(e) => setScheduledType(e.target.value)}
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                    >
                       <option>Upfront</option>
                       <option>Scheduled</option>
                     </select>
                   </div>
                 </div>
+                <div className="flex justify-end mt-6 gap-3">
+                  <Button
+                    type="button"
+                    onClick={handleAddDrawdown}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Add Drawdown Entry
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveDrawdown}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Save Drawdown Data
+                  </Button>
+                </div>
+                
+                {/* Display Added Drawdown Entries */}
+                {drawdownEntries.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Added Drawdown Entries</h3>
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Days</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Amount</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Commitment</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Closing Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {drawdownEntries.map((entry, idx) => (
+                            <tr key={entry.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-900">{entry.drawDownDate}</td>
+                              <td className="px-4 py-3 text-sm text-center text-gray-900">{entry.drawDownDays}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900">{entry.drawDownAmount.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900">{entry.commitment.toLocaleString()}</td>
+                              <td className="px-4 py-3 text-sm text-right font-medium text-green-600">{entry.closingBalance.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mb-8">
                 <div className="flex items-center justify-end border-b border-border/30 mb-4">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button type="button" className="bg-success hover:bg-success/90 text-white font-semibold px-6 py-2 rounded shadow transition-colors duration-200">Add Button</button>
+                      <button type="button" className="bg-success hover:bg-success/90 text-white font-semibold px-6 py-2 rounded shadow transition-colors duration-200">Add</button>
                     </DialogTrigger>
                     <DialogContent>
                       <h2 className="text-2xl font-bold text-foreground tracking-tight pb-3 mb-4">Drawdown Profile</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="text-primary text-sm font-semibold mb-2 block">Drawdown Amount</label>
-                          <input type="text" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={drawdownAmount} onChange={e => setDrawdownAmount(e.target.value)} />
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={drawdownAmount} 
+                            onChange={e => setDrawdownAmount(e.target.value)} 
+                            className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                          />
                         </div>
                         <div>
                           <label className="text-primary text-sm font-semibold mb-2 block">Drawdown Date</label>
-                          <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" value={drawdownDate} onChange={e => setDrawdownDate(e.target.value)} />
+                          <input 
+                            type="date" 
+                            value={drawdownDate} 
+                            onChange={e => setDrawdownDate(e.target.value)} 
+                            className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                          />
                         </div>
+                      </div>
+                      <div className="flex justify-end gap-3 mt-6">
+                        <Button
+                          type="button"
+                          onClick={handleAddDrawdown}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Add to Profile
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -746,13 +1166,13 @@ const FacilityDetailPage = () => {
         )}
         {activeTab === 'cashflow' && (
           <motion.div 
-            className="w-full px-2 sm:px-4 md:px-8 lg:px-12"
+            className="w-full h-full"
             initial={{ opacity: 0, y: 40, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
             exit={{ opacity: 0, y: 40, scale: 0.98 }}
           >
-            <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
+            <div className="p-4 h-full overflow-hidden flex flex-col">
               <div className="mb-6">
                 {cashflowSchedule.length === 0 ? (
                   <div className="p-6 border rounded text-center text-foreground-secondary">No cashflow generated. Use the <strong>Generate Cashflow</strong> button in the <em>Cash Term</em> tab to create a schedule.</div>
@@ -768,10 +1188,10 @@ const FacilityDetailPage = () => {
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         onClick={() => {
                           // export csv
-                          const headers = ['From Date','End of Date','Expected Payment Date','Number of Days','Day Count','Margin Rate (in %)','Interest'];
+                          const headers = ['Funding Date','TO Date','Edate','Emonth','Schedule IPD','Adjusted IPD','No of Days','Year Fraction','Commitment','Draw Down Date','Draw Down No of Days','Draw Dow Year Fraction','Draw Dow Amount','Amortsaion Date','Amortsaion Due Amount','Amortsaion Received Amount','Prepayement Date','Prepayemnt Date','Prepayment Year Fraction','Prepayment Amount','Repayment','Marign','Reference Rate','Index Ration','Interest due Amount','Interest Received Amount','Closing Balance'];
                           const lines = [headers.join(',')];
                           for (const r of cashflowSchedule) {
-                            lines.push([r.fromDate, r.toDate, r.expectedPaymentDate, String(r.numberOfDays), r.dayCount, String(r.marginRate), String(r.interest)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+                            lines.push([r.fundingDate||'', r.toDate||'', r.edate||'', r.emonth||'', r.scheduleIPD||'', r.adjustedIPD||'', String(r.numberOfDays||0), String(r.yearFraction||0), String(r.commitment||0), r.drawDownDate||'', String(r.drawDownDays||0), String(r.drawDownYearFraction||0), String(r.drawDownAmount||0), r.amortisationDate||'', String(r.amortisationDueAmount||0), String(r.amortisationReceivedAmount||0), r.prepaymentDate||'', r.prepaymentDate2||'', String(r.prepaymentYearFraction||0), String(r.prepaymentAmount||0), String(r.repayment||0), String(r.margin||0), String(r.referenceRate||0), String(r.indexRatio||0), String(r.interestDueAmount||0), String(r.interestReceivedAmount||0), String(r.closingBalance||0)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
                           }
                           const csv = lines.join('\n');
                           const blob = new Blob([csv], { type: 'text/csv' });
@@ -801,81 +1221,86 @@ const FacilityDetailPage = () => {
                     </div>
                   </div>
                   
-                  <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-border/20 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-success/10 to-success-dark/10 border-b border-success/20">
-                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">From Date</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">End Date</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-success uppercase tracking-wider">Payment Date</th>
-                            <th className="px-6 py-4 text-center text-xs font-bold text-success uppercase tracking-wider">Days</th>
-                            <th className="px-6 py-4 text-center text-xs font-bold text-success uppercase tracking-wider">Day Count</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-success uppercase tracking-wider">Margin Rate (%)</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-success uppercase tracking-wider">Interest</th>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-1">
+                    <div className="overflow-x-auto h-full">
+                      <table className="w-full min-w-max">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Funding Date</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">TO Date</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Edate</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">Emonth</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Schedule IPD</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Adjusted IPD</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">No of Days</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Year Fraction</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Commitment</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Draw Down Date</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Draw Down Days</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Draw Down YF</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Draw Down Amount</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Amortisation Date</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Amort Due</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Amort Received</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepayment Date</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepayment Date 2</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Prepay YF</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepay Amount</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Repayment</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">Margin</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Reference Rate</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Index Ratio</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Interest Due</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Interest Received</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Closing Balance</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-border/10">
+                        <tbody className="divide-y divide-gray-200">
                           {cashflowSchedule.map((r, idx) => (
                             <tr 
                               key={idx} 
-                              className={`transition-colors duration-200 hover:bg-success/5 ${
-                                idx % 2 === 0 ? 'bg-background/50' : 'bg-background-secondary/30'
+                              className={`transition-colors duration-200 hover:bg-gray-50 ${
+                                idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                               }`}
                             >
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                {new Date(r.fromDate).toLocaleDateString('en-GB', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                {new Date(r.toDate).toLocaleDateString('en-GB', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                {new Date(r.expectedPaymentDate).toLocaleDateString('en-GB', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-mono text-foreground-secondary">
-                                {r.numberOfDays}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium text-foreground-secondary">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
-                                  {r.dayCount}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">
-                                  {r.marginRate}%
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-bold">
-                                <span className="text-success">
-                                  {currencySymbols[currencyState]}{Number(r.interest).toLocaleString('en-GB', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                  })}
-                                </span>
-                              </td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.fundingDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.toDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.edate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.emonth || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.scheduleIPD || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.adjustedIPD || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.numberOfDays || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.yearFraction || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.commitment || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.drawDownDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.drawDownDays || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.drawDownYearFraction || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.drawDownAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.amortisationDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.amortisationDueAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.amortisationReceivedAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.prepaymentDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.prepaymentDate2 || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.prepaymentYearFraction || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.prepaymentAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.repayment || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.margin || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.referenceRate || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.indexRatio || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestDueAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestReceivedAmount || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold text-green-600">{r.closingBalance || 0}</td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
-                          <tr className="bg-gradient-to-r from-success/5 to-success-dark/5 border-t-2 border-success/20">
-                            <td colSpan={6} className="px-6 py-4 text-right text-sm font-bold text-foreground">
-                              Total Interest:
+                          <tr className="bg-gray-100 border-t-2 border-gray-300">
+                            <td colSpan={26} className="px-2 py-3 text-right text-xs font-bold text-gray-900">
+                              Total Closing Balance:
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-bold">
-                              <span className="text-success text-lg">
-                                {currencySymbols[currencyState]}{cashflowSchedule.reduce((sum, r) => sum + Number(r.interest), 0).toLocaleString('en-GB', {
+                            <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold">
+                              <span className="text-green-600 text-sm">
+                                {currencySymbols[currencyState] || '$'}{cashflowSchedule.reduce((sum, r) => sum + Number(r.closingBalance || 0), 0).toLocaleString('en-GB', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2
                                 })}
@@ -888,7 +1313,7 @@ const FacilityDetailPage = () => {
                   </div>
                 </div>
               )}
-            </form>
+            </div>
           </motion.div>
         )}
         </div>

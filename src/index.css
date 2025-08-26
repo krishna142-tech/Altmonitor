@@ -17,19 +17,7 @@
     --primary-foreground: 18 21 22;
   }
 
-  .dark {
-    --background: 10 10 10;
-    --background-secondary: 26 26 26;
-    --background-tertiary: 42 42 42;
-    --foreground: 255 255 255;
-    --foreground-secondary: 162 172 179;
-    --foreground-tertiary: 107 114 128;
-    --border: 42 42 42;
-    --border-secondary: 26 26 26;
-    --border-accent: 58 58 58;
-    --primary: 197 218 235;
-    --primary-foreground: 18 21 22;
-  }
+  /* Dark theme removed - AltMonitor is now light-only */
 
   /* Make the root font-size 75% (12px base) so rem units scale down globally */
   html {
