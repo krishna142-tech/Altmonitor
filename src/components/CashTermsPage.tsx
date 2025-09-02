@@ -25,18 +25,17 @@ const mockDayOne = {
   'Ratings': 'AA, AA, Aa, ',
 };
 const mockDefault = {
-  'First Interest Payment Date': '31/06/2025',
+  'First Interest Payment Date': '2025-06-30',
   'InterestType': 'Floating',
   'Interval Tenor': '12',
-  'Scheduled On': 'Edate',
+  'Scheduled On': 'EOMONTH',
   'Day Count Convention': '365',
-  'End of Month': '',
   'Interval Rate Type': '',
   'Margin': '',
   'Holiday Adjustment': 'Yes',
   'Holiday Convention': 'Following',
   'Holidays': '',
-  'Interest Payment Dates': '30-Jun,31-Dec',
+  'Interest Payment Dates': '30-06,31-12',
 };
 const mockAdditional = {
   'Different convention Maturity': 'Yes',

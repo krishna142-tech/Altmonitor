@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { useData } from '@/context/DataContext';
+// Cashflow engine
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { generateCashflowSchedule } = require('../lib/cashflowEngine.js');
 // Cashflow scheduler moved to its own page
 
 const allCountries = [
@@ -18,14 +21,14 @@ const interestTypes = ["Cash Interest", "Floating", "Fixed", "Other"];
 const holidayConventions = ["Following", "Modified Following", "Preceding", "Modified Preceding", "None"];
 const dayCountConventions = ["360", "365", "Actual/360", "Actual/365", "30/360", "Other"];
 const intervalRateTypes = ["Fixed", "Floating", "Other"];
-const referenceRateOptions = ["6 Months Sonia", "3 Montsh", "3 montsh Euribor", "6 Months Euribor"];
+const referenceRateOptions = ["6 Months Sonia", "3 Months", "3 Months Euribor", "6 Months Euribor"];
 const referenceRateNumeric = {
   "6 Months Sonia": 5,
-  "3 Montsh": 4,
-  "3 montsh Euribor": 3,
+  "3 Months": 4,
+  "3 Months Euribor": 3,
   "6 Months Euribor": 3.5
 };
-const currencyOptions = ["USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD"];
+// removed unused: currencyOptions
 const currencySymbols = {
   "USD": "$",
   "EUR": "€",
@@ -35,14 +38,13 @@ const currencySymbols = {
   "CAD": "C$",
   "AUD": "A$"
 };
-const marginOptions = ["0.5%", "1%", "1.5%", "2%", "Other"];
-const defaultRates = ["5%", "10%", "15%", "Other"];
+// removed unused: marginOptions, defaultRates
 const extensionOptions = yesNo;
 const commitmentFeeOptions = yesNo;
 const amortisationOptions = yesNo;
 const feeAndExpensesOptions = yesNo;
 const revolvingFacilityOptions = yesNo;
-const scheduledOnOptions = ["Extra", "Regular", "Other"];
+// removed unused: scheduledOnOptions
 const ratingsAgencies = ["Fitch", "S&P", "Moody's", "Others"];
 const paymentRanks = ["Senior Secured", "Senior Unsecured", "Subordinated", "Mezzanine", "Other"];
 const seniorityOptions = ["Senior", "Subordinated", "Junior", "Other"];
@@ -55,9 +57,7 @@ const FacilityDetailPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   // cashflow schedule moved to separate page; no local cashflow state here
   const [amortisationValue, setAmortisationValue] = useState('Yes');
-  const [drawdownType, setDrawdownType] = useState('Scheduled');
-  const [drawOn, setDrawOn] = useState('');
-  const [availableFrom, setAvailableFrom] = useState('');
+  // removed unused: drawdownType, drawOn, availableFrom
   const [availableUntil, setAvailableUntil] = useState('');
   const [scheduledType, setScheduledType] = useState('Scheduled');
   const [drawdownAmount, setDrawdownAmount] = useState('');
@@ -65,20 +65,17 @@ const FacilityDetailPage = () => {
   
   // Amortisation state
   const [amortisationEntries, setAmortisationEntries] = useState<any[]>([]);
-  const [amortisationDate, setAmortisationDate] = useState('');
-  const [amortisationDueAmount, setAmortisationDueAmount] = useState('');
-  const [amortisationReceivedAmount, setAmortisationReceivedAmount] = useState('');
-  const [repaymentAmount, setRepaymentAmount] = useState('');
-  const [prepaymentDate, setPrepaymentDate] = useState('');
-  const [prepaymentDate2, setPrepaymentDate2] = useState('');
-  const [prepaymentYearFraction, setPrepaymentYearFraction] = useState('');
-  const [prepaymentAmount, setPrepaymentAmount] = useState('');
+  // Amortisation default settings (from screenshot)
+  const [amortPayableOn, setAmortPayableOn] = useState('Cash IPD');
+  const [amortType, setAmortType] = useState('Custom');
+  const [amortIntervalType, setAmortIntervalType] = useState('Monthly');
+  const [amortStartDate, setAmortStartDate] = useState('');
+  const [amortRunThroughWorkflow, setAmortRunThroughWorkflow] = useState('No');
+  const [amortDescription, setAmortDescription] = useState('');
   
   // Drawdown state
   const [drawdownEntries, setDrawdownEntries] = useState<any[]>([]);
   const [drawDownDate, setDrawDownDate] = useState('');
-  const [drawDownDays, setDrawDownDays] = useState('');
-  const [drawDownYearFraction, setDrawDownYearFraction] = useState('');
   const [drawDownAmount, setDrawDownAmount] = useState('');
   const [commitment, setCommitment] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
@@ -168,72 +165,7 @@ const FacilityDetailPage = () => {
         return Number.isNaN(d.getTime()) ? null : d;
       };
 
-      const addMonths = (d: Date, months: number) => {
-        const nd = new Date(d.getTime());
-        const day = nd.getDate();
-        nd.setMonth(nd.getMonth() + months);
-        if (nd.getDate() < day) nd.setDate(0);
-        return nd;
-      };
-
-      const addDays = (d: Date, days: number) => {
-        const nd = new Date(d.getTime());
-        nd.setDate(nd.getDate() + days);
-        return nd;
-      };
-
-      const diffDays = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-
-      const yearFraction = (a: Date, b: Date, convention: string) => {
-        const days = diffDays(a, b);
-        const c = (convention || '').toLowerCase();
-        if (c.includes('actual') && c.includes('360')) return days / 360;
-        if (c.includes('actual') && c.includes('365')) return days / 365;
-        if (c === '360') return days / 360;
-        if (c === '365') return days / 365;
-        if (c.includes('30/360')) {
-          // naive 30/360
-          const da = a.getDate();
-          const db = b.getDate();
-          const ma = a.getMonth() + 1;
-          const mb = b.getMonth() + 1;
-          const ya = a.getFullYear();
-          const yb = b.getFullYear();
-          const d1 = Math.min(30, da);
-          const d2 = Math.min(30, db);
-          const days360 = 360 * (yb - ya) + 30 * (mb - ma) + (d2 - d1);
-          return days360 / 360;
-        }
-        return days / 365;
-      };
-
-      const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
-
-      const adjustBusinessDay = (d: Date, convention: string) => {
-        const conv = (convention || 'Following').toLowerCase();
-        let nd = new Date(d.getTime());
-        if (!isWeekend(nd)) return nd;
-        if (conv.includes('following')) {
-          while (isWeekend(nd)) nd.setDate(nd.getDate() + 1);
-          return nd;
-        }
-        if (conv.includes('preceding')) {
-          while (isWeekend(nd)) nd.setDate(nd.getDate() - 1);
-          return nd;
-        }
-        if (conv.includes('modified')) {
-          const origMonth = nd.getMonth();
-          const following = new Date(nd.getTime());
-          while (isWeekend(following)) following.setDate(following.getDate() + 1);
-          if (following.getMonth() !== origMonth) {
-            const preceding = new Date(nd.getTime());
-            while (isWeekend(preceding)) preceding.setDate(preceding.getDate() - 1);
-            return preceding;
-          }
-          return following;
-        }
-        return nd;
-      };
+      // using external engine; local date helpers removed
 
       const startString = calcStartDateState || agreementDateState || new Date().toISOString().slice(0,10);
       const startDate = parseDate(startString);
@@ -250,66 +182,70 @@ const FacilityDetailPage = () => {
       }
 
       const principal = Number(String(initialCommitmentState).replace(/,/g, '')) || 0;
-      const marginNum = Number(String(marginRateState).replace('%', '')) || 0;
-      const freqMonths = Math.max(1, Number(paymentFrequencyState) || 12);
 
-      const rows: any[] = [];
-      let periodStart = new Date(startDate.getTime());
-      // generate periods until maturity
-      let safety = 0;
-      while (periodStart.getTime() < maturityDate.getTime() && safety < 1000) {
-        safety += 1;
-        let periodEnd = addMonths(periodStart, freqMonths);
-        if (periodEnd.getTime() > maturityDate.getTime()) periodEnd = new Date(maturityDate.getTime());
-        const days = diffDays(periodStart, periodEnd);
-        const yf = yearFraction(periodStart, periodEnd, dayCountConventionState);
-        const adjPayment = adjustBusinessDay(periodEnd, holidayConventionState);
-        const refRateNum = Number(referenceRateNumeric[referenceRateState] ?? 0);
-        const allIn = (marginNum + refRateNum) / 100;
-        const interest = principal * allIn * yf;
-        rows.push({
-          fundingDate: periodStart.toISOString().slice(0,10),
-          toDate: periodEnd.toISOString().slice(0,10),
-          edate: periodEnd.toISOString().slice(0,10),
-          emonth: periodEnd.getMonth() + 1,
-          scheduleIPD: adjPayment.toISOString().slice(0,10),
-          adjustedIPD: adjPayment.toISOString().slice(0,10),
-          numberOfDays: days,
-          yearFraction: Number(yf.toFixed(6)),
-          commitment: principal,
-          drawDownDate: periodStart.toISOString().slice(0,10),
-          drawDownDays: days,
-          drawDownYearFraction: Number(yf.toFixed(6)),
-          drawDownAmount: principal * 0.5, // Example: 50% drawdown
-          amortisationDate: periodEnd.toISOString().slice(0,10),
-          amortisationDueAmount: principal * 0.1, // Example: 10% amortisation
-          amortisationReceivedAmount: principal * 0.1,
-          prepaymentDate: '',
-          prepaymentDate2: '',
-          prepaymentYearFraction: 0,
-          prepaymentAmount: 0,
-          repayment: principal * 0.1,
-          margin: marginNum,
-          referenceRate: refRateNum,
-          indexRatio: 1.0,
-          interestDueAmount: Number(interest.toFixed(2)),
-          interestReceivedAmount: Number(interest.toFixed(2)),
-          closingBalance: principal - (principal * 0.1 * (rows.length + 1))
-        });
-        // advance to the day after period end to avoid infinite loops
-        periodStart = addDays(periodEnd, 1);
+      // Build payload for engine
+      const payload = {
+        general: {
+          fundingDate: startString,
+          maturityDate: maturityDateState,
+          initialCommitment: principal,
+          commitmentFee: true,
+        },
+        cashTerm: {
+          firstInterestPaymentDate: '',
+          scheduledOn: undefined,
+          intervalTenor: Number(paymentFrequencyState) || 12,
+          endOfMonth: 0,
+          interestType: interestTypeState,
+          dayCountConvention: dayCountConventionState,
+          intervalRateType: intervalRateTypes.includes('Fixed') ? 'Fixed' : 'Floating',
+          referenceRate: referenceRateState,
+          margin: Number(marginRateState) || 0,
+          holidayAdjustment: holidayAdjustmentState === 'Yes',
+          holidayConvention: holidayConventionState,
+        },
+        amortisation: {
+          payableOn: amortPayableOn,
+          amortisationType: amortType,
+          intervalType: amortIntervalType,
+          amortisationStartDate: amortStartDate,
+          entries: amortisationEntries.map(e => ({
+            amortisationDate: e.amortisationDate,
+            dueAmount: e.amortisationDueAmount,
+          })),
+        },
+        drawdowns: drawdownEntries.map(d => ({
+          drawdownDate: d.drawDownDate || d.fundingDate || d.toDate,
+          amount: Number(d.drawDownAmount || d.amount || 0),
+        })),
+      } as any;
+
+      // Defaults: if empty, assume full upfront and bullet at maturity
+      if (!payload.drawdowns || payload.drawdowns.length === 0) {
+        payload.drawdowns = [{ drawdownDate: startString, amount: principal }];
+      }
+      if ((!payload.amortisation?.entries || payload.amortisation.entries.length === 0) && payload.general.maturityDate) {
+        payload.amortisation = {
+          ...payload.amortisation,
+          amortisationType: 'Balloon',
+          amortisationEndDate: payload.general.maturityDate,
+          balloonAmount: principal,
+        } as any;
       }
 
-      if (safety >= 1000) {
-        alert('Failed to generate schedule: exceeded iteration limit. Check frequency and dates.');
-        return false;
-      }
+      const options = {
+        referenceCurve: () => Number(referenceRateNumeric[referenceRateState as keyof typeof referenceRateNumeric] ?? 0),
+        commitmentFeePct: 1.0,
+      } as any;
 
-      setCashflowSchedule(rows);
+      const engineRows = generateCashflowSchedule(payload, options);
+
+      // Map engine rows to UI table shape if needed (here we use as-is with new headers below)
+      setCashflowSchedule(engineRows);
       // persist to facility if available
       try {
         if (currentFacility) {
-          const updated = { ...currentFacility, cashflows: rows } as any;
+          const updated = { ...currentFacility, cashflows: engineRows } as any;
           updateFacility(currentFacility.id, updated);
         }
       } catch (e) {
@@ -327,59 +263,25 @@ const FacilityDetailPage = () => {
   
   // Handler for adding amortisation entry
   const handleAddAmortisation = () => {
-    if (!amortisationDate || !amortisationDueAmount) {
-      alert('Please provide at least Amortisation Date and Due Amount');
-      return;
-    }
-    
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultDate = `${yyyy}-${mm}-${dd}`;
+
     const newEntry = {
       id: Date.now().toString(),
-      amortisationDate,
-      amortisationDueAmount: Number(amortisationDueAmount),
-      amortisationReceivedAmount: Number(amortisationReceivedAmount) || 0,
-      repayment: Number(repaymentAmount) || 0,
-      prepaymentDate,
-      prepaymentDate2,
-      prepaymentYearFraction: Number(prepaymentYearFraction) || 0,
-      prepaymentAmount: Number(prepaymentAmount) || 0,
+      amortisationDate: defaultDate,
+      amortisationDueAmount: 0,
+      amortisationReceivedAmount: 0,
+      repayment: 0,
     };
-    
-    // Update state with new entry
-    const updatedEntries = [...amortisationEntries, newEntry];
-    setAmortisationEntries(updatedEntries);
-    
-    // Automatically update cashflow schedule
-    setTimeout(() => {
-      updateCashflowWithEntries();
-    }, 100);
-    
-    // Clear form
-    setAmortisationDate('');
-    setAmortisationDueAmount('');
-    setAmortisationReceivedAmount('');
-    setRepaymentAmount('');
-    setPrepaymentDate('');
-    setPrepaymentDate2('');
-    setPrepaymentYearFraction('');
-    setPrepaymentAmount('');
+
+    setAmortisationEntries(prev => [...prev, newEntry]);
+    setTimeout(() => updateCashflowWithEntries(), 100);
   };
   
-  // Handler for saving amortisation data
-  const handleSaveAmortisation = () => {
-    try {
-      if (currentFacility) {
-        const updatedFacility = {
-          ...currentFacility,
-          amortisationEntries: amortisationEntries
-        };
-        updateFacility(currentFacility.id, updatedFacility as any);
-        alert('Amortisation data saved successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to save amortisation data', error);
-      alert('Failed to save amortisation data');
-    }
-  };
+  // removed unused handleSaveAmortisation
   
   // Handler for adding drawdown entry
   const handleAddDrawdown = () => {
@@ -391,8 +293,6 @@ const FacilityDetailPage = () => {
     const newEntry = {
       id: Date.now().toString(),
       drawDownDate,
-      drawDownDays: Number(drawDownDays) || 0,
-      drawDownYearFraction: Number(drawDownYearFraction) || 0,
       drawDownAmount: Number(drawDownAmount) || 0,
       commitment: Number(commitment) || 0,
       closingBalance: Number(closingBalance) || 0,
@@ -411,8 +311,6 @@ const FacilityDetailPage = () => {
     
     // Clear form
     setDrawDownDate('');
-    setDrawDownDays('');
-    setDrawDownYearFraction('');
     setDrawDownAmount('');
     setCommitment('');
     setClosingBalance('');
@@ -464,38 +362,25 @@ const FacilityDetailPage = () => {
           amortisationDueAmount: amortEntry.amortisationDueAmount,
           amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
           repayment: amortEntry.repayment,
-          prepaymentDate: amortEntry.prepaymentDate,
-          prepaymentDate2: amortEntry.prepaymentDate2,
-          prepaymentYearFraction: amortEntry.prepaymentYearFraction,
-          prepaymentAmount: amortEntry.prepaymentAmount,
         };
       } else {
         // Create new row for amortisation
         const newRow = {
           fundingDate: amortEntry.amortisationDate,
           toDate: amortEntry.amortisationDate,
-          edate: amortEntry.amortisationDate,
-          emonth: new Date(amortEntry.amortisationDate).getMonth() + 1,
           scheduleIPD: amortEntry.amortisationDate,
           adjustedIPD: amortEntry.amortisationDate,
           numberOfDays: 0,
           yearFraction: 0,
           commitment: updatedSchedule[0]?.commitment || 0,
           drawDownDate: '',
-          drawDownDays: 0,
-          drawDownYearFraction: 0,
           drawDownAmount: 0,
           amortisationDate: amortEntry.amortisationDate,
           amortisationDueAmount: amortEntry.amortisationDueAmount,
           amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
-          prepaymentDate: amortEntry.prepaymentDate || '',
-          prepaymentDate2: amortEntry.prepaymentDate2 || '',
-          prepaymentYearFraction: amortEntry.prepaymentYearFraction,
-          prepaymentAmount: amortEntry.prepaymentAmount,
           repayment: amortEntry.repayment,
           margin: updatedSchedule[0]?.margin || 0,
           referenceRate: updatedSchedule[0]?.referenceRate || 0,
-          indexRatio: updatedSchedule[0]?.indexRatio || 1,
           interestDueAmount: 0,
           interestReceivedAmount: 0,
           closingBalance: 0
@@ -517,8 +402,6 @@ const FacilityDetailPage = () => {
         updatedSchedule[existingRowIndex] = {
           ...updatedSchedule[existingRowIndex],
           drawDownDate: drawEntry.drawDownDate,
-          drawDownDays: drawEntry.drawDownDays,
-          drawDownYearFraction: drawEntry.drawDownYearFraction,
           drawDownAmount: drawEntry.drawDownAmount,
           commitment: drawEntry.commitment,
           closingBalance: drawEntry.closingBalance,
@@ -528,28 +411,19 @@ const FacilityDetailPage = () => {
         const newRow = {
           fundingDate: drawEntry.drawDownDate,
           toDate: drawEntry.drawDownDate,
-          edate: drawEntry.drawDownDate,
-          emonth: new Date(drawEntry.drawDownDate).getMonth() + 1,
           scheduleIPD: drawEntry.drawDownDate,
           adjustedIPD: drawEntry.drawDownDate,
-          numberOfDays: drawEntry.drawDownDays,
-          yearFraction: drawEntry.drawDownYearFraction,
+          numberOfDays: 0,
+          yearFraction: 0,
           commitment: drawEntry.commitment,
           drawDownDate: drawEntry.drawDownDate,
-          drawDownDays: drawEntry.drawDownDays,
-          drawDownYearFraction: drawEntry.drawDownYearFraction,
           drawDownAmount: drawEntry.drawDownAmount,
           amortisationDate: '',
           amortisationDueAmount: 0,
           amortisationReceivedAmount: 0,
-          prepaymentDate: '',
-          prepaymentDate2: '',
-          prepaymentYearFraction: 0,
-          prepaymentAmount: 0,
           repayment: 0,
           margin: updatedSchedule[0]?.margin || 0,
           referenceRate: updatedSchedule[0]?.referenceRate || 0,
-          indexRatio: updatedSchedule[0]?.indexRatio || 1,
           interestDueAmount: 0,
           interestReceivedAmount: 0,
           closingBalance: drawEntry.closingBalance
@@ -699,20 +573,7 @@ const FacilityDetailPage = () => {
                     <label className="text-primary text-sm font-semibold mb-2 block">Maturity Date</label>
                     <input type="date" value={maturityDateState} onChange={e => setMaturityDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Edate</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Emonth</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Index Ratio</label>
-                    <input type="number" step="0.01" min="0" placeholder="1.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
+                  
                 </div>
               </div>
               <div className="mb-8">
@@ -720,13 +581,19 @@ const FacilityDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Extension Option</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft"
+                      value={interestTypeState}
+                      onChange={e => setInterestTypeState(e.target.value)}
+                    >
                       {extensionOptions.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Commitment Fee</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft"
+                      value={paymentFrequencyState}
+                      onChange={e => setPaymentFrequencyState(e.target.value)}
+                    >
                       {commitmentFeeOptions.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
@@ -878,7 +745,8 @@ const FacilityDetailPage = () => {
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Scheduled On</label>
                     <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {scheduledOnOptions.map(opt => <option key={opt}>{opt}</option>)}
+                      {[...Array(30)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                      <option value="EOMONTH">EOMONTH</option>
                     </select>
                   </div>
                   <div>
@@ -890,8 +758,8 @@ const FacilityDetailPage = () => {
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">End of Month</label>
                     <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {[...Array(31)].map((_, i) => <option key={i+1}>{i+1}</option>)}
-                      <option>Other</option>
+                      {[...Array(30)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                      <option value="EOMONTH">EOMONTH</option>
                     </select>
                   </div>
                   <div>
@@ -911,8 +779,12 @@ const FacilityDetailPage = () => {
                     <input type="number" step="0.01" min="0" value={marginRateState} onChange={e => setMarginRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Payment Dates</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Schedule IPD</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 30-06, 31-12"
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft"
+                    />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Holiday Adjustment</label>
@@ -933,21 +805,10 @@ const FacilityDetailPage = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Schedule IPD</label>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Payment Dates</label>
                     <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Adjusted IPD</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Due Amount</label>
-                    <input type="number" step="0.01" min="0" placeholder="0.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Received Amount</label>
-                    <input type="number" step="0.01" min="0" placeholder="0.00" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
+                  
                 </div>
               </div>
               <div className="flex justify-end mt-10">
@@ -976,92 +837,129 @@ const FacilityDetailPage = () => {
           >
             <form className="p-4 sm:p-6 md:p-10 transition-all duration-300">
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Default Option</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Default Settings</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                   <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Payable On</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      value={amortPayableOn}
+                      onChange={(e) => setAmortPayableOn(e.target.value)}
+                    >
+                      <option>Cash IPD</option>
+                      <option>IPD</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Type</label>
-                    <input type="text" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" placeholder="Scheduled" />
+                    <select
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      value={amortType}
+                      onChange={(e) => setAmortType(e.target.value)}
+                    >
+                      <option>Custom</option>
+                      <option>Level</option>
+                      <option>Bullet</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Interval Type</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      value={amortIntervalType}
+                      onChange={(e) => setAmortIntervalType(e.target.value)}
+                    >
+                      <option>Monthly</option>
+                      <option>Quarterly</option>
+                      <option>Semi-Annual</option>
+                      <option>Annual</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Start Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" />
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      value={amortStartDate}
+                      onChange={(e) => setAmortStartDate(e.target.value)}
+                    />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation End Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" />
+                    <label className="text-primary text-sm font-semibold mb-2 block">Run Through Workflow</label>
+                    <select
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      value={amortRunThroughWorkflow}
+                      onChange={(e) => setAmortRunThroughWorkflow(e.target.value)}
+                    >
+                      <option>No</option>
+                      <option>Yes</option>
+                    </select>
                   </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Payable on</label>
-                    <input type="text" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" placeholder="IPD" />
+                  <div className="md:col-span-2 lg:col-span-4">
+                    <label className="text-primary text-sm font-semibold mb-2 block">Description</label>
+                    <textarea
+                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft"
+                      rows={3}
+                      placeholder="Balloon Amortisation"
+                      value={amortDescription}
+                      onChange={(e) => setAmortDescription(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Amortising Profile</h2>
                 <div className="flex justify-end mb-4 items-center gap-4">
-                  <span className="flex items-center px-2">
+                  <label className="flex items-center px-2 cursor-pointer" title="Import Amortisation from Excel (CSV)">
                     <FileSpreadsheet className="w-6 h-6 text-success" />
-                  </span>
-                  <button type="button" className="px-4 py-2 rounded bg-background-secondary border border-border/50 text-foreground hover:bg-background-tertiary/50 transition-all font-semibold shadow-soft">
-                    Add Amortisation
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Date</label>
-                    <input 
-                      type="date" 
-                      value={amortisationDate}
-                      onChange={(e) => setAmortisationDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
+                    <input
+                      type="file"
+                      accept=".csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files && e.target.files[0];
+                        if (!file) return;
+                        const text = await file.text();
+                        const lines = text.split(/\r?\n/).filter(Boolean);
+                        if (lines.length === 0) return;
+                        const header = lines[0].toLowerCase();
+                        const guessIdx = (name: string) => header.split(',').findIndex(h => h.trim().includes(name));
+                        const idxDate = guessIdx('date');
+                        const idxDue = guessIdx('due');
+                        const idxRecv = guessIdx('received');
+                        const idxRepay = guessIdx('repay');
+                        const imported: { id: string; amortisationDate: string; amortisationDueAmount: number; amortisationReceivedAmount: number; repayment: number }[] = [];
+                        for (let i = 1; i < lines.length; i++) {
+                          const row = lines[i].split(',').map(s => s.replace(/^\"|\"$/g, '').replace(/\"\"/g, '"'));
+                          if (!row.length) continue;
+                          const d = row[idxDate] || '';
+                          const due = Number(row[idxDue] || 0);
+                          const rec = Number(row[idxRecv] || 0);
+                          const rep = Number(row[idxRepay] || 0);
+                          if (!d && !due && !rec && !rep) continue;
+                          imported.push({ id: `${Date.now()}-${i}`, amortisationDate: d, amortisationDueAmount: due, amortisationReceivedAmount: rec, repayment: rep });
+                        }
+                        if (imported.length) {
+                          setAmortisationEntries(prev => [...prev, ...imported]);
+                          setTimeout(() => updateCashflowWithEntries(), 100);
+                          alert(`Imported ${imported.length} amortisation rows.`);
+                        } else {
+                          alert('No valid rows found in the file. Expect columns with Date, Due, Received, Repay.');
+                        }
+                        e.currentTarget.value = '';
+                      }}
                     />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Due Amount</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00" 
-                      value={amortisationDueAmount}
-                      onChange={(e) => setAmortisationDueAmount(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Amortisation Received Amount</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00" 
-                      value={amortisationReceivedAmount}
-                      onChange={(e) => setAmortisationReceivedAmount(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Repayment</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00" 
-                      value={repaymentAmount}
-                      onChange={(e) => setRepaymentAmount(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end mt-4">
+                  </label>
                   <Button
                     type="button"
                     onClick={handleAddAmortisation}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-9 px-4"
                   >
                     Add Amortisation Entry
                   </Button>
                 </div>
+                {/* manual entry inputs removed as per new flow */}
                 
                 {/* Display Added Amortisation Entries */}
                 {amortisationEntries.length > 0 && (
@@ -1078,7 +976,7 @@ const FacilityDetailPage = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {amortisationEntries.map((entry, idx) => (
+                          {amortisationEntries.map((entry) => (
                             <tr key={entry.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm text-gray-900">{entry.amortisationDate}</td>
                               <td className="px-4 py-3 text-sm text-right text-gray-900">{entry.amortisationDueAmount.toLocaleString()}</td>
@@ -1092,69 +990,7 @@ const FacilityDetailPage = () => {
                   </div>
                 )}
               </div>
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-foreground mb-6 tracking-tight border-b border-border/30 pb-3">Prepayment Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Date</label>
-                    <input 
-                      type="date" 
-                      value={prepaymentDate}
-                      onChange={(e) => setPrepaymentDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Date 2</label>
-                    <input 
-                      type="date" 
-                      value={prepaymentDate2}
-                      onChange={(e) => setPrepaymentDate2(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Year Fraction</label>
-                    <input 
-                      type="number" 
-                      step="0.000001" 
-                      min="0" 
-                      placeholder="0.000000" 
-                      value={prepaymentYearFraction}
-                      onChange={(e) => setPrepaymentYearFraction(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Prepayment Amount</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00" 
-                      value={prepaymentAmount}
-                      onChange={(e) => setPrepaymentAmount(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <Button
-                    type="button"
-                    onClick={updateCashflowWithEntries}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Update Cashflow Schedule
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSaveAmortisation}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Save Amortisation Data
-                  </Button>
-                </div>
-              </div>
+              
             </form>
           </motion.div>
                 )}
@@ -1179,29 +1015,7 @@ const FacilityDetailPage = () => {
                       className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
                     />
                   </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down No of Days</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      placeholder="Days" 
-                      value={drawDownDays}
-                      onChange={(e) => setDrawDownDays(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Draw Down Year Fraction</label>
-                    <input 
-                      type="number" 
-                      step="0.000001" 
-                      min="0" 
-                      placeholder="0.000000" 
-                      value={drawDownYearFraction}
-                      onChange={(e) => setDrawDownYearFraction(e.target.value)}
-                      className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft" 
-                    />
-                  </div>
+                  
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Draw Down Amount</label>
                     <input 
@@ -1299,7 +1113,7 @@ const FacilityDetailPage = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {drawdownEntries.map((entry, idx) => (
+                          {drawdownEntries.map((entry) => (
                             <tr key={entry.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm text-gray-900">{entry.drawDownDate}</td>
                               <td className="px-4 py-3 text-sm text-center text-gray-900">{entry.drawDownDays}</td>
@@ -1385,10 +1199,12 @@ const FacilityDetailPage = () => {
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         onClick={() => {
                           // export csv
-                          const headers = ['Funding Date','TO Date','Edate','Emonth','Schedule IPD','Adjusted IPD','No of Days','Year Fraction','Commitment','Draw Down Date','Draw Down No of Days','Draw Dow Year Fraction','Draw Dow Amount','Amortsaion Date','Amortsaion Due Amount','Amortsaion Received Amount','Prepayement Date','Prepayemnt Date','Prepayment Year Fraction','Prepayment Amount','Repayment','Marign','Reference Rate','Index Ration','Interest due Amount','Interest Received Amount','Closing Balance'];
+                          const headers = ['From Date','To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Days','Year Fraction','Margin','Base Rate','Interest Due','Principal Due','Commitment Fee Due','Outstanding','Undrawn'];
                           const lines = [headers.join(',')];
                           for (const r of cashflowSchedule) {
-                            lines.push([r.fundingDate||'', r.toDate||'', r.edate||'', r.emonth||'', r.scheduleIPD||'', r.adjustedIPD||'', String(r.numberOfDays||0), String(r.yearFraction||0), String(r.commitment||0), r.drawDownDate||'', String(r.drawDownDays||0), String(r.drawDownYearFraction||0), String(r.drawDownAmount||0), r.amortisationDate||'', String(r.amortisationDueAmount||0), String(r.amortisationReceivedAmount||0), r.prepaymentDate||'', r.prepaymentDate2||'', String(r.prepaymentYearFraction||0), String(r.prepaymentAmount||0), String(r.repayment||0), String(r.margin||0), String(r.referenceRate||0), String(r.indexRatio||0), String(r.interestDueAmount||0), String(r.interestReceivedAmount||0), String(r.closingBalance||0)].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+                            lines.push([
+                              r.fromDate||'', r.toDate||'', r.edate||'', r.eomonth||'', r.scheduleIPD||'', r.adjustedIPD||'', String(r.days||0), String(r.yearFraction||0), String(r.marginPct||0), String(r.baseRatePct||0), String(r.interestDue||0), String(r.principalDue||0), String(r.commitmentFeeDue||0), String(r.outstanding||0), String(r.undrawn||0)
+                            ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
                           }
                           const csv = lines.join('\n');
                           const blob = new Blob([csv], { type: 'text/csv' });
@@ -1423,33 +1239,21 @@ const FacilityDetailPage = () => {
                       <table className="w-full min-w-max">
                         <thead className="sticky top-0 bg-white">
                           <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Funding Date</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">TO Date</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Edate</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">Emonth</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Schedule IPD</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Adjusted IPD</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">No of Days</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Year Fraction</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Commitment</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Draw Down Date</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Draw Down Days</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Draw Down YF</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Draw Down Amount</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Amortisation Date</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Amort Due</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Amort Received</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepayment Date</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepayment Date 2</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Prepay YF</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Prepay Amount</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Repayment</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[80px]">Margin</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Reference Rate</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[100px]">Index Ratio</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Interest Due</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Interest Received</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[120px]">Closing Balance</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">From Date</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">To Date</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Edate</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Eomonth</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Schedule IPD</th>
+                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Adjusted IPD</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Days</th>
+                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Year Fraction</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Margin</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Base Rate</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Interest Due</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Principal Due</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Commitment Fee Due</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Outstanding</th>
+                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Undrawn</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -1460,33 +1264,21 @@ const FacilityDetailPage = () => {
                                 idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                               }`}
                             >
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.fundingDate || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.fromDate || '-'}</td>
                               <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.toDate || '-'}</td>
                               <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.edate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.emonth || '-'}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.eomonth || '-'}</td>
                               <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.scheduleIPD || '-'}</td>
                               <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.adjustedIPD || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.numberOfDays || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.days || 0}</td>
                               <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.yearFraction || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.commitment || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.drawDownDate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.drawDownDays || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.drawDownYearFraction || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.drawDownAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.amortisationDate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.amortisationDueAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.amortisationReceivedAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.prepaymentDate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.prepaymentDate2 || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.prepaymentYearFraction || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.prepaymentAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.repayment || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.margin || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.referenceRate || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.indexRatio || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestDueAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestReceivedAmount || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold text-green-600">{r.closingBalance || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.marginPct || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.baseRatePct || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestDue || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.principalDue || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.commitmentFeeDue || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.outstanding || 0}</td>
+                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold text-green-600">{r.undrawn || 0}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1497,7 +1289,7 @@ const FacilityDetailPage = () => {
                             </td>
                             <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold">
                               <span className="text-green-600 text-sm">
-                                {currencySymbols[currencyState] || '$'}{cashflowSchedule.reduce((sum, r) => sum + Number(r.closingBalance || 0), 0).toLocaleString('en-GB', {
+                                {currencySymbols[currencyState as keyof typeof currencySymbols] || '$'}{cashflowSchedule.reduce((sum, r) => sum + Number(r.closingBalance || 0), 0).toLocaleString('en-GB', {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2
                                 })}
