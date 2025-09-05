@@ -7,8 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { useData } from '@/context/DataContext';
 // Cashflow engine
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { generateCashflowSchedule } = require('../lib/cashflowEngine.js');
+import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 // Cashflow scheduler moved to its own page
 
 const allCountries = [
@@ -21,23 +20,8 @@ const interestTypes = ["Cash Interest", "Floating", "Fixed", "Other"];
 const holidayConventions = ["Following", "Modified Following", "Preceding", "Modified Preceding", "None"];
 const dayCountConventions = ["360", "365", "Actual/360", "Actual/365", "30/360", "Other"];
 const intervalRateTypes = ["Fixed", "Floating", "Other"];
-const referenceRateOptions = ["6 Months Sonia", "3 Months", "3 Months Euribor", "6 Months Euribor"];
-const referenceRateNumeric = {
-  "6 Months Sonia": 5,
-  "3 Months": 4,
-  "3 Months Euribor": 3,
-  "6 Months Euribor": 3.5
-};
-// removed unused: currencyOptions
-const currencySymbols = {
-  "USD": "$",
-  "EUR": "€",
-  "GBP": "£",
-  "CHF": "CHF",
-  "JPY": "¥",
-  "CAD": "C$",
-  "AUD": "A$"
-};
+const referenceRateOptions = ["5%", "6 Months Sonia", "3 Months", "3 Months Euribor", "6 Months Euribor"];
+// removed unused: referenceRateNumeric, currencySymbols
 // removed unused: marginOptions, defaultRates
 const extensionOptions = yesNo;
 const commitmentFeeOptions = yesNo;
@@ -54,7 +38,7 @@ const ratingOptions = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC", "CC", "C", "D"
 const FacilityDetailPage = () => {
   const { facilityId } = useParams();
   const [activeTab, setActiveTab] = useState('general');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating] = useState(false);
   // cashflow schedule moved to separate page; no local cashflow state here
   const [amortisationValue, setAmortisationValue] = useState('Yes');
   // removed unused: drawdownType, drawOn, availableFrom
@@ -92,7 +76,7 @@ const FacilityDetailPage = () => {
   const [maturityDateState, setMaturityDateState] = useState('');
   const [initialCommitmentState, setInitialCommitmentState] = useState('');
   const [marginRateState, setMarginRateState] = useState('5');
-  const [referenceRateState, setReferenceRateState] = useState(referenceRateOptions[0]);
+  const [referenceRateState, setReferenceRateState] = useState('5%');
   const [interestTypeState, setInterestTypeState] = useState('Cash Interest');
   const [paymentFrequencyState, setPaymentFrequencyState] = useState('12'); // months
   const [dayCountConventionState, setDayCountConventionState] = useState('Actual/365');
@@ -101,6 +85,17 @@ const FacilityDetailPage = () => {
   const [currencyState, setCurrencyState] = useState('USD');
   const [cashflowSchedule, setCashflowSchedule] = useState<any[]>([]);
   const scheduleRef = useRef<HTMLDivElement | null>(null);
+  
+  // Edit state for cashflow schedule
+  const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
+  const [editingRowData, setEditingRowData] = useState<any>(null);
+  
+  // Additional Cash Term tab state variables
+  const [firstInterestPaymentDateState, setFirstInterestPaymentDateState] = useState('');
+  const [scheduledOnState, setScheduledOnState] = useState('');
+  const [endOfMonthState, setEndOfMonthState] = useState('No');
+  const [commitmentFeeRateState, setCommitmentFeeRateState] = useState('0');
+  const [interestPaymentDatesState, setInterestPaymentDatesState] = useState('');
 
   useEffect(() => {
     if (currentFacility) {
@@ -155,111 +150,164 @@ const FacilityDetailPage = () => {
     }
   }, [cashflowSchedule, activeTab]);
 
-  const handleGenerateCashflow = async (): Promise<boolean> => {
-    setIsGenerating(true);
+  const handleGenerateCashflow = () => {
     try {
-      // allow fallback: use Calculation Start Date, else Agreement Date, else today
-      const parseDate = (s: string) => {
-        if (!s) return null;
-        const d = new Date(s);
-        return Number.isNaN(d.getTime()) ? null : d;
+      // Build loan object from component state - mapped exactly to platform tabs
+      const loan = {
+        // General Tab fields
+        fundingDate: calcStartDateState,
+        agreementDate: agreementDateState,
+        maturityDate: maturityDateState,
+        facilityAmount: Number(initialCommitmentState) || 0,
+        baseCurrency: currencyState || "USD",
+        revolvingFacility: false, // TODO: Add state for this
+        amortisationEnabled: amortisationValue === 'Yes',
+        
+        // Cash Term Tab fields
+        firstInterestPaymentDate: firstInterestPaymentDateState || undefined,
+        scheduledOn: scheduledOnState || undefined, // day of month
+        endOfMonth: endOfMonthState === 'Yes',
+        dayCountConvention: dayCountConventionState,
+        holidayAdjustment: holidayAdjustmentState === 'Yes',
+        holidayConvention: holidayConventionState,
+        intervalTenor: Number(paymentFrequencyState) || 12, // in months
+        margin: Number(marginRateState) / 100, // Convert percentage to decimal
+        commitmentFeeRate: Number(commitmentFeeRateState) / 100, // Convert percentage to decimal
+        interestPaymentDates: interestPaymentDatesState ? interestPaymentDatesState.split(',').map(d => d.trim()) : [],
+        // Set default reference rate to 5% if not specified
+        refRate: referenceRateState === '5%' ? 0.05 : 0.05, // Default to 5%
+        
+        // Amortisation Tab - map amortisationEntries to amortisationSchedule
+        amortisationSchedule: amortisationValue === 'Yes' ? amortisationEntries.map(entry => ({
+          date: entry.amortisationDate,
+          amount: Number(entry.amortisationDueAmount) || 0,
+          received: Boolean(entry.amortisationReceivedAmount && entry.amortisationReceivedAmount > 0)
+        })) : [],
+
+        // Drawdown Tab - map drawdownEntries to drawdowns
+        drawdowns: drawdownEntries.map(entry => ({
+          drawdownDate: entry.drawDownDate,
+          amount: Number(entry.drawDownAmount) || 0
+        }))
       };
 
-      // using external engine; local date helpers removed
-
-      const startString = calcStartDateState || agreementDateState || new Date().toISOString().slice(0,10);
-      const startDate = parseDate(startString);
-      const maturityDate = parseDate(maturityDateState);
-
-      if (!startDate || !maturityDate) {
-        alert('Invalid or missing dates. Please provide a valid Calculation Start Date or Agreement Date, and a valid Maturity Date.');
-        return false;
-      }
-
-      if (startDate.getTime() >= maturityDate.getTime()) {
-        alert('Calculation Start Date must be before Maturity Date.');
-        return false;
-      }
-
-      const principal = Number(String(initialCommitmentState).replace(/,/g, '')) || 0;
-
-      // Build payload for engine
-      const payload = {
-        general: {
-          fundingDate: startString,
-          maturityDate: maturityDateState,
-          initialCommitment: principal,
-          commitmentFee: true,
-        },
-        cashTerm: {
-          firstInterestPaymentDate: '',
-          scheduledOn: undefined,
-          intervalTenor: Number(paymentFrequencyState) || 12,
-          endOfMonth: 0,
-          interestType: interestTypeState,
-          dayCountConvention: dayCountConventionState,
-          intervalRateType: intervalRateTypes.includes('Fixed') ? 'Fixed' : 'Floating',
-          referenceRate: referenceRateState,
-          margin: Number(marginRateState) || 0,
-          holidayAdjustment: holidayAdjustmentState === 'Yes',
-          holidayConvention: holidayConventionState,
-        },
-        amortisation: {
-          payableOn: amortPayableOn,
-          amortisationType: amortType,
-          intervalType: amortIntervalType,
-          amortisationStartDate: amortStartDate,
-          entries: amortisationEntries.map(e => ({
-            amortisationDate: e.amortisationDate,
-            dueAmount: e.amortisationDueAmount,
-          })),
-        },
-        drawdowns: drawdownEntries.map(d => ({
-          drawdownDate: d.drawDownDate || d.fundingDate || d.toDate,
-          amount: Number(d.drawDownAmount || d.amount || 0),
-        })),
-      } as any;
-
-      // Defaults: if empty, assume full upfront and bullet at maturity
-      if (!payload.drawdowns || payload.drawdowns.length === 0) {
-        payload.drawdowns = [{ drawdownDate: startString, amount: principal }];
-      }
-      if ((!payload.amortisation?.entries || payload.amortisation.entries.length === 0) && payload.general.maturityDate) {
-        payload.amortisation = {
-          ...payload.amortisation,
-          amortisationType: 'Balloon',
-          amortisationEndDate: payload.general.maturityDate,
-          balloonAmount: principal,
-        } as any;
-      }
-
-      const options = {
-        referenceCurve: () => Number(referenceRateNumeric[referenceRateState as keyof typeof referenceRateNumeric] ?? 0),
-        commitmentFeePct: 1.0,
-      } as any;
-
-      const engineRows = generateCashflowSchedule(payload, options);
-
-      // Map engine rows to UI table shape if needed (here we use as-is with new headers below)
-      setCashflowSchedule(engineRows);
-      // persist to facility if available
-      try {
-        if (currentFacility) {
-          const updated = { ...currentFacility, cashflows: engineRows } as any;
-          updateFacility(currentFacility.id, updated);
+      // Generate schedule using the advanced engine
+      const schedule = generateAdvancedSchedule(
+        loan,
+        [], // No events for now
+        {
+          baseCurrency: currencyState || "USD",
+          preserveEOM: true,
+          calendar: {
+            holidays: [], // TODO: Add holidays state
+            weekend: [6, 7] // Saturday, Sunday
+          }
         }
-      } catch (e) {
-        console.error('Failed to persist cashflow schedule to facility', e);
+      );
+
+      if (schedule && schedule.rows) {
+        setCashflowSchedule(schedule.rows);
+        
+        // Update facility if it exists
+        if (currentFacility) {
+          updateFacility(currentFacility.id, {
+            ...currentFacility,
+            cashflows: schedule.rows
+          });
+        }
       }
-      return true;
-    } catch (err) {
-      console.error(err);
-      alert('Failed to generate cashflow schedule');
-      return false;
-    } finally {
-      setIsGenerating(false);
+    } catch (error) {
+      console.error('Error generating cashflow:', error);
+      alert('Failed to generate cashflow schedule. Please check your inputs.');
     }
   };
+
+  // Handler for editing cashflow schedule row
+  const handleEditRow = (index: number) => {
+    // Prevent editing if another row is already being edited
+    if (editingRowIndex !== null && editingRowIndex !== index) {
+      alert("Please save or cancel the current edit before editing another row.");
+      return;
+    }
+    
+    setEditingRowIndex(index);
+    setEditingRowData({ ...cashflowSchedule[index] });
+  };
+
+  // Handler for saving edited row
+  const handleSaveRow = () => {
+    if (editingRowIndex !== null && editingRowData) {
+      // Basic validation
+      if (editingRowData["From Date"] && editingRowData["To Date"]) {
+        const fromDate = new Date(editingRowData["From Date"]);
+        const toDate = new Date(editingRowData["To Date"]);
+        if (fromDate > toDate) {
+          alert("From Date cannot be after To Date");
+          return;
+        }
+      }
+      
+      if (editingRowData["Outstanding"] < 0) {
+        alert("Outstanding amount cannot be negative");
+        return;
+      }
+      
+      if (editingRowData["Undrawn"] < 0) {
+        alert("Undrawn amount cannot be negative");
+        return;
+      }
+      
+      const updatedSchedule = [...cashflowSchedule];
+      updatedSchedule[editingRowIndex] = { ...editingRowData };
+      setCashflowSchedule(updatedSchedule);
+      
+      // Update facility if it exists
+      if (currentFacility) {
+        updateFacility(currentFacility.id, {
+          ...currentFacility,
+          cashflows: updatedSchedule
+        });
+      }
+      
+      setEditingRowIndex(null);
+      setEditingRowData(null);
+      alert("Row updated successfully!");
+    }
+  };
+
+  // Handler for canceling edit
+  const handleCancelEdit = () => {
+    setEditingRowIndex(null);
+    setEditingRowData(null);
+  };
+
+  // Handler for updating edited field
+  const handleEditFieldChange = (field: string, value: any) => {
+    if (editingRowData) {
+      setEditingRowData({
+        ...editingRowData,
+        [field]: value
+      });
+    }
+  };
+
+  // Keyboard shortcuts for editing
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (editingRowIndex !== null) {
+        if (event.key === 'Escape') {
+          handleCancelEdit();
+        } else if (event.key === 'Enter' && event.ctrlKey) {
+          handleSaveRow();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editingRowIndex, editingRowData]);
   
   // Handler for adding amortisation entry
   const handleAddAmortisation = () => {
@@ -725,7 +773,7 @@ const FacilityDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">First Interest Payment Date</label>
-                    <input type="date" className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                    <input type="date" value={firstInterestPaymentDateState} onChange={e => setFirstInterestPaymentDateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">InterestType</label>
@@ -744,7 +792,8 @@ const FacilityDetailPage = () => {
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Scheduled On</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                    <select value={scheduledOnState} onChange={e => setScheduledOnState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                      <option value="">Select day</option>
                       {[...Array(30)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
                       <option value="EOMONTH">EOMONTH</option>
                     </select>
@@ -757,9 +806,8 @@ const FacilityDetailPage = () => {
                   </div>
                   <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">End of Month</label>
-                    <select className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
-                      {[...Array(30)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
-                      <option value="EOMONTH">EOMONTH</option>
+                    <select value={endOfMonthState} onChange={e => setEndOfMonthState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft">
+                      {yesNo.map(opt => <option key={opt}>{opt}</option>)}
                     </select>
                   </div>
                   <div>
@@ -779,10 +827,16 @@ const FacilityDetailPage = () => {
                     <input type="number" step="0.01" min="0" value={marginRateState} onChange={e => setMarginRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Schedule IPD</label>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Commitment Fee Rate (in %)</label>
+                    <input type="number" step="0.01" min="0" value={commitmentFeeRateState} onChange={e => setCommitmentFeeRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
+                  </div>
+                  <div>
+                    <label className="text-primary text-sm font-semibold mb-2 block">Interest Payment Dates</label>
                     <input
                       type="text"
                       placeholder="e.g. 30-06, 31-12"
+                      value={interestPaymentDatesState}
+                      onChange={e => setInterestPaymentDatesState(e.target.value)}
                       className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft"
                     />
                   </div>
@@ -815,9 +869,9 @@ const FacilityDetailPage = () => {
                 <button 
                   type="button"
                   className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
-                  onClick={async () => {
-                    const ok = await handleGenerateCashflow();
-                    if (ok) setActiveTab('cashflow');
+                  onClick={() => {
+                    handleGenerateCashflow();
+                    setActiveTab('cashflow');
                   }}
                   disabled={isGenerating}
                 >
@@ -1192,18 +1246,28 @@ const FacilityDetailPage = () => {
               {cashflowSchedule.length > 0 && (
                 <div className="mt-8">
                   <div className="flex items-center justify-between mb-6">
+                    <div>
                     <h3 className="text-2xl font-bold text-foreground tracking-tight">Cashflow Schedule</h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Click "Edit" to modify any row. Use Ctrl+Enter to save, Escape to cancel.
+                        {editingRowIndex !== null && (
+                          <span className="ml-2 text-blue-600 font-medium">
+                            (Editing row {editingRowIndex + 1})
+                          </span>
+                        )}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-3">
                       <button 
                         type="button" 
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         onClick={() => {
                           // export csv
-                          const headers = ['From Date','To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Days','Year Fraction','Margin','Base Rate','Interest Due','Principal Due','Commitment Fee Due','Outstanding','Undrawn'];
+                          const headers = ['From Date','To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Margin','Default Rate','Payment Convention','Holiday Adjustment','Days','Year Fraction','Interest Due','Principal Due','Commitment Fee Due','Outstanding','Undrawn'];
                           const lines = [headers.join(',')];
                           for (const r of cashflowSchedule) {
                             lines.push([
-                              r.fromDate||'', r.toDate||'', r.edate||'', r.eomonth||'', r.scheduleIPD||'', r.adjustedIPD||'', String(r.days||0), String(r.yearFraction||0), String(r.marginPct||0), String(r.baseRatePct||0), String(r.interestDue||0), String(r.principalDue||0), String(r.commitmentFeeDue||0), String(r.outstanding||0), String(r.undrawn||0)
+                              r["From Date"]||'', r["To Date"]||'', r["Edate"]||'', r["Eomonth"]||'', r["Schedule IPD"]||'', r["Adjusted IPD"]||'', String(r["Margin"]||0), String(r["Default Rate"]||0), r["Payment Convention"]||'', r["Holiday Adjustment"]||'', String(r["Days"]||0), String(r["Year Fraction"]||0), String(r["Interest Due"]||0), String(r["Principal Due"]||0), String(r["Commitment Fee Due"]||0), String(r["Outstanding"]||0), String(r["Undrawn"]||0)
                             ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
                           }
                           const csv = lines.join('\n');
@@ -1236,67 +1300,316 @@ const FacilityDetailPage = () => {
                   
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-1">
                     <div className="overflow-x-auto h-full">
-                      <table className="w-full min-w-max">
-                        <thead className="sticky top-0 bg-white">
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">From Date</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">To Date</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Edate</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Eomonth</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Schedule IPD</th>
-                            <th className="px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Adjusted IPD</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Days</th>
-                            <th className="px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Year Fraction</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Margin</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Base Rate</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Interest Due</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Principal Due</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Commitment Fee Due</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Outstanding</th>
-                            <th className="px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Undrawn</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {cashflowSchedule.map((r, idx) => (
-                            <tr 
-                              key={idx} 
-                              className={`transition-colors duration-200 hover:bg-gray-50 ${
-                                idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                              }`}
-                            >
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.fromDate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.toDate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.edate || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.eomonth || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.scheduleIPD || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900">{r.adjustedIPD || '-'}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.days || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-center font-mono text-gray-600">{r.yearFraction || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.marginPct || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.baseRatePct || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.interestDue || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.principalDue || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.commitmentFeeDue || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono text-gray-900">{r.outstanding || 0}</td>
-                              <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold text-green-600">{r.undrawn || 0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr className="bg-gray-100 border-t-2 border-gray-300">
-                            <td colSpan={26} className="px-2 py-3 text-right text-xs font-bold text-gray-900">
-                              Total Closing Balance:
+                      <table className="w-full min-w-max text-sm md:text-base border-separate border-spacing-0 bg-white rounded shadow-md">
+  <thead className="sticky top-0 z-10 bg-[#c5daeb]">
+    <tr className="text-[#121516]">
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">From Date</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">To Date</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Edate</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Eomonth</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Schedule IPD</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Adjusted IPD</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Margin</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Default Rate</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Payment Convention</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Holiday Adjustment</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Days</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Year Fraction</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Interest Due</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Principal Due</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Commitment Fee Due</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Outstanding</th>
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Undrawn</th>
+      <th className="px-4 py-3 font-semibold text-center border-b border-[#40484f]">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {cashflowSchedule.map((row, idx) => (
+    <tr key={idx} className={`bg-white ${editingRowIndex === idx ? 'bg-yellow-50 border-2 border-yellow-300' : ''}`}>
+      {/* From Date */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["From Date"] || ''}
+            onChange={(e) => handleEditFieldChange("From Date", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["From Date"] || ''
+        )}
                             </td>
-                            <td className="px-2 py-3 whitespace-nowrap text-xs text-right font-mono font-bold">
-                              <span className="text-green-600 text-sm">
-                                {currencySymbols[currencyState as keyof typeof currencySymbols] || '$'}{cashflowSchedule.reduce((sum, r) => sum + Number(r.closingBalance || 0), 0).toLocaleString('en-GB', {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2
-                                })}
-                              </span>
+      
+      {/* To Date */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["To Date"] || ''}
+            onChange={(e) => handleEditFieldChange("To Date", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["To Date"] || ''
+        )}
+      </td>
+      
+      {/* Edate */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["Edate"] || ''}
+            onChange={(e) => handleEditFieldChange("Edate", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Edate"] || ''
+        )}
+      </td>
+      
+      {/* Eomonth */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["Eomonth"] || ''}
+            onChange={(e) => handleEditFieldChange("Eomonth", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Eomonth"] || ''
+        )}
+      </td>
+      
+      {/* Schedule IPD */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["Schedule IPD"] || ''}
+            onChange={(e) => handleEditFieldChange("Schedule IPD", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Schedule IPD"] || ''
+        )}
+      </td>
+      
+      {/* Adjusted IPD */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["Adjusted IPD"] || ''}
+            onChange={(e) => handleEditFieldChange("Adjusted IPD", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Adjusted IPD"] || ''
+        )}
+      </td>
+      
+      {/* Margin */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Margin"] || ''}
+            onChange={(e) => handleEditFieldChange("Margin", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Margin"] || ''
+        )}
+      </td>
+      
+      {/* Default Rate */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Default Rate"] || ''}
+            onChange={(e) => handleEditFieldChange("Default Rate", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Default Rate"] || ''
+        )}
+      </td>
+      
+      {/* Payment Convention */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <select
+            value={editingRowData?.["Payment Convention"] || ''}
+            onChange={(e) => handleEditFieldChange("Payment Convention", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          >
+            <option value="FOLLOWING">Following</option>
+            <option value="PRECEDING">Preceding</option>
+            <option value="MODIFIED FOLLOWING">Modified Following</option>
+            <option value="NONE">None</option>
+          </select>
+        ) : (
+          row["Payment Convention"] || ''
+        )}
+      </td>
+      
+      {/* Holiday Adjustment */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <select
+            value={editingRowData?.["Holiday Adjustment"] || ''}
+            onChange={(e) => handleEditFieldChange("Holiday Adjustment", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          >
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        ) : (
+          row["Holiday Adjustment"] || ''
+        )}
+      </td>
+      
+      {/* Days */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            value={editingRowData?.["Days"] || ''}
+            onChange={(e) => handleEditFieldChange("Days", parseInt(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Days"] || ''
+        )}
+      </td>
+      
+      {/* Year Fraction */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.000001"
+            value={editingRowData?.["Year Fraction"] || ''}
+            onChange={(e) => handleEditFieldChange("Year Fraction", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Year Fraction"] || ''
+        )}
+      </td>
+      
+      {/* Interest Due */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Interest Due"] || ''}
+            onChange={(e) => handleEditFieldChange("Interest Due", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Interest Due"] ? Number(row["Interest Due"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
+        )}
+      </td>
+      
+      {/* Principal Due */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Principal Due"] || ''}
+            onChange={(e) => handleEditFieldChange("Principal Due", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Principal Due"] ? Number(row["Principal Due"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
+        )}
+      </td>
+      
+      {/* Commitment Fee Due */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Commitment Fee Due"] || ''}
+            onChange={(e) => handleEditFieldChange("Commitment Fee Due", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Commitment Fee Due"] ? Number(row["Commitment Fee Due"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
+        )}
+      </td>
+      
+      {/* Outstanding */}
+      <td className="px-4 py-3 text-green-600 whitespace-nowrap font-bold">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Outstanding"] || ''}
+            onChange={(e) => handleEditFieldChange("Outstanding", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Outstanding"] ? Number(row["Outstanding"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
+        )}
+      </td>
+      
+      {/* Undrawn */}
+      <td className="px-4 py-3 text-blue-600 whitespace-nowrap font-bold">
+        {editingRowIndex === idx ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editingRowData?.["Undrawn"] || ''}
+            onChange={(e) => handleEditFieldChange("Undrawn", parseFloat(e.target.value) || 0)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          row["Undrawn"] ? Number(row["Undrawn"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
+        )}
+      </td>
+      
+      {/* Actions */}
+      <td className="px-4 py-3 text-center whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={handleSaveRow}
+              className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+              title="Save changes"
+            >
+              ✓
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+              title="Cancel editing"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleEditRow(idx)}
+            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+            title="Edit row"
+          >
+            Edit
+          </button>
+        )}
                             </td>
                           </tr>
-                        </tfoot>
+  ))}
+</tbody>
                       </table>
                     </div>
                   </div>
@@ -1311,4 +1624,4 @@ const FacilityDetailPage = () => {
   );
 };
 
-export default FacilityDetailPage; 
+export default FacilityDetailPage;

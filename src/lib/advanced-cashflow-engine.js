@@ -1,605 +1,528 @@
-/*
- * advanced-cashflow-engine.js (ESM)
- *
- * Advanced, extensible loan cashflow engine for portfolio monitoring.
- * - Uses Luxon for robust date handling
- * - Uses Decimal.js for precise monetary math
- * - Customizable day count and business day conventions
- * - Modular event handlers (extensible registry)
- * - Suitable for DB persistence and portfolio aggregation
- *
- * Exports:
- *   - generateLoanSchedule(loan, events, options)
- *   - aggregateByInvestor(loanSchedules, options)
- *   - registerEventHandler(type, handler)
- *   - builtInHandlers (for reference/extension)
- */
-
-import { DateTime } from 'luxon'
-import Decimal from 'decimal.js'
-
-// --------------------------
-// Defaults / Precision
-// --------------------------
-Decimal.set({ precision: 40, rounding: Decimal.ROUND_HALF_UP })
-
-// --------------------------
-// Utilities: Dates & Formatting
-// --------------------------
 /**
- * @typedef {Object} CalendarOptions
- * @property {string[]} [holidays] - ISO date strings, e.g. ['2025-01-26']
- * @property {(dt: DateTime) => boolean} [isHoliday] - Optional custom function to determine holidays
- * @property {number[]} [weekend] - Weekday numbers considered weekend, default [6,7] (Sat=6, Sun=7 in Luxon)
+ * advanced-cashflow-engine.js
+ *
+ * Production-ready advanced cashflow schedule engine.
+ * - Exports generateAdvancedSchedule(loan, events, options)
+ * - Also exports generateCashflowSchedule as an alias for compatibility
+ *
+ * Important: Uses Luxon and Decimal.js
+ *   npm install luxon decimal.js
  */
 
-const iso = (dt) => dt.toISODate()
-const parseISO = (s) => DateTime.fromISO(s, { zone: 'utc' })
+import { DateTime } from "luxon";
+import Decimal from "decimal.js";
 
-function addMonthsPreserveDOM(dt, months, { preserveEOM = true } = {}) {
-  // Preserve end-of-month if applicable
-  const isEOM = dt.plus({ days: 1 }).month !== dt.month
-  const moved = dt.plus({ months })
-  if (preserveEOM && isEOM) {
-    const end = moved.endOf('month')
-    return end
-  }
-  // If original DOM > days in new month, Luxon auto-adjusts to EOM
-  return moved
-}
+Decimal.set({ precision: 40, rounding: Decimal.ROUND_HALF_UP });
 
-function daysBetween(start, end) {
-  return end.startOf('day').diff(start.startOf('day'), 'days').days
-}
+/* -------------------------
+   Utility / Parsing Helpers
+   ------------------------- */
+const toISODate = (dt) => (dt ? dt.toISODate() : null);
 
-// --------------------------
-// Day Count Conventions
-// --------------------------
-function isLeapYear(year) {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
-}
-
-function dayCountFraction(start, end, convention = 'ACT/360') {
-  const s = start.startOf('day')
-  const e = end.startOf('day')
-  const dd = e.diff(s, 'days').days
-
-  switch (String(convention).toUpperCase()) {
-    case 'ACT/360':
-      return { yearFraction: dd / 360, days: dd }
-    case 'ACT/365':
-      return { yearFraction: dd / 365, days: dd }
-    case 'ACT/365L': {
-      const years = []
-      for (let y = s.year; y <= e.year; y++) years.push(y)
-      const includesLeap = years.some(isLeapYear)
-      return { yearFraction: dd / (includesLeap ? 366 : 365), days: dd }
+function parseDateToDT(input) {
+  if (!input) return null;
+  if (DateTime.isDateTime(input)) return input.startOf("day");
+  if (input instanceof Date) return DateTime.fromJSDate(input).startOf("day");
+  if (typeof input === "string") {
+    // Support dd-mm-yyyy and ISO yyyy-mm-dd
+    const ddmmyyyy = /^\d{2}-\d{2}-\d{4}$/.test(input);
+    if (ddmmyyyy) {
+      const [dd, mm, yyyy] = input.split("-").map(Number);
+      return DateTime.fromObject({ year: yyyy, month: mm, day: dd }).startOf("day");
     }
-    case '30/360':
-    case '30/360 US': {
-      let d1 = Math.min(s.day, 30)
-      let d2 = e.day
-      if (s.day === 31) d1 = 30
-      if (e.day === 31 && d1 === 30) d2 = 30
-      const dd30 = 360 * (e.year - s.year) + 30 * (e.month - s.month) + (d2 - d1)
-      return { yearFraction: dd30 / 360, days: dd30 }
+    const dt = DateTime.fromISO(input);
+    if (dt.isValid) return dt.startOf("day");
+  }
+  throw new Error(`Unsupported date format: ${input}`);
+}
+
+function cloneDT(dt) {
+  return DateTime.fromISO(dt.toISODate());
+}
+
+function endOfMonthDT(dt) {
+  return dt.endOf("month").startOf("day");
+}
+
+function addMonthsPreserveEOM(dt, months, preserveEOM = true) {
+  const isEOM = dt.plus({ days: 1 }).month !== dt.month;
+  const moved = dt.plus({ months });
+  if (preserveEOM && isEOM) return moved.endOf("month").startOf("day");
+  return moved.startOf("day");
+}
+
+/* -------------------------
+   Day Count Conventions
+   ------------------------- */
+function diffDays(a, b) {
+  return Math.round(b.diff(a, "days").days);
+}
+
+function yearFraction(a, b, dcc = "ACT/365") {
+  const days = diffDays(a, b);
+  const conv = (dcc || "").toUpperCase();
+  if (conv === "ACT/360") return days / 360;
+  if (conv === "ACT/365" || conv === "ACTUAL/365") return days / 365;
+  if (conv === "ACT/365L") {
+    // use 366 if leap-year included
+    let includesLeap = false;
+    for (let y = a.year; y <= b.year; y++) {
+      if ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0) includesLeap = true;
     }
-    case '30E/360': {
-      const d1 = Math.min(s.day, 30)
-      const d2 = Math.min(e.day, 30)
-      const dd30 = 360 * (e.year - s.year) + 30 * (e.month - s.month) + (d2 - d1)
-      return { yearFraction: dd30 / 360, days: dd30 }
+    return days / (includesLeap ? 366 : 365);
+  }
+  if (conv === "30E/360") {
+    const d1 = Math.min(a.day, 30);
+    const d2 = Math.min(b.day, 30);
+    const months = (b.year - a.year) * 12 + (b.month - a.month);
+    const dd = 360 * (b.year - a.year) + 30 * (b.month - a.month) + (d2 - d1);
+    return dd / 360;
+  }
+  if (conv === "30/360" || conv === "30/360 US") {
+    let d1 = a.day;
+    let d2 = b.day;
+    if (d1 === 31) d1 = 30;
+    if (d2 === 31 && d1 === 30) d2 = 30;
+    const dd = 360 * (b.year - a.year) + 30 * (b.month - a.month) + (d2 - d1);
+    return dd / 360;
+  }
+  // default:
+  return days / 365;
+}
+
+/* -------------------------
+   Business Day Adjustment
+   ------------------------- */
+function isWeekend(dt, weekend = [6, 7]) {
+  // Luxon: Monday=1 ... Sunday=7
+  return weekend.includes(dt.weekday);
+}
+
+function buildIsHoliday(calendar = {}) {
+  // calendar.holidays: array of ISO dates or function
+  if (typeof calendar.isHoliday === "function") return calendar.isHoliday;
+  const holidaysSet = new Set(Array.isArray(calendar.holidays) ? calendar.holidays : []);
+  return (dt) => holidaysSet.has(dt.toISODate());
+}
+
+function isBusinessDay(dt, calendar = {}) {
+  const weekend = calendar.weekend || [6, 7];
+  const isHoliday = buildIsHoliday(calendar);
+  return !isWeekend(dt, weekend) && !isHoliday(dt);
+}
+
+function adjustBusinessDay(dt, convention = "FOLLOWING", calendar = {}) {
+  if (!dt) return dt;
+  const conv = (convention || "FOLLOWING").toUpperCase();
+  const weekend = calendar.weekend || [6, 7];
+  const isHoliday = buildIsHoliday(calendar);
+
+  const isBad = (d) => isWeekend(d, weekend) || isHoliday(d);
+  if (!isBad(dt)) return dt.startOf("day");
+
+  if (conv === "NONE") return dt.startOf("day");
+
+  if (conv === "FOLLOWING") {
+    let m = dt;
+    while (isBad(m)) m = m.plus({ days: 1 });
+    return m.startOf("day");
+  }
+
+  if (conv === "PRECEDING") {
+    let m = dt;
+    while (isBad(m)) m = m.minus({ days: 1 });
+    return m.startOf("day");
+  }
+
+  if (conv === "MODIFIED FOLLOWING" || conv === "MODIFIED_FOLLOWING" || conv === "MODIFIEDFOLLOWING") {
+    let m = dt;
+    while (isBad(m)) m = m.plus({ days: 1 });
+    if (m.month !== dt.month) {
+      let mb = dt;
+      while (isBad(mb)) mb = mb.minus({ days: 1 });
+      return mb.startOf("day");
     }
-    default:
-      throw new Error(`Unsupported day count: ${convention}`)
+    return m.startOf("day");
   }
+  // fallback to following
+  let m = dt;
+  while (isBad(m)) m = m.plus({ days: 1 });
+  return m.startOf("day");
 }
 
-// --------------------------
-// Business Day Adjustment
-// --------------------------
-function defaultIsHoliday(dt, holidays = []) {
-  return holidays.includes(dt.toISODate())
-}
+/* -------------------------
+   Event / Maps helpers
+   ------------------------- */
+function buildMapsFromEvents(eventsInput) {
+  const events = Array.isArray(eventsInput) ? eventsInput : [];
+  const fxMap = new Map();
+  const indexMap = new Map();
+  const refRateMap = new Map();
 
-/**
- * @param {DateTime} dt
- * @param {'FOLLOWING'|'PRECEDING'|'MODIFIED_FOLLOWING'|'NONE'} convention
- * @param {CalendarOptions} calendar
- */
-function adjustBusinessDay(dt, convention = 'FOLLOWING', calendar = {}) {
-  if (!dt || convention === 'NONE') return dt
-
-  const weekends = calendar.weekend || [6, 7] // Luxon: Monday 1 ... Sunday 7
-  const holidayCheck = calendar.isHoliday || ((d) => defaultIsHoliday(d, calendar.holidays || []))
-
-  const isHolidayOrWeekend = (d) => weekends.includes(d.weekday) || holidayCheck(d)
-
-  if (!isHolidayOrWeekend(dt)) return dt
-
-  const origMonth = dt.month
-
-  if (convention.toUpperCase() === 'FOLLOWING') {
-    let moved = dt
-    while (isHolidayOrWeekend(moved)) moved = moved.plus({ days: 1 })
-    return moved
-  }
-  if (convention.toUpperCase() === 'PRECEDING') {
-    let moved = dt
-    while (isHolidayOrWeekend(moved)) moved = moved.minus({ days: 1 })
-    return moved
-  }
-  if (
-    convention.toUpperCase() === 'MODIFIED_FOLLOWING' ||
-    convention.toUpperCase() === 'MODIFIEDFOLLOWING' ||
-    convention.toUpperCase() === 'MODFOLLOWING'
-  ) {
-    let moved = dt
-    while (isHolidayOrWeekend(moved)) moved = moved.plus({ days: 1 })
-    if (moved.month !== origMonth) {
-      let movedBack = dt
-      while (isHolidayOrWeekend(movedBack)) movedBack = movedBack.minus({ days: 1 })
-      return movedBack
-    }
-    return moved
-  }
-  return dt
-}
-
-// --------------------------
-// FX & Index Helpers
-// --------------------------
-function buildEventMaps(events) {
-  const fxMap = new Map() // key: `${date}:${from}->${to}` => rate Decimal
-  const indexMap = new Map() // key: `${index}:${date}` => Decimal
-  const refRateMap = new Map() // key: `${date}` => Decimal
-
-  for (const ev of events || []) {
-    if (ev.type === 'fx_update') {
-      fxMap.set(`${ev.date}:${ev.fromCurrency}->${ev.toCurrency}`, new Decimal(ev.rate || 1))
-    } else if (ev.type === 'index_update') {
-      indexMap.set(`${ev.indexName}:${ev.date}`, new Decimal(ev.value || 0))
-    } else if (ev.type === 'refRate_update') {
-      refRateMap.set(ev.date, new Decimal(ev.rate || 0))
+  for (const ev of events) {
+    if (!ev || !ev.type) continue;
+    const dateISO = parseDateToDT(ev.date).toISODate();
+    if (ev.type === "fx_update") {
+      const key = `${dateISO}:${ev.fromCurrency}->${ev.toCurrency}`;
+      fxMap.set(key, new Decimal(ev.rate || ev.value || 1));
+    } else if (ev.type === "index_update") {
+      const key = `${ev.indexName}:${dateISO}`;
+      indexMap.set(key, new Decimal(ev.value || 0));
+    } else if (ev.type === "refRate_update") {
+      refRateMap.set(dateISO, new Decimal(ev.rate || 0));
     }
   }
-  return { fxMap, indexMap, refRateMap }
+  return { fxMap, indexMap, refRateMap };
 }
 
-function getRefRateForDate(loan, refRateMap, dateISO) {
-  if (typeof loan.refRateFn === 'function') {
-    const r = loan.refRateFn(dateISO)
-    return new Decimal(r || 0)
+function getRefRateForDate(loan, refRateMap, dateISO, options = {}) {
+  // loan.refRateFn(dateISO) preferred -> returns decimal (e.g., 0.0525)
+  if (typeof loan.refRateFn === "function") {
+    const r = loan.refRateFn(dateISO);
+    return new Decimal(r || 0);
   }
-  // latest <= date
-  const keys = [...refRateMap.keys()].filter((k) => k <= dateISO).sort()
-  return keys.length ? new Decimal(refRateMap.get(keys[keys.length - 1])) : new Decimal(loan.refRate || 0)
-}
-
-function getIndexValue(indexMap, indexName, dateISO) {
-  const keys = [...indexMap.keys()].filter((k) => k.startsWith(`${indexName}:`))
-  const candidates = keys
-    .map((k) => ({ k, date: k.split(':')[1] }))
-    .filter((c) => c.date <= dateISO)
-    .sort((a, b) => a.date.localeCompare(b.date))
-  if (!candidates.length) return null
-  return new Decimal(indexMap.get(candidates[candidates.length - 1].k) || 0)
+  // else pick latest <= dateISO from refRateMap
+  const available = [...refRateMap.keys()].filter((k) => k <= dateISO).sort();
+  if (available.length) return new Decimal(refRateMap.get(available[available.length - 1]));
+  // fallback to loan.refRate (decimal) or options.fixedReferenceRatePct (percent)
+  if (loan.refRate !== undefined && loan.refRate !== null) return new Decimal(loan.refRate);
+  if (options.fixedReferenceRatePct !== undefined) return new Decimal(options.fixedReferenceRatePct).div(100);
+  // default rate is 5% (0.05)
+  return new Decimal(0.05);
 }
 
 function getFXRate(fxMap, fromCurrency, toCurrency, dateISO) {
-  if (!fromCurrency || fromCurrency === toCurrency) return new Decimal(1)
-  const exactKey = `${dateISO}:${fromCurrency}->${toCurrency}`
-  if (fxMap.has(exactKey)) return new Decimal(fxMap.get(exactKey))
-
-  const keys = [...fxMap.keys()].filter((k) => k.endsWith(`${fromCurrency}->${toCurrency}`))
-  const candidates = keys
-    .map((k) => ({ k, date: k.split(':')[0] }))
-    .filter((c) => c.date <= dateISO)
-    .sort((a, b) => a.date.localeCompare(b.date))
-
-  if (candidates.length) return new Decimal(fxMap.get(candidates[candidates.length - 1].k))
-
+  if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) return new Decimal(1);
+  const exact = `${dateISO}:${fromCurrency}->${toCurrency}`;
+  if (fxMap.has(exact)) return new Decimal(fxMap.get(exact));
+  // latest <= dateISO for pair
+  const candidates = [...fxMap.keys()].filter((k) => k.endsWith(`${fromCurrency}->${toCurrency}`));
+  const ok = candidates.map((k) => ({ k, date: k.split(":")[0] })).filter((c) => c.date <= dateISO).sort((a, b) => a.date.localeCompare(b.date));
+  if (ok.length) return new Decimal(fxMap.get(ok[ok.length - 1].k));
   // try reverse
-  const revKeys = [...fxMap.keys()].filter((k) => k.endsWith(`${toCurrency}->${fromCurrency}`))
-  const revCandidates = revKeys
-    .map((k) => ({ k, date: k.split(':')[0] }))
-    .filter((c) => c.date <= dateISO)
-    .sort((a, b) => a.date.localeCompare(b.date))
-  if (revCandidates.length) {
-    const r = new Decimal(fxMap.get(revCandidates[revCandidates.length - 1].k) || 1)
-    return r.equals(0) ? new Decimal(1) : new Decimal(1).div(r)
+  const rev = [...fxMap.keys()].filter((k) => k.endsWith(`${toCurrency}->${fromCurrency}`));
+  const ok2 = rev.map((k) => ({ k, date: k.split(":")[0] })).filter((c) => c.date <= dateISO).sort((a, b) => a.date.localeCompare(b.date));
+  if (ok2.length) {
+    const r = new Decimal(fxMap.get(ok2[ok2.length - 1].k) || 1);
+    return r.equals(0) ? new Decimal(1) : new Decimal(1).div(r);
   }
-  return new Decimal(1)
+  return new Decimal(1);
 }
 
-// --------------------------
-// Event Registry (Extensible)
-// --------------------------
-/**
- * Handlers receive (ctx, ev, dateISO) and can mutate ctx state and row fields.
- * ctx: { facility, outstanding, draws, loan, maps, options }
- * row: supplied via ctx.currentRow when generating periods
- */
-const builtInHandlers = {
-  drawdown(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    ctx.outstanding = ctx.outstanding.plus(amt)
-    ctx.draws.push({ date: dateISO, amount: amt, currency: ev.currency || ctx.loan.currency })
-    ctx.currentRow.eventsApplied.push({ type: 'drawdown', date: dateISO, amount: amt.toNumber(), currency: ev.currency })
-  },
-  prepayment(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    const feePct = new Decimal(ev.feePct || 0)
-    const fee = amt.times(feePct)
-    ctx.outstanding = Decimal.max(new Decimal(0), ctx.outstanding.minus(amt))
-    ctx.currentRow.prepaymentAmount = ctx.currentRow.prepaymentAmount.plus(amt)
-    ctx.currentRow.prepaymentFee = ctx.currentRow.prepaymentFee.plus(fee)
-    ctx.currentRow.eventsApplied.push({ type: 'prepayment', date: dateISO, amount: amt.toNumber(), fee: fee.toNumber(), currency: ev.currency })
-  },
-  commitment_upsize(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    ctx.facility = ctx.facility.plus(amt)
-    ctx.currentRow.eventsApplied.push({ type: 'commitment_upsize', date: dateISO, amount: amt.toNumber(), facilityAfter: ctx.facility.toNumber() })
-  },
-  commitment_downsize(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    ctx.facility = Decimal.max(new Decimal(0), ctx.facility.minus(amt))
-    ctx.currentRow.eventsApplied.push({ type: 'commitment_downsize', date: dateISO, amount: amt.toNumber(), facilityAfter: ctx.facility.toNumber() })
-  },
-  commitment_change(ctx, ev, dateISO) {
-    ctx.facility = new Decimal(ev.newFacilityAmount || 0)
-    ctx.currentRow.eventsApplied.push({ type: 'commitment_change', date: dateISO, newFacility: ctx.facility.toNumber() })
-  },
-  amortisation(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    const idx = new Decimal(ev.indexedAmount || 0)
-    const received = !!ev.received
-    const pipAmort = !!(ctx.loan.pip && ctx.loan.pip.amortisation)
-
-    if (pipAmort && !received) {
-      ctx.currentRow.indexedAmortisationAmountDue = ctx.currentRow.indexedAmortisationAmountDue.plus(idx)
-      ctx.currentRow.amortisationDue = ctx.currentRow.amortisationDue.plus(amt)
-    } else {
-      ctx.outstanding = Decimal.max(new Decimal(0), ctx.outstanding.minus(amt))
-      ctx.currentRow.amortisationDue = ctx.currentRow.amortisationDue.plus(amt.plus(idx))
-      if (received) {
-        ctx.currentRow.amortisationReceived = ctx.currentRow.amortisationReceived.plus(amt)
-        ctx.currentRow.indexedAmortisationAmountReceived = ctx.currentRow.indexedAmortisationAmountReceived.plus(idx)
-      }
-    }
-    ctx.currentRow.eventsApplied.push({ type: 'amortisation', date: dateISO, amount: amt.toNumber(), indexed: idx.toNumber(), received })
-  },
-  interest_payment(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    ctx.currentRow.interestAmountReceived = ctx.currentRow.interestAmountReceived.plus(amt)
-    ctx.currentRow.eventsApplied.push({ type: 'interest_payment', date: dateISO, amount: amt.toNumber(), currency: ev.currency })
-  },
-  payment_in_kind(ctx, ev, dateISO) {
-    const kind = ev.kind
-    const amt = new Decimal(ev.amount || 0)
-    if (kind === 'interest') {
-      ctx.currentRow.indexedInterestAmountDue = ctx.currentRow.indexedInterestAmountDue.plus(amt)
-      ctx.currentRow.eventsApplied.push({ type: 'payment_in_kind', date: dateISO, kind: 'interest', amount: amt.toNumber() })
-    } else if (kind === 'amortisation') {
-      ctx.currentRow.indexedAmortisationAmountDue = ctx.currentRow.indexedAmortisationAmountDue.plus(amt)
-      ctx.currentRow.eventsApplied.push({ type: 'payment_in_kind', date: dateISO, kind: 'amortisation', amount: amt.toNumber() })
-    }
-  },
-  fx_update(ctx, ev, dateISO) {
-    ctx.maps.fxMap.set(`${dateISO}:${ev.fromCurrency}->${ev.toCurrency}`, new Decimal(ev.rate || 1))
-    ctx.currentRow.eventsApplied.push({ type: 'fx_update', date: dateISO, from: ev.fromCurrency, to: ev.toCurrency, rate: Number(ev.rate || 1) })
-  },
-  index_update(ctx, ev, dateISO) {
-    ctx.maps.indexMap.set(`${ev.indexName}:${dateISO}`, new Decimal(ev.value || 0))
-    ctx.currentRow.eventsApplied.push({ type: 'index_update', date: dateISO, indexName: ev.indexName, value: Number(ev.value || 0) })
-  },
-  commitment_fee_payment(ctx, ev, dateISO) {
-    const amt = new Decimal(ev.amount || 0)
-    ctx.currentRow.commitmentFeeReceived = ctx.currentRow.commitmentFeeReceived.plus(amt)
-    ctx.currentRow.eventsApplied.push({ type: 'commitment_fee_payment', date: dateISO, amount: amt.toNumber() })
-  },
-  refRate_update(ctx, ev, dateISO) {
-    ctx.maps.refRateMap.set(dateISO, new Decimal(ev.rate || 0))
-    ctx.currentRow.eventsApplied.push({ type: 'refRate_update', date: dateISO, rate: Number(ev.rate || 0) })
-  }
-}
-
-const handlerRegistry = new Map(Object.entries(builtInHandlers))
-export function registerEventHandler(type, handler) {
-  handlerRegistry.set(type, handler)
-}
-
-// --------------------------
-// Core Engine
-// --------------------------
-/**
- * @typedef {Object} LoanInput
- * @property {string} loanId
- * @property {string} investorId
- * @property {string} borrowerId
- * @property {string} currency
- * @property {string} [baseCurrency]
- * @property {number|string} facilityAmount
- * @property {{date:string, amount:number|string, currency?:string}[]} [initialDrawdowns]
- * @property {number} [margin] - decimal, e.g. 0.03 for 3%
- * @property {(dateISO:string)=>number} [refRateFn]
- * @property {{date:string, rate:number}[]} [refRateSeries]
- * @property {number} [commitmentFeeRate]
- * @property {string} [dayCount]
- * @property {'MONTHLY'|'QUARTERLY'|'SEMIANNUAL'|'ANNUAL'} [frequency]
- * @property {string} [businessDayConvention]
- * @property {string[]} [holidays]
- * @property {{interest?:boolean, amortisation?:boolean}} [pip]
- * @property {string} [interestAccrualStart]
- * @property {{date:string, amount:number|string, currency?:string, indexedAmount?:number|string, received?:boolean}[]} [amortisationSchedule]
- * @property {string} maturityDate
- * @property {{ indexName:string, baseIndexValue:number }} [indexed]
- */
+/* -------------------------
+   Core schedule builder
+   ------------------------- */
 
 /**
- * @typedef {Object} EngineOptions
- * @property {string} [baseCurrency]
- * @property {'ACT/360'|'ACT/365'|'ACT/365L'|'30/360'|'30E/360'} [dayCount]
- * @property {'FOLLOWING'|'PRECEDING'|'MODIFIED_FOLLOWING'|'NONE'} [businessDayConvention]
- * @property {CalendarOptions} [calendar]
- * @property {{ preserveEOM?:boolean }} [schedule]
- * @property {'number'|'string'|'decimal'} [serialize] - how to serialize numbers in output
+ * Main function
+ * @param {Object} loan - loan object with fields mapped from platform tabs:
+ *   General Tab: fundingDate, agreementDate, maturityDate, facilityAmount, baseCurrency, revolvingFacility, amortisationEnabled
+ *   Cash Term Tab: firstInterestPaymentDate, scheduledOn, endOfMonth, dayCountConvention, holidayAdjustment, holidayConvention, intervalTenor, margin, commitmentFeeRate, interestPaymentDates
+ *   Amortisation Tab: amortisationSchedule: array of { date, amount, received }
+ *   Drawdown Tab: drawdowns: array of { drawdownDate, amount }
+ * @param {Array} events - array of event objects (drawdown, amortisation, refRate_update, fx_update, index_update, etc.)
+ * @param {Object} options - engine options { baseCurrency, preserveEOM, calendar }
+ * @returns {Object} { rows: Array<UI rows>, internalRows: Array<internal row objects>, totals: { totalClosingBalance } }
  */
+function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
+  // Normalize inputs
+  const eventsArr = Array.isArray(events) ? events : [];
+  const maps = buildMapsFromEvents(eventsArr);
+  const calendar = options.calendar || { holidays: loan.holidays || [], weekend: [6, 7], isHoliday: null };
+  const preserveEOM = options.preserveEOM !== undefined ? options.preserveEOM : true;
+  const dayCount = loan.dayCountConvention || loan.dayCount || "ACT/365";
+  const businessConvention = loan.holidayConvention || loan.businessDayConvention || "FOLLOWING";
 
-function serializeDecimal(x, mode = 'number') {
-  if (mode === 'decimal') return x
-  if (mode === 'string') return x.toFixed(8)
-  return x.toNumber()
-}
+  // facility / commitment - mapped from General Tab
+  let facilityAmount = new Decimal(Number(loan.facilityAmount || loan.commitment || 0));
+  // outstanding starts at 0 unless drawdowns present
+  let outstanding = new Decimal(0);
 
-export function generateLoanSchedule(loan, events = [], options = {}) {
-  const freqMonthsMap = { MONTHLY: 1, QUARTERLY: 3, SEMIANNUAL: 6, ANNUAL: 12 }
-  const freq = String(loan.frequency || options.frequency || 'QUARTERLY').toUpperCase()
-  const intervalMonths = freqMonthsMap[freq] || 3
-  const dayCount = loan.dayCount || options.dayCount || 'ACT/360'
-  const bdayConv = loan.businessDayConvention || options.businessDayConvention || 'FOLLOWING'
-  const calendar = options.calendar || { holidays: loan.holidays || [] }
-  const baseCurrency = loan.baseCurrency || options.baseCurrency || loan.currency
-  const serialize = options.serialize || 'number'
-
-  // Build event maps used during iteration
-  const maps = buildEventMaps(events)
-
-  // Group events by ISO date for fast lookup
-  const eventsByDate = new Map()
-  for (const ev of events) {
-    const key = ev.date
-    if (!eventsByDate.has(key)) eventsByDate.set(key, [])
-    eventsByDate.get(key).push(ev)
-  }
-
-  // Initial state
-  let facility = new Decimal(loan.facilityAmount || 0)
-  let outstanding = new Decimal(0)
-  const draws = []
-
-  const initialDraws = (loan.initialDrawdowns || [])
-    .map((d) => ({ ...d, dateISO: d.date }))
-    .sort((a, b) => a.dateISO.localeCompare(b.dateISO))
-
-  for (const d of initialDraws) {
-    const amt = new Decimal(d.amount || 0)
-    outstanding = outstanding.plus(amt)
-    draws.push({ date: d.dateISO, amount: amt, currency: d.currency || loan.currency })
-  }
-
-  // Anchors from accrual start (or first draw) to maturity
-  const accrualStart = loan.interestAccrualStart
-    ? parseISO(loan.interestAccrualStart)
-    : initialDraws.length
-    ? parseISO(initialDraws[0].dateISO)
-    : DateTime.utc()
-
-  const maturity = parseISO(loan.maturityDate)
-
-  // Construct anchor periods
-  const anchors = []
-  let cursor = accrualStart
-  const addMonthsHook = options?.schedule?.nextAnchorFn || ((dt) => addMonthsPreserveDOM(dt, intervalMonths, { preserveEOM: options?.schedule?.preserveEOM !== false }))
-  while (cursor < maturity) {
-    const next = addMonthsHook(cursor)
-    anchors.push({ start: cursor, end: next })
-    cursor = next
-  }
-  if (!anchors.length) anchors.push({ start: accrualStart, end: maturity })
-  const last = anchors[anchors.length - 1]
-  if (last.end > maturity) anchors[anchors.length - 1] = { ...last, end: maturity }
-
-  // Add amortisation schedule as events
-  if (Array.isArray(loan.amortisationSchedule)) {
-    for (const a of loan.amortisationSchedule) {
-      const list = eventsByDate.get(a.date) || []
-      list.push({ type: 'amortisation', date: a.date, amount: a.amount, currency: a.currency || loan.currency, indexedAmount: a.indexedAmount || 0, received: !!a.received })
-      eventsByDate.set(a.date, list)
+  // Handle drawdowns from Drawdown Tab - map drawdowns array to drawdownEntries
+  const drawdownEntries = Array.isArray(loan.drawdowns) ? loan.drawdowns.slice() : [];
+  
+  // If no explicit drawdowns provided, default behaviour: assume full drawdown at funding date
+  if (drawdownEntries.length === 0) {
+    // default: full facility at funding date
+    const fundingDate = loan.fundingDate || loan.startDate || loan.funding;
+    if (fundingDate) {
+      drawdownEntries.push({ drawdownDate: fundingDate, amount: Number(loan.facilityAmount || loan.commitment || 0) });
     }
   }
 
-  // Result container
-  const cashflows = []
+  // sort drawdowns & amortisations
+  const sortedDrawdowns = (Array.isArray(drawdownEntries) ? drawdownEntries : []).map(d => ({ ...d, dateISO: parseDateToDT(d.drawdownDate).toISODate() })).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const amortEntries = Array.isArray(loan.amortisationSchedule) ? loan.amortisationSchedule.map(a => ({ ...a, dateISO: parseDateToDT(a.date).toISODate() })).sort((a, b) => a.dateISO.localeCompare(b.dateISO)) : [];
 
-  // Context shared across handlers
-  const ctx = {
-    loan,
-    maps,
-    options: { bdayConv, calendar, dayCount, serialize, baseCurrency },
-    facility,
-    outstanding,
-    draws,
-    currentRow: null
+  // accrual start & maturity
+  const fundingDT = parseDateToDT(loan.fundingDate || loan.funding || loan.interestAccrualStart || loan.startDate);
+  if (!fundingDT) throw new Error("fundingDate (or startDate) is required in loan object");
+  const maturityDT = parseDateToDT(loan.maturityDate || loan.maturity || loan.endDate);
+  if (!maturityDT) throw new Error("maturityDate (or endDate) is required in loan object");
+
+  // Determine interval tenor
+  const tenorMonths = Number(loan.intervalTenor || loan.tenorMonths || options.intervalMonths || 3);
+
+  // Build anchor periods: chain from fundingDT to maturityDT using tenorMonths and scheduledOn / EOM rules
+  const anchors = [];
+  let cursor = fundingDT;
+  const firstIPD = loan.firstInterestPaymentDate ? parseDateToDT(loan.firstInterestPaymentDate) : null;
+
+  // If a firstIPD is present and > funding, make first anchor to it
+  if (firstIPD && firstIPD > fundingDT) {
+    anchors.push({ start: fundingDT, end: firstIPD });
+    cursor = firstIPD;
   }
 
-  // Iterate periods
+  // Now iterate
+  while (cursor < maturityDT) {
+    let next = addMonthsPreserveEOM(cursor, tenorMonths, preserveEOM);
+
+    // scheduledOn vs EOM
+    if (Number(loan.endOfMonth) === 1) {
+      next = endOfMonthDT(next);
+    } else if (loan.scheduledOn) {
+      const dayNum = Number(loan.scheduledOn);
+      // create candidate in next month same month as next
+      const candidate = DateTime.fromObject({ year: next.year, month: next.month, day: 1 }).set({ day: Math.min(dayNum, next.endOf('month').day) });
+      next = candidate.startOf('day');
+    }
+
+    // If next goes beyond maturity, cap at maturity
+    if (next > maturityDT) next = maturityDT;
+
+    // Prevent infinite loops
+    if (!anchors.length && next <= cursor) throw new Error("Invalid schedule progression, next <= cursor (possible zero-tenor)");
+    anchors.push({ start: cursor, end: next });
+    cursor = next;
+    // safety break (avoid infinite loops)
+    if (anchors.length > 10000) throw new Error("Too many anchor periods detected (possible misconfiguration)");
+  }
+
+  // Prepare events-by-date map for quick processing
+  const eventsByDate = new Map();
+  for (const ev of eventsArr) {
+    if (!ev || !ev.date) continue;
+    const dISO = parseDateToDT(ev.date).toISODate();
+    if (!eventsByDate.has(dISO)) eventsByDate.set(dISO, []);
+    eventsByDate.get(dISO).push(ev);
+  }
+
+  // Also include drawdowns and amort entries as events so they are applied consistently
+  for (const d of sortedDrawdowns) {
+    const dISO = d.dateISO;
+    if (!eventsByDate.has(dISO)) eventsByDate.set(dISO, []);
+    eventsByDate.get(dISO).push({ type: "drawdown", ...d });
+  }
+  for (const a of amortEntries) {
+    const aISO = a.dateISO;
+    if (!eventsByDate.has(aISO)) eventsByDate.set(aISO, []);
+    eventsByDate.get(aISO).push({ type: "amortisation", ...a });
+  }
+
+  // Sort event lists on each date to keep stable application order (drawdown before interest on same date etc.)
+  for (const [k, arr] of eventsByDate.entries()) {
+    eventsByDate.set(k, arr); // keep order as inserted
+  }
+
+  // Context to maintain through anchors
+  const rowsInternal = [];
+  let runningOutstanding = outstanding; // Decimal
+  // If initial drawdowns were present we already added to outstanding above
+
+  // For each anchor produce exactly one row
   for (const anchor of anchors) {
-    // Scheduled and adjusted dates
-    const scheduled = anchor.end
-    const businessDayAdjuster = options.businessDayAdjuster || ((dt, conv, cal) => adjustBusinessDay(dt, conv, cal))
-    const adjusted = businessDayAdjuster(scheduled, bdayConv, calendar)
-    const startISO = iso(anchor.start)
-    const scheduledISO = iso(scheduled)
-    const adjustedISO = iso(adjusted)
+    // Scheduled IPD (unadjusted) is anchor.end by default; if interestPaymentDates override contains a date in (start,end] use it
+    let scheduledIPD = anchor.end;
+    if (Array.isArray(loan.interestPaymentDates) && loan.interestPaymentDates.length) {
+      // find a date in interestPaymentDates that is > start and <= end
+      const found = loan.interestPaymentDates
+        .map(d => parseDateToDT(d))
+        .find(d => d > anchor.start && d <= anchor.end);
+      if (found) scheduledIPD = found;
+    }
 
-    // Apply events on start date (e.g., drawdowns effective from start)
+    // compute adjusted IPD using business day logic
+    const adjustedIPD = loan.holidayAdjustment ? adjustBusinessDay(scheduledIPD, businessConvention, calendar) : scheduledIPD;
+
+    // We'll compute sub-segments across any event dates in (start, adjustedIPD] to prorate interest and fees
+    const segmentBoundaryISOs = new Set();
+    segmentBoundaryISOs.add(anchor.start.toISODate());
+    // collect event dates > start && <= adjustedIPD
+    for (const dateISO of eventsByDate.keys()) {
+      const evDT = parseDateToDT(dateISO);
+      if (evDT > anchor.start && evDT <= adjustedIPD) segmentBoundaryISOs.add(evDT.toISODate());
+    }
+    segmentBoundaryISOs.add(adjustedIPD.toISODate());
+    const segmentBoundaries = [...segmentBoundaryISOs].sort().map(s => parseDateToDT(s));
+
+    // Initialize row accumulators
+    let rowInterestDue = new Decimal(0);
+    let rowPrincipalDue = new Decimal(0);
+    let rowCommitmentFeeDue = new Decimal(0);
+    let rowPrepaymentFee = new Decimal(0);
+    let rowAmortDue = new Decimal(0);
+    let rowAmortReceived = new Decimal(0);
+    let eventsApplied = [];
+
+    // Pre-apply events on anchor.start (effective at start)
+    const startISO = anchor.start.toISODate();
     if (eventsByDate.has(startISO)) {
-      ctx.currentRow = { eventsApplied: [] } // temp row just for start-date effects
       for (const ev of eventsByDate.get(startISO)) {
-        const handler = handlerRegistry.get(ev.type)
-        if (handler) handler(ctx, ev, startISO)
-      }
-    }
-
-    // Day count
-    const dayCountFn = options.dayCountFn || dayCountFraction
-    const { yearFraction, days } = dayCountFn(anchor.start, adjusted, dayCount)
-
-    // Rates
-    const refRate = getRefRateForDate(loan, maps.refRateMap, adjustedISO)
-    const margin = new Decimal(loan.margin || 0)
-    const allIn = refRate.plus(margin)
-
-    // Interest due on outstanding
-    const interestDue = ctx.outstanding.times(allIn).times(yearFraction)
-
-    // Commitment fee on undrawn
-    const undrawn = Decimal.max(new Decimal(0), ctx.facility.minus(ctx.outstanding))
-    const commitmentFeeRate = new Decimal(loan.commitmentFeeRate || 0)
-    const commitmentFeeDue = commitmentFeeRate.times(undrawn).times(yearFraction)
-
-    // FX revaluation for outstanding into base currency
-    const fxOutstanding = getFXRate(maps.fxMap, loan.currency, baseCurrency, adjustedISO)
-    const outstandingBase = ctx.outstanding.times(fxOutstanding)
-
-    // Indexed adjustments (example CPI indexation)
-    let indexedInterestDue = new Decimal(0)
-    if (loan.indexed && loan.indexed.indexName) {
-      const idxVal = getIndexValue(maps.indexMap, loan.indexed.indexName, adjustedISO)
-      if (idxVal !== null && idxVal !== undefined && loan.indexed.baseIndexValue) {
-        const scale = new Decimal(idxVal).div(loan.indexed.baseIndexValue)
-        indexedInterestDue = interestDue.times(scale.minus(1))
-      }
-    }
-
-    // Initialize row
-    const row = {
-      loanId: loan.loanId,
-      investorId: loan.investorId,
-      interestStartDate: startISO,
-      interestEndDate: adjustedISO,
-      scheduledInterestPaymentDate: scheduledISO,
-      adjustedInterestPaymentDate: adjustedISO,
-      noOfDays: days,
-      yearFraction,
-      outstandingPrincipal: ctx.outstanding,
-      outstandingPrincipalBase: outstandingBase,
-      drawdowns: [],
-      amortisationDue: new Decimal(0),
-      amortisationReceived: new Decimal(0),
-      indexedAmortisationAmountDue: new Decimal(0),
-      indexedAmortisationAmountReceived: new Decimal(0),
-      prepaymentAmount: new Decimal(0),
-      prepaymentFee: new Decimal(0),
-      repayment: new Decimal(0),
-      interestAmountDue: interestDue,
-      interestAmountReceived: new Decimal(0),
-      indexedInterestAmountDue: indexedInterestDue,
-      indexedInterestAmountReceived: new Decimal(0),
-      closingBalance: ctx.outstanding,
-      margin,
-      referenceRate: refRate,
-      allInRate: allIn,
-      currency: loan.currency,
-      baseCurrency,
-      commitmentAmount: ctx.facility,
-      undrawnAmount: undrawn,
-      commitmentFeeDue,
-      commitmentFeeReceived: new Decimal(0),
-      pip: loan.pip || {},
-      feeArrangementDiscount: new Decimal(loan.feeArrangementDiscount || 0),
-      eventsApplied: [],
-      fxRateOutstanding: fxOutstanding
-    }
-
-    ctx.currentRow = row
-
-    // Apply events that occur between start (exclusive) and adjusted (inclusive)
-    let iter = anchor.start.plus({ days: 1 })
-    while (iter <= adjusted) {
-      const k = iso(iter)
-      if (eventsByDate.has(k)) {
-        for (const ev of eventsByDate.get(k)) {
-          const handler = handlerRegistry.get(ev.type)
-          if (handler) handler(ctx, ev, k)
+        if (ev.type === "drawdown") {
+          const amt = new Decimal(ev.amount || 0);
+          runningOutstanding = runningOutstanding.plus(amt);
+          eventsApplied.push({ type: "drawdown", date: startISO, amount: amt.toNumber() });
+        } else if (ev.type === "amortisation") {
+          const amt = new Decimal(ev.amount || 0);
+          const received = !!ev.received;
+          rowAmortDue = rowAmortDue.plus(amt);
+          if (received) {
+            runningOutstanding = Decimal.max(new Decimal(0), runningOutstanding.minus(amt));
+            rowAmortReceived = rowAmortReceived.plus(amt);
+          }
+          eventsApplied.push({ type: "amortisation", date: startISO, amount: amt.toNumber(), received: !!ev.received });
+        } else {
+          // other event types (prepayment, refRate_update etc.) will be handled later or in segment loop
+          eventsApplied.push({ type: ev.type || "unknown", date: startISO, raw: ev });
         }
       }
-      iter = iter.plus({ days: 1 })
     }
 
-    // Update closing after events
-    row.closingBalance = ctx.outstanding
+    // Walk segments to prorate interest/commitment fee
+    for (let i = 0; i < segmentBoundaries.length - 1; i++) {
+      const segStart = segmentBoundaries[i];
+      const segEnd = segmentBoundaries[i + 1];
+      const segDays = diffDays(segStart, segEnd);
+      const segYF = yearFraction(segStart, segEnd, dayCount);
 
-    // PIK behavior: if interest PIK, mark as due but not received
-    if (loan.pip && loan.pip.interest) {
-      // leave as-is; consumers can decide capitalisation
-    }
+      // reference rate at segEnd
+      const segEndISO = segEnd.toISODate();
+      const refRate = getRefRateForDate(loan, maps.refRateMap, segEndISO, options); // Decimal
+      // margin: loan.margin might be provided as percent (e.g., 5) or decimal (0.05). normalize:
+      let marginDec = new Decimal(loan.margin === undefined ? 0 : loan.margin);
+      if (marginDec.greaterThan(1)) marginDec = marginDec.div(100);
+      const allInRate = refRate.plus(marginDec);
 
-    // Push row (serialize as requested)
-    cashflows.push(serializeRow(row, serialize))
-  }
+      // interest accrues on runningOutstanding during the segment
+      const interestSeg = runningOutstanding.times(allInRate).times(segYF);
+      rowInterestDue = rowInterestDue.plus(interestSeg);
+
+      // commitment fee on undrawn
+      const undrawn = Decimal.max(new Decimal(0), facilityAmount.minus(runningOutstanding));
+      const commitFeeRate = new Decimal((loan.commitmentFeeRate !== undefined ? loan.commitmentFeeRate : options.commitmentFeePct) || 0);
+      // commitFeeRate might be percent or decimal
+      const commitFeeRateNorm = commitFeeRate.greaterThan(1) ? commitFeeRate.div(100) : commitFeeRate;
+      const commitSeg = undrawn.times(commitFeeRateNorm).times(segYF);
+      rowCommitmentFeeDue = rowCommitmentFeeDue.plus(commitSeg);
+
+      // After computing accrual for this segment, apply any events that occur exactly at segEnd
+      const segEndISOKey = segEndISO;
+      if (eventsByDate.has(segEndISOKey)) {
+        for (const ev of eventsByDate.get(segEndISOKey)) {
+          if (ev.type === "drawdown") {
+            const amt = new Decimal(ev.amount || 0);
+            runningOutstanding = runningOutstanding.plus(amt);
+            eventsApplied.push({ type: "drawdown", date: segEndISOKey, amount: amt.toNumber() });
+          } else if (ev.type === "amortisation") {
+            const amt = new Decimal(ev.amount || 0);
+            const received = !!ev.received;
+            rowAmortDue = rowAmortDue.plus(amt);
+            if (received) {
+              runningOutstanding = Decimal.max(new Decimal(0), runningOutstanding.minus(amt));
+              rowAmortReceived = rowAmortReceived.plus(amt);
+            }
+            eventsApplied.push({ type: "amortisation", date: segEndISOKey, amount: amt.toNumber(), received: !!ev.received });
+          } else if (ev.type === "prepayment") {
+            const amt = new Decimal(ev.amount || 0);
+            runningOutstanding = Decimal.max(new Decimal(0), runningOutstanding.minus(amt));
+            rowPrincipalDue = rowPrincipalDue.plus(amt);
+            eventsApplied.push({ type: "prepayment", date: segEndISOKey, amount: amt.toNumber() });
+          } else if (ev.type === "prepayment_fee") {
+            const fee = new Decimal(ev.amount || 0);
+            rowPrepaymentFee = rowPrepaymentFee.plus(fee);
+            eventsApplied.push({ type: "prepayment_fee", date: segEndISOKey, amount: fee.toNumber() });
+          } else {
+            eventsApplied.push({ type: ev.type || "unknown", date: segEndISOKey, raw: ev });
+          }
+        }
+      }
+    } // end segments
+
+    // finalize principal/amort/prior computed variables
+    // sum principal due includes amort due + prepayments (we tracked prepayments into rowPrincipalDue above)
+    rowPrincipalDue = rowPrincipalDue.plus(rowAmortDue);
+
+    // Record row internal
+    const internalRow = {
+      fromDate: anchor.start.toISODate(),
+      toDate: anchor.end.toISODate(),
+      edate: scheduledIPD.toISODate(),
+      eomonth: endOfMonthDT(scheduledIPD).toISODate(),
+      scheduleIPD: scheduledIPD.toISODate(),
+      adjustedIPD: adjustedIPD.toISODate(),
+      days: diffDays(anchor.start, anchor.end),
+      yearFraction: yearFraction(anchor.start, anchor.end, dayCount),
+      margin: (new Decimal(loan.margin || 0)).toNumber(),
+      defaultRate: getRefRateForDate(loan, maps.refRateMap, adjustedIPD.toISODate(), options).toNumber(),
+      paymentConvention: businessConvention,
+      holidayAdjustment: !!loan.holidayAdjustment,
+      interestDue: Number(rowInterestDue.toFixed(6)),
+      principalDue: Number(rowPrincipalDue.toFixed(6)),
+      commitmentFeeDue: Number(rowCommitmentFeeDue.toFixed(6)),
+      outstandingAfter: Number(runningOutstanding.toFixed(6)),
+      undrawnAfter: Number(Decimal.max(new Decimal(0), facilityAmount.minus(runningOutstanding)).toFixed(6)),
+      eventsApplied,
+    };
+
+    // Append to internal rows and to UI serialization
+    rowsInternal.push(internalRow);
+
+    // No separate extra row push - we push one row per anchor
+    // Note: runningOutstanding already reflects events applied on / before anchor.end
+
+  } // end anchors
+
+  // Build UI rows matching exact platform requirements
+  const uiRows = rowsInternal.map(r => ({
+    "From Date": r.fromDate,
+    "To Date": r.toDate,
+    "Edate": r.edate,
+    "Eomonth": r.eomonth,
+    "Schedule IPD": r.scheduleIPD,
+    "Adjusted IPD": r.adjustedIPD,
+    "Margin": Number((Number(r.margin) > 1 ? Number(r.margin) : Number(r.margin) * 100).toFixed(6)), // Convert to percentage for display
+    "Default Rate": Number((r.defaultRate * 100).toFixed(6)), // Convert to percentage for display
+    "Payment Convention": r.paymentConvention,
+    "Holiday Adjustment": r.holidayAdjustment ? "Yes" : "No",
+    "Days": r.days,
+    "Year Fraction": Number(r.yearFraction.toFixed ? Number(r.yearFraction.toFixed(10)) : r.yearFraction),
+    "Interest Due": Number(r.interestDue.toFixed ? Number(r.interestDue.toFixed(6)) : r.interestDue),
+    "Principal Due": Number(r.principalDue.toFixed ? Number(r.principalDue.toFixed(6)) : r.principalDue),
+    "Commitment Fee Due": Number(r.commitmentFeeDue.toFixed ? Number(r.commitmentFeeDue.toFixed(6)) : r.commitmentFeeDue),
+    "Outstanding": Number(r.outstandingAfter.toFixed ? Number(r.outstandingAfter.toFixed(6)) : r.outstandingAfter),
+    "Undrawn": Number(r.undrawnAfter.toFixed ? Number(r.undrawnAfter.toFixed(6)) : r.undrawnAfter),
+    "_events": r.eventsApplied
+  }));
+
+  // Total closing balance = last outstanding
+  const totalClosingBalance = uiRows.length ? Number(uiRows[uiRows.length - 1]["Outstanding"]) : 0;
 
   return {
-    cashflows,
-    draws: ctx.draws.map((d) => ({ ...d, amount: serializeDecimal(d.amount, serialize) })),
-    facilityAtEnd: serializeDecimal(ctx.facility, serialize),
-    outstandingAtEnd: serializeDecimal(ctx.outstanding, serialize),
-    fxMap: Object.fromEntries([...maps.fxMap.entries()].map(([k, v]) => [k, serializeDecimal(new Decimal(v), serialize)])),
-    indexMap: Object.fromEntries([...maps.indexMap.entries()].map(([k, v]) => [k, serializeDecimal(new Decimal(v), serialize)]))
-  }
-}
-
-function serializeRow(row, mode) {
-  const out = { ...row }
-  for (const k of Object.keys(out)) {
-    const v = out[k]
-    if (v instanceof Decimal) out[k] = serializeDecimal(v, mode)
-  }
-  // nested arrays
-  out.eventsApplied = (out.eventsApplied || []).map((e) => ({ ...e }))
-  out.drawdowns = (out.drawdowns || []).map((d) => ({ ...d }))
-  return out
-}
-
-// --------------------------
-// Aggregation Helpers
-// --------------------------
-export function aggregateByInvestor(schedules, options = { baseCurrency: null, serialize: 'number' }) {
-  const byInvestor = {}
-  for (const s of schedules) {
-    const rows = s.cashflows || s
-    const inv = s.investorId || (rows[0] && rows[0].investorId) || 'UNKNOWN'
-    if (!byInvestor[inv]) byInvestor[inv] = []
-    byInvestor[inv].push(...rows)
-  }
-  const out = {}
-  for (const inv of Object.keys(byInvestor)) {
-    const rows = byInvestor[inv]
-    const map = {}
-    for (const r of rows) {
-      const d = r.adjustedInterestPaymentDate || r.scheduledInterestPaymentDate || r.interestEndDate
-      if (!map[d]) map[d] = { date: d, interestDue: 0, interestReceived: 0, principalDue: 0, principalReceived: 0, commitmentFeeDue: 0, outstanding: 0 }
-      map[d].interestDue += Number(r.interestAmountDue || 0) + Number(r.indexedInterestAmountDue || 0)
-      map[d].interestReceived += Number(r.interestAmountReceived || 0) + Number(r.indexedInterestAmountReceived || 0)
-      map[d].principalDue += Number(r.amortisationDue || 0) + Number(r.prepaymentAmount || 0) + Number(r.indexedAmortisationAmountDue || 0)
-      map[d].principalReceived += Number(r.amortisationReceived || 0) + Number(r.indexedAmortisationAmountReceived || 0)
-      map[d].commitmentFeeDue += Number(r.commitmentFeeDue || 0)
-      map[d].outstanding = Math.max(map[d].outstanding, Number(r.outstandingPrincipal || 0))
+    rows: uiRows,
+    internalRows: rowsInternal,
+    totals: { totalClosingBalance },
+    maps: {
+      fxMap: Object.fromEntries([...maps.fxMap.entries()].map(([k, v]) => [k, new Decimal(v).toNumber ? new Decimal(v).toNumber() : v])),
+      indexMap: Object.fromEntries([...maps.indexMap.entries()].map(([k, v]) => [k, new Decimal(v).toNumber ? new Decimal(v).toNumber() : v])),
+      refRateMap: Object.fromEntries([...maps.refRateMap.entries()].map(([k, v]) => [k, new Decimal(v).toNumber ? new Decimal(v).toNumber() : v])),
     }
-    out[inv] = Object.values(map).sort((a, b) => String(a.date).localeCompare(String(b.date)))
-  }
-  return out
+  };
 }
 
-export { builtInHandlers, dayCountFraction, adjustBusinessDay, addMonthsPreserveDOM } 
+// Export alias for backward compatibility
+export { generateAdvancedSchedule as generateCashflowSchedule };
+
+// default export
+export { generateAdvancedSchedule };
+export default generateAdvancedSchedule;
