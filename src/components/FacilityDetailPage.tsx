@@ -38,7 +38,7 @@ const ratingOptions = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC", "CC", "C", "D"
 const FacilityDetailPage = () => {
   const { facilityId } = useParams();
   const [activeTab, setActiveTab] = useState('general');
-  const [isGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   // cashflow schedule moved to separate page; no local cashflow state here
   const [amortisationValue, setAmortisationValue] = useState('Yes');
   // removed unused: drawdownType, drawOn, availableFrom
@@ -90,11 +90,14 @@ const FacilityDetailPage = () => {
   const [editingRowIndex, setEditingRowIndex] = useState<number | null>(null);
   const [editingRowData, setEditingRowData] = useState<any>(null);
   
+  // Cashflow generation success popup state
+  const [showCashflowSuccess, setShowCashflowSuccess] = useState(false);
+  const [generatedRowsCount, setGeneratedRowsCount] = useState(0);
+  
   // Additional Cash Term tab state variables
   const [firstInterestPaymentDateState, setFirstInterestPaymentDateState] = useState('');
   const [scheduledOnState, setScheduledOnState] = useState('');
   const [endOfMonthState, setEndOfMonthState] = useState('No');
-  const [commitmentFeeRateState, setCommitmentFeeRateState] = useState('0');
   const [interestPaymentDatesState, setInterestPaymentDatesState] = useState('');
 
   useEffect(() => {
@@ -151,6 +154,7 @@ const FacilityDetailPage = () => {
   }, [cashflowSchedule, activeTab]);
 
   const handleGenerateCashflow = () => {
+    setIsGenerating(true);
     try {
       // Build loan object from component state - mapped exactly to platform tabs
       const loan = {
@@ -172,12 +176,15 @@ const FacilityDetailPage = () => {
         holidayConvention: holidayConventionState,
         intervalTenor: Number(paymentFrequencyState) || 12, // in months
         margin: Number(marginRateState) / 100, // Convert percentage to decimal
-        commitmentFeeRate: Number(commitmentFeeRateState) / 100, // Convert percentage to decimal
+        commitmentFeeRate: 0, // Commitment fee calculated based on reference rate and margin
         interestPaymentDates: interestPaymentDatesState ? interestPaymentDatesState.split(',').map(d => d.trim()) : [],
         // Set default reference rate to 5% if not specified
         refRate: referenceRateState === '5%' ? 0.05 : 0.05, // Default to 5%
         
         // Amortisation Tab - map amortisationEntries to amortisationSchedule
+        amortisationType: amortType,
+        amortisationIntervalType: amortIntervalType,
+        amortisationStartDate: amortStartDate,
         amortisationSchedule: amortisationValue === 'Yes' ? amortisationEntries.map(entry => ({
           date: entry.amortisationDate,
           amount: Number(entry.amortisationDueAmount) || 0,
@@ -187,7 +194,9 @@ const FacilityDetailPage = () => {
         // Drawdown Tab - map drawdownEntries to drawdowns
         drawdowns: drawdownEntries.map(entry => ({
           drawdownDate: entry.drawDownDate,
-          amount: Number(entry.drawDownAmount) || 0
+          amount: Number(entry.drawDownAmount) || 0,
+          commitment: Number(entry.commitment) || 0,
+          closingBalance: Number(entry.closingBalance) || 0
         }))
       };
 
@@ -207,6 +216,7 @@ const FacilityDetailPage = () => {
 
       if (schedule && schedule.rows) {
         setCashflowSchedule(schedule.rows);
+        setGeneratedRowsCount(schedule.rows.length);
         
         // Update facility if it exists
         if (currentFacility) {
@@ -215,10 +225,21 @@ const FacilityDetailPage = () => {
             cashflows: schedule.rows
           });
         }
+        
+        // Show success popup and redirect
+        setShowCashflowSuccess(true);
+        
+        // Auto-redirect to cashflow tab after a short delay
+        setTimeout(() => {
+          setActiveTab('cashflow');
+          setShowCashflowSuccess(false);
+        }, 2000);
       }
     } catch (error) {
       console.error('Error generating cashflow:', error);
       alert('Failed to generate cashflow schedule. Please check your inputs.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -249,11 +270,6 @@ const FacilityDetailPage = () => {
       
       if (editingRowData["Outstanding"] < 0) {
         alert("Outstanding amount cannot be negative");
-        return;
-      }
-      
-      if (editingRowData["Undrawn"] < 0) {
-        alert("Undrawn amount cannot be negative");
         return;
       }
       
@@ -338,32 +354,34 @@ const FacilityDetailPage = () => {
       return;
     }
     
+    const drawdownAmount = Number(drawDownAmount) || 0;
+    const commitmentAmount = Number(commitment) || 0;
+    
+    // Calculate closing balance based on drawdown amount
+    const currentTotalDrawn = drawdownEntries.reduce((sum, entry) => sum + (Number(entry.drawDownAmount) || 0), 0);
+    const newClosingBalance = currentTotalDrawn + drawdownAmount;
+    
     const newEntry = {
       id: Date.now().toString(),
       drawDownDate,
-      drawDownAmount: Number(drawDownAmount) || 0,
-      commitment: Number(commitment) || 0,
-      closingBalance: Number(closingBalance) || 0,
-      drawdownAmount: Number(drawdownAmount) || 0,
-      drawdownDate
+      drawDownAmount: drawdownAmount,
+      commitment: commitmentAmount,
+      closingBalance: newClosingBalance,
+      availableUntil: availableUntil,
+      scheduledType: scheduledType
     };
     
     // Update state with new entry
     const updatedEntries = [...drawdownEntries, newEntry];
     setDrawdownEntries(updatedEntries);
     
-    // Automatically update cashflow schedule
-    setTimeout(() => {
-      updateCashflowWithEntries();
-    }, 100);
-    
     // Clear form
     setDrawDownDate('');
     setDrawDownAmount('');
     setCommitment('');
     setClosingBalance('');
-    setDrawdownAmount('');
-    setDrawdownDate('');
+    setAvailableUntil('');
+    setScheduledType('Scheduled');
   };
   
   // Handler for saving drawdown data
@@ -383,128 +401,15 @@ const FacilityDetailPage = () => {
     }
   };
   
-  // Function to integrate amortisation and drawdown entries into cashflow schedule
+  // Function to update cashflow schedule with new drawdown/amortisation data
   const updateCashflowWithEntries = () => {
     if (cashflowSchedule.length === 0) {
       alert('Please generate the initial cashflow schedule first from the Cash Terms tab.');
       return;
     }
     
-    // Create a copy of existing cashflow schedule
-    let updatedSchedule = [...cashflowSchedule];
-    
-    // Process amortisation entries
-    amortisationEntries.forEach(amortEntry => {
-      // Find if there's an existing row for this date or create a new one
-      let existingRowIndex = updatedSchedule.findIndex(row => 
-        row.fundingDate === amortEntry.amortisationDate || 
-        row.toDate === amortEntry.amortisationDate ||
-        row.scheduleIPD === amortEntry.amortisationDate
-      );
-      
-      if (existingRowIndex >= 0) {
-        // Update existing row
-        updatedSchedule[existingRowIndex] = {
-          ...updatedSchedule[existingRowIndex],
-          amortisationDate: amortEntry.amortisationDate,
-          amortisationDueAmount: amortEntry.amortisationDueAmount,
-          amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
-          repayment: amortEntry.repayment,
-        };
-      } else {
-        // Create new row for amortisation
-        const newRow = {
-          fundingDate: amortEntry.amortisationDate,
-          toDate: amortEntry.amortisationDate,
-          scheduleIPD: amortEntry.amortisationDate,
-          adjustedIPD: amortEntry.amortisationDate,
-          numberOfDays: 0,
-          yearFraction: 0,
-          commitment: updatedSchedule[0]?.commitment || 0,
-          drawDownDate: '',
-          drawDownAmount: 0,
-          amortisationDate: amortEntry.amortisationDate,
-          amortisationDueAmount: amortEntry.amortisationDueAmount,
-          amortisationReceivedAmount: amortEntry.amortisationReceivedAmount,
-          repayment: amortEntry.repayment,
-          margin: updatedSchedule[0]?.margin || 0,
-          referenceRate: updatedSchedule[0]?.referenceRate || 0,
-          interestDueAmount: 0,
-          interestReceivedAmount: 0,
-          closingBalance: 0
-        };
-        updatedSchedule.push(newRow);
-      }
-    });
-    
-    // Process drawdown entries
-    drawdownEntries.forEach(drawEntry => {
-      // Find if there's an existing row for this date or create a new one
-      let existingRowIndex = updatedSchedule.findIndex(row => 
-        row.fundingDate === drawEntry.drawDownDate || 
-        row.drawDownDate === drawEntry.drawDownDate
-      );
-      
-      if (existingRowIndex >= 0) {
-        // Update existing row
-        updatedSchedule[existingRowIndex] = {
-          ...updatedSchedule[existingRowIndex],
-          drawDownDate: drawEntry.drawDownDate,
-          drawDownAmount: drawEntry.drawDownAmount,
-          commitment: drawEntry.commitment,
-          closingBalance: drawEntry.closingBalance,
-        };
-      } else {
-        // Create new row for drawdown
-        const newRow = {
-          fundingDate: drawEntry.drawDownDate,
-          toDate: drawEntry.drawDownDate,
-          scheduleIPD: drawEntry.drawDownDate,
-          adjustedIPD: drawEntry.drawDownDate,
-          numberOfDays: 0,
-          yearFraction: 0,
-          commitment: drawEntry.commitment,
-          drawDownDate: drawEntry.drawDownDate,
-          drawDownAmount: drawEntry.drawDownAmount,
-          amortisationDate: '',
-          amortisationDueAmount: 0,
-          amortisationReceivedAmount: 0,
-          repayment: 0,
-          margin: updatedSchedule[0]?.margin || 0,
-          referenceRate: updatedSchedule[0]?.referenceRate || 0,
-          interestDueAmount: 0,
-          interestReceivedAmount: 0,
-          closingBalance: drawEntry.closingBalance
-        };
-        updatedSchedule.push(newRow);
-      }
-    });
-    
-    // Sort by date and recalculate closing balances
-    updatedSchedule.sort((a, b) => new Date(a.fundingDate).getTime() - new Date(b.fundingDate).getTime());
-    
-    // Recalculate closing balances based on the sequence
-    let runningBalance = updatedSchedule[0]?.commitment || 0;
-    updatedSchedule.forEach((row, index) => {
-      if (index === 0) {
-        row.closingBalance = runningBalance - (row.amortisationDueAmount || 0) + (row.drawDownAmount || 0);
-      } else {
-        runningBalance = updatedSchedule[index - 1].closingBalance;
-        row.closingBalance = runningBalance - (row.amortisationDueAmount || 0) + (row.drawDownAmount || 0) - (row.repayment || 0);
-      }
-      runningBalance = row.closingBalance;
-    });
-    
-    // Update the cashflow schedule
-    setCashflowSchedule(updatedSchedule);
-    
-    // Persist to facility
-    if (currentFacility) {
-      const updated = { ...currentFacility, cashflows: updatedSchedule } as any;
-      updateFacility(currentFacility.id, updated);
-    }
-    
-    alert('Cashflow schedule updated with amortisation and drawdown entries!');
+    // Regenerate cashflow with updated entries
+    handleGenerateCashflow();
   };
   
   const sidebarItems = [
@@ -827,10 +732,6 @@ const FacilityDetailPage = () => {
                     <input type="number" step="0.01" min="0" value={marginRateState} onChange={e => setMarginRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
                   </div>
                   <div>
-                    <label className="text-primary text-sm font-semibold mb-2 block">Commitment Fee Rate (in %)</label>
-                    <input type="number" step="0.01" min="0" value={commitmentFeeRateState} onChange={e => setCommitmentFeeRateState(e.target.value)} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground placeholder:text-foreground-secondary border-border/50 shadow-soft" />
-                  </div>
-                  <div>
                     <label className="text-primary text-sm font-semibold mb-2 block">Interest Payment Dates</label>
                     <input
                       type="text"
@@ -868,14 +769,21 @@ const FacilityDetailPage = () => {
               <div className="flex justify-end mt-10">
                 <button 
                   type="button"
-                  className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white"
-                  onClick={() => {
-                    handleGenerateCashflow();
-                    setActiveTab('cashflow');
-                  }}
+                  className="px-8 py-3 rounded-full shadow-lg font-medium text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  onClick={handleGenerateCashflow}
                   disabled={isGenerating}
                 >
-                  {isGenerating ? 'Generating...' : 'Generate Cashflow'}
+                  {isGenerating ? (
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generating...
+                    </div>
+                  ) : (
+                    'Generate Cashflow'
+                  )}
                 </button>
               </div>
             </form>
@@ -1263,11 +1171,11 @@ const FacilityDetailPage = () => {
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         onClick={() => {
                           // export csv
-                          const headers = ['From Date','To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Margin','Default Rate','Payment Convention','Holiday Adjustment','Days','Year Fraction','Interest Due','Principal Due','Commitment Fee Due','Outstanding','Undrawn'];
+                          const headers = ['To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Margin','Default Rate','Payment Convention','Holiday Adjustment','Days','Year Fraction','Interest Due','Outstanding'];
                           const lines = [headers.join(',')];
                           for (const r of cashflowSchedule) {
                             lines.push([
-                              r["From Date"]||'', r["To Date"]||'', r["Edate"]||'', r["Eomonth"]||'', r["Schedule IPD"]||'', r["Adjusted IPD"]||'', String(r["Margin"]||0), String(r["Default Rate"]||0), r["Payment Convention"]||'', r["Holiday Adjustment"]||'', String(r["Days"]||0), String(r["Year Fraction"]||0), String(r["Interest Due"]||0), String(r["Principal Due"]||0), String(r["Commitment Fee Due"]||0), String(r["Outstanding"]||0), String(r["Undrawn"]||0)
+                              r["To Date"]||'', r["Edate"]||'', r["Eomonth"]||'', r["Schedule IPD"]||'', r["Adjusted IPD"]||'', String(r["Margin"]||0), String(r["Default Rate"]||0), r["Payment Convention"]||'', r["Holiday Adjustment"]||'', String(r["Days"]||0), String(r["Year Fraction"]||0), String(r["Interest Due"]||0), String(r["Outstanding"]||0)
                             ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
                           }
                           const csv = lines.join('\n');
@@ -1303,7 +1211,6 @@ const FacilityDetailPage = () => {
                       <table className="w-full min-w-max text-sm md:text-base border-separate border-spacing-0 bg-white rounded shadow-md">
   <thead className="sticky top-0 z-10 bg-[#c5daeb]">
     <tr className="text-[#121516]">
-      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">From Date</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">To Date</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Edate</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Eomonth</th>
@@ -1316,30 +1223,13 @@ const FacilityDetailPage = () => {
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Days</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Year Fraction</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Interest Due</th>
-      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Principal Due</th>
-      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Commitment Fee Due</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Outstanding</th>
-      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Undrawn</th>
       <th className="px-4 py-3 font-semibold text-center border-b border-[#40484f]">Actions</th>
     </tr>
   </thead>
   <tbody>
   {cashflowSchedule.map((row, idx) => (
     <tr key={idx} className={`bg-white ${editingRowIndex === idx ? 'bg-yellow-50 border-2 border-yellow-300' : ''}`}>
-      {/* From Date */}
-      <td className="px-4 py-3 text-black whitespace-nowrap">
-        {editingRowIndex === idx ? (
-          <input
-            type="date"
-            value={editingRowData?.["From Date"] || ''}
-            onChange={(e) => handleEditFieldChange("From Date", e.target.value)}
-            className="w-full px-2 py-1 text-xs border rounded"
-          />
-        ) : (
-          row["From Date"] || ''
-        )}
-                            </td>
-      
       {/* To Date */}
       <td className="px-4 py-3 text-black whitespace-nowrap">
         {editingRowIndex === idx ? (
@@ -1352,7 +1242,7 @@ const FacilityDetailPage = () => {
         ) : (
           row["To Date"] || ''
         )}
-      </td>
+                            </td>
       
       {/* Edate */}
       <td className="px-4 py-3 text-black whitespace-nowrap">
@@ -1518,36 +1408,6 @@ const FacilityDetailPage = () => {
         )}
       </td>
       
-      {/* Principal Due */}
-      <td className="px-4 py-3 text-black whitespace-nowrap">
-        {editingRowIndex === idx ? (
-          <input
-            type="number"
-            step="0.01"
-            value={editingRowData?.["Principal Due"] || ''}
-            onChange={(e) => handleEditFieldChange("Principal Due", parseFloat(e.target.value) || 0)}
-            className="w-full px-2 py-1 text-xs border rounded"
-          />
-        ) : (
-          row["Principal Due"] ? Number(row["Principal Due"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
-        )}
-      </td>
-      
-      {/* Commitment Fee Due */}
-      <td className="px-4 py-3 text-black whitespace-nowrap">
-        {editingRowIndex === idx ? (
-          <input
-            type="number"
-            step="0.01"
-            value={editingRowData?.["Commitment Fee Due"] || ''}
-            onChange={(e) => handleEditFieldChange("Commitment Fee Due", parseFloat(e.target.value) || 0)}
-            className="w-full px-2 py-1 text-xs border rounded"
-          />
-        ) : (
-          row["Commitment Fee Due"] ? Number(row["Commitment Fee Due"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
-        )}
-      </td>
-      
       {/* Outstanding */}
       <td className="px-4 py-3 text-green-600 whitespace-nowrap font-bold">
         {editingRowIndex === idx ? (
@@ -1560,21 +1420,6 @@ const FacilityDetailPage = () => {
           />
         ) : (
           row["Outstanding"] ? Number(row["Outstanding"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
-        )}
-      </td>
-      
-      {/* Undrawn */}
-      <td className="px-4 py-3 text-blue-600 whitespace-nowrap font-bold">
-        {editingRowIndex === idx ? (
-          <input
-            type="number"
-            step="0.01"
-            value={editingRowData?.["Undrawn"] || ''}
-            onChange={(e) => handleEditFieldChange("Undrawn", parseFloat(e.target.value) || 0)}
-            className="w-full px-2 py-1 text-xs border rounded"
-          />
-        ) : (
-          row["Undrawn"] ? Number(row["Undrawn"]).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) : ''
         )}
       </td>
       
@@ -1620,6 +1465,48 @@ const FacilityDetailPage = () => {
         )}
         </div>
       </div>
+      
+      {/* Cashflow Generation Success Popup */}
+      {showCashflowSuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100">
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+    </div>
+              
+              {/* Success Message */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Cashflow Generated Successfully!</h3>
+              <p className="text-gray-600 mb-6">
+                Your cashflow schedule has been generated with <span className="font-semibold text-green-600">{generatedRowsCount}</span> entries.
+              </p>
+              
+              {/* Redirecting Message */}
+              <div className="flex items-center justify-center text-sm text-gray-500 mb-4">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Redirecting to Cashflow Schedule...
+              </div>
+              
+              {/* Manual Redirect Button */}
+              <button
+                onClick={() => {
+                  setActiveTab('cashflow');
+                  setShowCashflowSuccess(false);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+              >
+                View Cashflow Schedule Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

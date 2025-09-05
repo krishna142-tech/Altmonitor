@@ -41,7 +41,13 @@ function cloneDT(dt) {
 }
 
 function endOfMonthDT(dt) {
-  return dt.endOf("month").startOf("day");
+  // Get the last day of the month, properly handling leap years
+  const lastDay = dt.endOf("month").day;
+  return DateTime.fromObject({ 
+    year: dt.year, 
+    month: dt.month, 
+    day: lastDay 
+  }).startOf("day");
 }
 
 function addMonthsPreserveEOM(dt, months, preserveEOM = true) {
@@ -137,6 +143,7 @@ function adjustBusinessDay(dt, convention = "FOLLOWING", calendar = {}) {
   if (conv === "MODIFIED FOLLOWING" || conv === "MODIFIED_FOLLOWING" || conv === "MODIFIEDFOLLOWING") {
     let m = dt;
     while (isBad(m)) m = m.plus({ days: 1 });
+    // If we've moved into a new month, go back to the last business day of the original month
     if (m.month !== dt.month) {
       let mb = dt;
       while (isBad(mb)) mb = mb.minus({ days: 1 });
@@ -246,13 +253,75 @@ function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
     // default: full facility at funding date
     const fundingDate = loan.fundingDate || loan.startDate || loan.funding;
     if (fundingDate) {
-      drawdownEntries.push({ drawdownDate: fundingDate, amount: Number(loan.facilityAmount || loan.commitment || 0) });
+      drawdownEntries.push({ 
+        drawdownDate: fundingDate, 
+        amount: Number(loan.facilityAmount || loan.commitment || 0),
+        commitment: Number(loan.facilityAmount || loan.commitment || 0),
+        closingBalance: Number(loan.facilityAmount || loan.commitment || 0)
+      });
     }
   }
 
   // sort drawdowns & amortisations
   const sortedDrawdowns = (Array.isArray(drawdownEntries) ? drawdownEntries : []).map(d => ({ ...d, dateISO: parseDateToDT(d.drawdownDate).toISODate() })).sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-  const amortEntries = Array.isArray(loan.amortisationSchedule) ? loan.amortisationSchedule.map(a => ({ ...a, dateISO: parseDateToDT(a.date).toISODate() })).sort((a, b) => a.dateISO.localeCompare(b.dateISO)) : [];
+  
+  // Handle amortisation schedule based on type
+  let amortEntries = [];
+  if (loan.amortisationEnabled && loan.amortisationSchedule) {
+    if (loan.amortisationType === 'Balloon') {
+      // Balloon: all principal repaid at maturity
+      const maturityDate = loan.maturityDate || loan.maturity || loan.endDate;
+      if (maturityDate) {
+        amortEntries = [{
+          date: maturityDate,
+          amount: Number(loan.facilityAmount || loan.commitment || 0),
+          received: true,
+          dateISO: parseDateToDT(maturityDate).toISODate()
+        }];
+      }
+    } else if (loan.amortisationType === 'Straight-line') {
+      // Straight-line: divide principal equally across periods
+      const startDate = loan.amortisationStartDate || loan.fundingDate;
+      const maturityDate = loan.maturityDate || loan.maturity || loan.endDate;
+      const intervalType = loan.amortisationIntervalType || 'Annual';
+      
+      if (startDate && maturityDate) {
+        const startDT = parseDateToDT(startDate);
+        const maturityDT = parseDateToDT(maturityDate);
+        const totalAmount = Number(loan.facilityAmount || loan.commitment || 0);
+        
+        // Calculate number of periods based on interval type
+        let monthsPerPeriod = 12; // Annual
+        if (intervalType === 'Monthly') monthsPerPeriod = 1;
+        else if (intervalType === 'Quarterly') monthsPerPeriod = 3;
+        else if (intervalType === 'Semi-Annual') monthsPerPeriod = 6;
+        
+        const totalMonths = Math.ceil(maturityDT.diff(startDT, 'months').months);
+        const numPeriods = Math.ceil(totalMonths / monthsPerPeriod);
+        const amountPerPeriod = totalAmount / numPeriods;
+        
+        let currentDate = startDT;
+        for (let i = 0; i < numPeriods; i++) {
+          currentDate = addMonthsPreserveEOM(currentDate, monthsPerPeriod, preserveEOM);
+          if (currentDate <= maturityDT) {
+            amortEntries.push({
+              date: currentDate.toISODate(),
+              amount: amountPerPeriod,
+              received: true,
+              dateISO: currentDate.toISODate()
+            });
+          }
+        }
+      }
+    } else {
+      // Custom: use user-defined entries
+      amortEntries = Array.isArray(loan.amortisationSchedule) ? 
+        loan.amortisationSchedule.map(a => ({ 
+          ...a, 
+          dateISO: parseDateToDT(a.date).toISODate() 
+        })).sort((a, b) => a.dateISO.localeCompare(b.dateISO)) : [];
+    }
+  }
 
   // accrual start & maturity
   const fundingDT = parseDateToDT(loan.fundingDate || loan.funding || loan.interestAccrualStart || loan.startDate);
@@ -278,14 +347,20 @@ function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
   while (cursor < maturityDT) {
     let next = addMonthsPreserveEOM(cursor, tenorMonths, preserveEOM);
 
-    // scheduledOn vs EOM
-    if (Number(loan.endOfMonth) === 1) {
+    // scheduledOn vs EOM logic
+    if (loan.endOfMonth === true || loan.endOfMonth === 'Yes') {
       next = endOfMonthDT(next);
-    } else if (loan.scheduledOn) {
+    } else if (loan.scheduledOn && loan.scheduledOn !== 'EOMONTH') {
       const dayNum = Number(loan.scheduledOn);
-      // create candidate in next month same month as next
-      const candidate = DateTime.fromObject({ year: next.year, month: next.month, day: 1 }).set({ day: Math.min(dayNum, next.endOf('month').day) });
-      next = candidate.startOf('day');
+      if (dayNum > 0 && dayNum <= 31) {
+        // create candidate in next month with specified day
+        const candidate = DateTime.fromObject({ 
+          year: next.year, 
+          month: next.month, 
+          day: Math.min(dayNum, next.endOf('month').day) 
+        });
+        next = candidate.startOf('day');
+      }
     }
 
     // If next goes beyond maturity, cap at maturity
@@ -453,12 +528,18 @@ function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
     // sum principal due includes amort due + prepayments (we tracked prepayments into rowPrincipalDue above)
     rowPrincipalDue = rowPrincipalDue.plus(rowAmortDue);
 
+    // Calculate Edate (event date) - this is the interest calculation date
+    const edate = adjustedIPD; // Event date is the adjusted interest payment date
+    
+    // Calculate EOMonth - last calendar day of the period, accounting for leap years
+    const eomonth = endOfMonthDT(anchor.end).toISODate();
+    
     // Record row internal
     const internalRow = {
       fromDate: anchor.start.toISODate(),
       toDate: anchor.end.toISODate(),
-      edate: scheduledIPD.toISODate(),
-      eomonth: endOfMonthDT(scheduledIPD).toISODate(),
+      edate: edate.toISODate(),
+      eomonth: eomonth,
       scheduleIPD: scheduledIPD.toISODate(),
       adjustedIPD: adjustedIPD.toISODate(),
       days: diffDays(anchor.start, anchor.end),
@@ -485,7 +566,6 @@ function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
 
   // Build UI rows matching exact platform requirements
   const uiRows = rowsInternal.map(r => ({
-    "From Date": r.fromDate,
     "To Date": r.toDate,
     "Edate": r.edate,
     "Eomonth": r.eomonth,
@@ -498,10 +578,7 @@ function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
     "Days": r.days,
     "Year Fraction": Number(r.yearFraction.toFixed ? Number(r.yearFraction.toFixed(10)) : r.yearFraction),
     "Interest Due": Number(r.interestDue.toFixed ? Number(r.interestDue.toFixed(6)) : r.interestDue),
-    "Principal Due": Number(r.principalDue.toFixed ? Number(r.principalDue.toFixed(6)) : r.principalDue),
-    "Commitment Fee Due": Number(r.commitmentFeeDue.toFixed ? Number(r.commitmentFeeDue.toFixed(6)) : r.commitmentFeeDue),
     "Outstanding": Number(r.outstandingAfter.toFixed ? Number(r.outstandingAfter.toFixed(6)) : r.outstandingAfter),
-    "Undrawn": Number(r.undrawnAfter.toFixed ? Number(r.undrawnAfter.toFixed(6)) : r.undrawnAfter),
     "_events": r.eventsApplied
   }));
 
