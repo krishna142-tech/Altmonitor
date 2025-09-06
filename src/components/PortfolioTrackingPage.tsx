@@ -367,6 +367,58 @@ const PortfolioTrackingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Helper: extract numeric commitment for a facility
+  const getFacilityCommitment = (facility: any) => {
+    const commitment = facility?.generalTerms?.initialCommitment || facility?.generalTerms?.commitment || 0;
+    return typeof commitment === 'number' ? commitment : (typeof commitment === 'string' ? parseFloat(commitment) || 0 : 0);
+  };
+
+  // Helper: compute funded amount from cashflows (engine or legacy shape)
+  const getFacilityFunded = (facility: any) => {
+    const rows: any[] = Array.isArray(facility?.cashflows) ? facility.cashflows : [];
+    if (rows.length === 0) return 0;
+    // Two possible shapes:
+    // - Engine UI rows with keys: 'Outstanding', 'Interest Due'
+    // - Legacy CashflowItem { date, principal, interest, total }
+    if (rows[0] && (rows[0]['Outstanding'] !== undefined || rows[0]['Interest Due'] !== undefined)) {
+      // Approximate total funded as sum of positive changes in outstanding
+      let funded = 0;
+      let prev = 0;
+      for (const r of rows) {
+        const out = Number(r['Outstanding'] || 0);
+        if (out > prev) funded += (out - prev);
+        prev = out;
+      }
+      return funded;
+    }
+    // Legacy: sum of principal draw amounts (positive principal)
+    return rows.filter(r => (r.principal || 0) > 0).reduce((s, r) => s + (Number(r.principal) || 0), 0);
+  };
+
+  // Helper: current outstanding for a facility
+  const getFacilityOutstanding = (facility: any) => {
+    const rows: any[] = Array.isArray(facility?.cashflows) ? facility.cashflows : [];
+    if (rows.length === 0) return 0;
+    if (rows[0] && rows[0]['Outstanding'] !== undefined) {
+      const last = rows[rows.length - 1];
+      return Number(last['Outstanding'] || 0);
+    }
+    // Legacy: outstanding approximated by cumulative principal minus repayments
+    const principalDrawn = rows.filter(r => (r.principal || 0) > 0).reduce((s, r) => s + (Number(r.principal) || 0), 0);
+    const principalRepaid = rows.filter(r => (r.principal || 0) < 0).reduce((s, r) => s + (Math.abs(Number(r.principal) || 0)), 0);
+    return Math.max(0, principalDrawn - principalRepaid);
+  };
+
+  // Helper: total interest for facility
+  const getFacilityInterestTotal = (facility: any) => {
+    const rows: any[] = Array.isArray(facility?.cashflows) ? facility.cashflows : [];
+    if (rows.length === 0) return 0;
+    if (rows[0] && rows[0]['Interest Due'] !== undefined) {
+      return rows.reduce((s, r) => s + (Number(r['Interest Due']) || 0), 0);
+    }
+    return rows.reduce((s, r) => s + (Number(r.interest) || 0), 0);
+  };
+
   // Get unique deals from transactions
   const deals = useMemo(() => {
     const uniqueDeals = transactions.reduce((acc, transaction) => {
@@ -408,22 +460,10 @@ const PortfolioTrackingPage = () => {
       }
 
       transactionFacilities.forEach(facility => {
-        const commitment = facility.generalTerms?.initialCommitment || 
-                          facility.generalTerms?.commitment || 0;
-        const commitmentValue = typeof commitment === 'number' ? commitment : 
-                               (typeof commitment === 'string' ? parseFloat(commitment) || 0 : 0);
+        const commitmentValue = getFacilityCommitment(facility);
         totalCommitment += commitmentValue;
-
-        // Calculate funded from cashflows if available
-        if (facility.cashflows && facility.cashflows.length > 0) {
-          const funded = facility.cashflows
-            .filter(cf => cf.principal > 0)
-            .reduce((sum, cf) => sum + cf.principal, 0);
-          totalFunded += funded;
-        } else {
-          // Fallback to estimated utilization
-          totalFunded += commitmentValue * 0.65;
-        }
+        const funded = getFacilityFunded(facility);
+        totalFunded += funded;
       });
     });
 
@@ -435,6 +475,27 @@ const PortfolioTrackingPage = () => {
       totalFacilities
     };
   }, [transactions, facilities]);
+
+  // Build chart data: outstanding by deal (bar), funded by country (donut/pie)
+  const barSeries = useMemo(() => {
+    return deals.map(deal => {
+      const dealFacilities = facilities.filter(f => f.transactionId === deal.deal || f.investmentName === deal.deal);
+      const outstanding = dealFacilities.reduce((s, f) => s + getFacilityOutstanding(f), 0);
+      return { label: deal.deal, value: outstanding };
+    });
+  }, [deals, facilities]);
+
+  const pieSeries = useMemo(() => {
+    // group funded by countryOfRisk
+    const map: Record<string, number> = {};
+    facilities.forEach(f => {
+      const tx = transactions.find(t => t.deal === f.transactionId || t.deal === f.investmentName);
+      const country = tx?.countryOfRisk || f.countryOfRisk || 'N/A';
+      const funded = getFacilityFunded(f);
+      map[country] = (map[country] || 0) + funded;
+    });
+    return Object.entries(map).map(([label, value]) => ({ label, value }));
+  }, [facilities, transactions]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -559,19 +620,21 @@ const PortfolioTrackingPage = () => {
               <div className="text-sm text-gray-600">0 1 6 5</div>
             </div>
             <div className="h-40 flex items-end justify-center space-x-2">
-              {/* Sample bar chart */}
-              <div className="w-12 h-20 bg-blue-300 rounded-t"></div>
-              <div className="w-12 h-32 bg-orange-400 rounded-t"></div>
-              <div className="w-12 h-16 bg-blue-400 rounded-t"></div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-2">
-              <span>1.50</span>
-              <span>1.00</span>
-              <span>4.00</span>
-              <span>6.50</span>
-              <span>20</span>
-              <span>6.00</span>
-              <span>200</span>
+              {barSeries.length === 0 ? (
+                <div className="text-sm text-gray-500">No data</div>
+              ) : (
+                barSeries.slice(0, 10).map((b, i) => {
+                  const max = Math.max(...barSeries.map(x => x.value), 1);
+                  const h = Math.max(6, Math.round((b.value / max) * 140));
+                  const color = i % 2 === 0 ? 'bg-blue-400' : 'bg-amber-500';
+                  return (
+                    <div key={i} className="flex flex-col items-center">
+                      <div className={`w-8 ${color} rounded-t`} style={{ height: `${h}px` }} title={`${b.label}: ${b.value.toLocaleString()}`}></div>
+                      <div className="text-[10px] text-gray-600 mt-1 truncate max-w-[48px]" title={b.label}>{b.label}</div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </Card>
 
@@ -581,15 +644,55 @@ const PortfolioTrackingPage = () => {
               <h3 className="font-medium text-gray-900">Split By Consort</h3>
             </div>
             <div className="flex items-center justify-center h-32">
-              <div className="w-24 h-24 rounded-full border-8 border-teal-600 border-l-teal-200 border-b-teal-300"></div>
+              {pieSeries.length === 0 ? (
+                <div className="text-sm text-gray-500">No data</div>
+              ) : (
+                <div className="relative w-40 h-40">
+                  {/* Simple donut via stacked arcs */}
+                  <svg viewBox="0 0 120 120" className="transform -rotate-90">
+                    <circle cx="60" cy="60" r="45" fill="none" stroke="#e5e7eb" strokeWidth="18" />
+                    {(() => {
+                      const total = pieSeries.reduce((s, p) => s + p.value, 0) || 1;
+                      let offset = 0;
+                      const colors = ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'];
+                      return pieSeries.slice(0, 6).map((p, i) => {
+                        const frac = p.value / total;
+                        const dash = 2 * Math.PI * 45 * frac;
+                        const gap = 2 * Math.PI * 45 - dash;
+                        const el = (
+                          <circle key={i} cx="60" cy="60" r="45" fill="none" stroke={colors[i % colors.length]} strokeWidth="18" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset} />
+                        );
+                        offset += dash;
+                        return el;
+                      });
+                    })()}
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-xs text-gray-700">{pieSeries.length} groups</div>
+                  </div>
+                </div>
+              )}
             </div>
+            {pieSeries.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {pieSeries.slice(0,6).map((p, i) => (
+                  <div key={i} className="flex items-center text-xs text-gray-600">
+                    <span className="inline-block w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'][i % 6] }}></span>
+                    <span className="truncate">{p.label}</span>
+                    <span className="ml-auto">${p.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
         {/* Search Input */}
         <div className="mb-4">
           <Input 
-            placeholder="Search"
+            placeholder="Search by deal or issuer"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-64 bg-white shadow-sm"
           />
         </div>
@@ -614,10 +717,15 @@ const PortfolioTrackingPage = () => {
                   const dealFacilities = facilities.filter(f => 
                     f.transactionId === deal.deal || f.investmentName === deal.deal
                   );
-                  const totalCommitment = dealFacilities.reduce((sum, f) => {
-                    const commitment = f.generalTerms?.initialCommitment || f.generalTerms?.commitment || 0;
-                    return sum + (typeof commitment === 'number' ? commitment : parseFloat(commitment) || 0);
-                  }, 0);
+                  const totalCommitment = dealFacilities.reduce((sum, f) => sum + getFacilityCommitment(f), 0);
+                  // Dynamic status: Active if outstanding > 0 and before maturity, Closed if maturity passed and outstanding == 0, else Pending
+                  const maturity = dealFacilities[0]?.generalTerms?.maturityDate ? new Date(dealFacilities[0].generalTerms.maturityDate) : undefined;
+                  const outstanding = dealFacilities.reduce((s, f) => s + getFacilityOutstanding(f), 0);
+                  const now = new Date();
+                  let status = deal.status;
+                  if (outstanding > 0) status = 'Active';
+                  else if (maturity && now > maturity) status = 'Closed';
+                  else status = 'Pending';
                   
                   return (
                     <tr key={index} className="border-b hover:bg-gray-50">
@@ -629,11 +737,11 @@ const PortfolioTrackingPage = () => {
                       <td className="py-3 px-4 text-gray-600">{deal.currency}</td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          deal.status === 'Active' ? 'bg-green-100 text-green-800' :
-                          deal.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          status === 'Active' ? 'bg-green-100 text-green-800' :
+                          status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {deal.status}
+                          {status}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-gray-600">{deal.countryOfRisk}</td>
