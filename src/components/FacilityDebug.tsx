@@ -216,8 +216,6 @@ const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: strin
       
       <div className="space-y-4">
         <div>
-          <p><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</p>
-          <p><strong>Error:</strong> {error || 'None'}</p>
           <p><strong>Total Facilities:</strong> {facilities.length}</p>
           <p><strong>Current Investment:</strong> {currentInvestmentName}</p>
           <p><strong>Filtered Facilities:</strong> {filteredFacilities.length}</p>

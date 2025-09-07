@@ -14,7 +14,8 @@ import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Ac
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
-import FacilityDebug from './FacilityDebug';
+// Debug panel removed for production
+// import FacilityDebug from './FacilityDebug';
 
 
 const sidebarItems = [
@@ -454,8 +455,7 @@ const InvestmentDetailPage = () => {
             </div>
           )}
           
-          {/* Debug Panel */}
-          <FacilityDebug currentInvestmentName={currentInvestmentName} />
+          {/* Debug Panel removed */}
           
           {/* Page Header */}
           <div className="flex items-center justify-between mb-6">
