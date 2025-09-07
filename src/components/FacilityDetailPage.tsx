@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
 import { useSupabaseData } from '@/context/SupabaseDataContext';
+import { useAuth } from '@/context/AuthContext';
 // Cashflow engine
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 // Cashflow scheduler moved to its own page
@@ -65,6 +66,7 @@ const FacilityDetailPage = () => {
   const [closingBalance, setClosingBalance] = useState('');
   
   const { facilities, addFacility, updateFacility, addCashflowSchedule } = useSupabaseData();
+  const { isSuperAdmin, isAdmin } = useAuth();
   const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
   const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
 
@@ -242,11 +244,13 @@ const FacilityDetailPage = () => {
             // Still show success for the generation, but log the save error
           }
           
-          // Also update facility with cashflows for backward compatibility
-          updateFacility(currentFacility.id, {
-            ...currentFacility,
-            cashflows: schedule.rows
-          });
+          // Admin cannot mutate facility after creation; Managers/Super Admin can
+          if (!isAdmin()) {
+            updateFacility(currentFacility.id, {
+              ...currentFacility,
+              cashflows: schedule.rows
+            });
+          }
         }
         
         // Show success popup and redirect
@@ -1450,6 +1454,7 @@ const FacilityDetailPage = () => {
       <td className="px-4 py-3 text-center whitespace-nowrap">
         {editingRowIndex === idx ? (
           <div className="flex gap-2 justify-center">
+            {(isSuperAdmin() || isAdmin()) && (
             <button
               onClick={handleSaveRow}
               className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
@@ -1457,6 +1462,8 @@ const FacilityDetailPage = () => {
             >
               ✓
             </button>
+            )}
+            {(isSuperAdmin() || isAdmin()) && (
             <button
               onClick={handleCancelEdit}
               className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
@@ -1464,15 +1471,18 @@ const FacilityDetailPage = () => {
             >
               ✕
             </button>
+            )}
           </div>
         ) : (
-          <button
-            onClick={() => handleEditRow(idx)}
-            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-            title="Edit row"
-          >
-            Edit
-          </button>
+          (isSuperAdmin() || isAdmin()) ? (
+            <button
+              onClick={() => handleEditRow(idx)}
+              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              title="Edit row"
+            >
+              Edit
+            </button>
+          ) : null
         )}
                             </td>
                           </tr>

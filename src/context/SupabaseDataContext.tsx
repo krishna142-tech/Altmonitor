@@ -174,6 +174,8 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       const newTransaction = await DatabaseService.createTransaction(transactionData);
       setTransactions(prev => [newTransaction, ...prev]);
       await recalculateStats();
+      // audit event (role/user context is attached at call site where available)
+      try { await DatabaseService.createTimelineEvent({ action: 'transaction.create', target_type: 'transaction', target_id: newTransaction.id, details: transactionData }); } catch {}
     } catch (err) {
       console.error('Failed to create transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to create transaction');
@@ -292,6 +294,7 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       const newFacility = await DatabaseService.createFacility(facilityData);
       console.log('SupabaseDataContext - facility created successfully:', newFacility);
       setFacilities(prev => [newFacility, ...prev]);
+      try { await DatabaseService.createTimelineEvent({ action: 'facility.create', target_type: 'facility', target_id: newFacility.id, details: facilityData }); } catch {}
     } catch (err) {
       console.error('SupabaseDataContext - Failed to create facility:', err);
       console.error('SupabaseDataContext - Error details:', {
@@ -308,6 +311,7 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const updatedFacility = await DatabaseService.updateFacility(id, updates);
       setFacilities(prev => prev.map(facility => facility.id === id ? updatedFacility : facility));
+      try { await DatabaseService.createTimelineEvent({ action: 'facility.update', target_type: 'facility', target_id: id, details: updates }); } catch {}
     } catch (err) {
       console.error('Failed to update facility:', err);
       setError(err instanceof Error ? err.message : 'Failed to update facility');
@@ -357,6 +361,7 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const updatedSchedule = await DatabaseService.updateCashflowSchedule(id, updates);
       setCashflowSchedules(prev => prev.map(schedule => schedule.id === id ? updatedSchedule : schedule));
+      try { await DatabaseService.createTimelineEvent({ action: 'cashflow.update', target_type: 'cashflow_schedule', target_id: id, details: updates }); } catch {}
     } catch (err) {
       console.error('Failed to update cashflow schedule:', err);
       setError(err instanceof Error ? err.message : 'Failed to update cashflow schedule');

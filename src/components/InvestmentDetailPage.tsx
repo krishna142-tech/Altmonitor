@@ -14,6 +14,7 @@ import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Ac
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
+import { useAuth } from '@/context/AuthContext';
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
 
@@ -204,6 +205,7 @@ const InvestmentDetailPage = () => {
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
   const { facilities, addFacility, addTransaction, transactions, loading, error } = useSupabaseData();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
   const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
@@ -214,23 +216,22 @@ const InvestmentDetailPage = () => {
   console.log('InvestmentDetailPage - loading:', loading);
   console.log('InvestmentDetailPage - error:', error);
   
-  // Simplified filtering logic - focus on investment name matching
+  // Filtering: show facilities for this page either by investment name OR by related transaction
   const filteredFacilities = facilities.filter(f => {
     const facilityInvestmentName = (f.investmentName || '').toString().trim();
     const currentName = currentInvestmentName.toString().trim();
-    
-    // Primary filter: match by investment name
+
     const matchesInvestmentName = facilityInvestmentName === currentName;
-    
-    console.log('Filtering check:', {
-      facilityInvestmentName,
-      currentName,
-      matchesInvestmentName,
-      facilityId: f.id,
-      transactionId: f.transactionId
-    });
-    
-    return matchesInvestmentName;
+
+    let matchesTransaction = false;
+    if (f.transactionId) {
+      const relatedTransaction = transactions.find(t => t.id === f.transactionId);
+      if (relatedTransaction) {
+        matchesTransaction = relatedTransaction.deal === currentName || relatedTransaction.issuer === currentName;
+      }
+    }
+
+    return matchesInvestmentName || matchesTransaction;
   });
   
   console.log('InvestmentDetailPage - filtered facilities:', filteredFacilities);
@@ -291,7 +292,7 @@ const InvestmentDetailPage = () => {
       // Now create the facility with the transaction ID
       const facilityData = {
         transactionId: transactionId,
-        investmentName: currentInvestmentName,
+        investmentName: (data.investmentName && data.investmentName.trim() !== '' ? data.investmentName.trim() : currentInvestmentName),
         facilityType: data.investmentType || 'Debt',
         paymentRank: data.ranking || 'Senior Secured',
         seniority: data.seniority || 'First Lien',
@@ -466,13 +467,15 @@ const InvestmentDetailPage = () => {
                 {filteredFacilities.length}
               </span>
             </div>
-            <Button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Add Facility
-            </Button>
+            {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
+              <Button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add Facility
+              </Button>
+            )}
           </div>
 
           {/* Facilities Table */}
