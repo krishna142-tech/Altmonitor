@@ -6,7 +6,7 @@ import { Plus, Filter, Search, X, ArrowLeft, Menu, Receipt } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useData } from '@/context/DataContext'
+import { useSupabaseData } from '@/context/SupabaseDataContext'
 
 // Mocked data for table and dropdowns
 const mockTransactions = [
@@ -547,7 +547,7 @@ function ManageTransactionModal({ isOpen, onClose }) {
 }
 
 const TransactionsPage = () => {
-  const { transactions, addTransaction } = useData();
+  const { transactions, addTransaction } = useSupabaseData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -579,13 +579,18 @@ const TransactionsPage = () => {
   });
 
   const handleAddTransaction = (data) => {
+    // Validate and format dates
+    const contractDate = data.contractDate && data.contractDate.trim() !== '' 
+      ? data.contractDate 
+      : new Date().toISOString().split('T')[0]; // Default to today if empty
+    
     addTransaction({
       deal: data.dealName || '',
       issuer: data.issuer || '',
       currency: data.currency || '',
       countryOfRisk: data.countryOfRisk || '',
       collateralDescription: data.collateralDescription || '',
-      contractDate: data.contractDate || '',
+      contractDate: contractDate,
       assetManager: 'New Manager',
       assetManagerName: 'New Manager Name',
       amount: data.amount || '',

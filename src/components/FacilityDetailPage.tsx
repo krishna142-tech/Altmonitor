@@ -5,7 +5,7 @@ import { ArrowLeft, FileSpreadsheet, Settings, CreditCard, TrendingUp, Download,
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
-import { useData } from '@/context/DataContext';
+import { useSupabaseData } from '@/context/SupabaseDataContext';
 // Cashflow engine
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 // Cashflow scheduler moved to its own page
@@ -64,7 +64,7 @@ const FacilityDetailPage = () => {
   const [commitment, setCommitment] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
   
-  const { facilities, addFacility, updateFacility } = useData();
+  const { facilities, addFacility, updateFacility, addCashflowSchedule } = useSupabaseData();
   const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
   const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
 
@@ -218,8 +218,31 @@ const FacilityDetailPage = () => {
         setCashflowSchedule(schedule.rows);
         setGeneratedRowsCount(schedule.rows.length);
         
-        // Update facility if it exists
+        // Save cashflow schedule to database
         if (currentFacility) {
+          try {
+            // Create a cashflow schedule record
+            const scheduleData = {
+              facility_id: currentFacility.id,
+              transaction_id: currentFacility.transactionId,
+              schedule_name: `Cashflow Schedule - ${currentFacility.investmentName}`,
+              start_date: schedule.rows[0]?.fromDate || new Date().toISOString().split('T')[0],
+              end_date: schedule.rows[schedule.rows.length - 1]?.toDate || new Date().toISOString().split('T')[0],
+              frequency: 'Monthly', // You can make this dynamic based on your data
+              amount: schedule.rows.reduce((sum, row) => sum + (row.interestDue || 0) + (row.principalDue || 0), 0),
+              currency: currentFacility.currency || 'USD',
+              status: 'active',
+              schedule_data: schedule.rows // Store the full schedule data
+            };
+            
+            addCashflowSchedule(scheduleData);
+            console.log('Cashflow schedule saved to database successfully');
+          } catch (error) {
+            console.error('Failed to save cashflow schedule to database:', error);
+            // Still show success for the generation, but log the save error
+          }
+          
+          // Also update facility with cashflows for backward compatibility
           updateFacility(currentFacility.id, {
             ...currentFacility,
             cashflows: schedule.rows

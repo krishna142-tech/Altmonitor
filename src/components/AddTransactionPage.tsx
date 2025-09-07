@@ -5,10 +5,10 @@ import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useData } from '@/context/DataContext';
+import { useSupabaseData } from '@/context/SupabaseDataContext';
 
 const AddTransactionPage = () => {
-  const { addTransaction } = useData();
+  const { addTransaction } = useSupabaseData();
   const navigate = useNavigate();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [formData, setFormData] = useState({

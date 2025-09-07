@@ -13,7 +13,8 @@ import { Separator } from './ui/separator';
 import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Activity, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useData } from '@/context/DataContext';
+import { useSupabaseData } from '@/context/SupabaseDataContext';
+import FacilityDebug from './FacilityDebug';
 
 
 const sidebarItems = [
@@ -201,25 +202,136 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
 const InvestmentDetailPage = () => {
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
-  const { facilities, addFacility } = useData();
+  const { facilities, addFacility, addTransaction, transactions, loading, error } = useSupabaseData();
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
   const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
-
-  const handleAddFacility = (data: any) => {
-    // Persist via shared DataContext so stored data is consistent across the app
-    addFacility({
-      // link facility to the current investment/deal so each deal has its own facilities
-      transactionId: currentInvestmentName || '',
-      // always save the canonical investment name from the route to avoid mismatch
-      investmentName: currentInvestmentName,
-      facilityType: data.investmentType,
-      paymentRank: data.ranking,
-      seniority: '',
-      currency: data.currency,
-      fromDate: '',
-      status: data.facilityStatus,
+  
+  // Debug logging
+  console.log('InvestmentDetailPage - currentInvestmentName:', currentInvestmentName);
+  console.log('InvestmentDetailPage - facilities:', facilities);
+  console.log('InvestmentDetailPage - loading:', loading);
+  console.log('InvestmentDetailPage - error:', error);
+  
+  // Simplified filtering logic - focus on investment name matching
+  const filteredFacilities = facilities.filter(f => {
+    const facilityInvestmentName = (f.investmentName || '').toString().trim();
+    const currentName = currentInvestmentName.toString().trim();
+    
+    // Primary filter: match by investment name
+    const matchesInvestmentName = facilityInvestmentName === currentName;
+    
+    console.log('Filtering check:', {
+      facilityInvestmentName,
+      currentName,
+      matchesInvestmentName,
+      facilityId: f.id,
+      transactionId: f.transactionId
     });
+    
+    return matchesInvestmentName;
+  });
+  
+  console.log('InvestmentDetailPage - filtered facilities:', filteredFacilities);
+
+  const handleAddFacility = async (data: any) => {
+    try {
+      console.log('Creating facility with data:', data);
+      console.log('Current investment name:', currentInvestmentName);
+      
+      // Validate required fields
+      if (!currentInvestmentName) {
+        throw new Error('No investment name found');
+      }
+      
+      // First, create or find a transaction for this investment
+      
+      // Check if a transaction already exists for this investment
+      let existingTransaction = transactions.find(t => 
+        t.deal === currentInvestmentName || 
+        t.issuer === currentInvestmentName
+      );
+      
+      let transactionId;
+      
+      if (existingTransaction) {
+        transactionId = existingTransaction.id;
+        console.log('Using existing transaction:', existingTransaction);
+      } else {
+        // Create a new transaction for this investment
+        console.log('Creating new transaction for investment:', currentInvestmentName);
+        
+        // Validate and format dates
+        const contractDate = data.fromDate && data.fromDate.trim() !== '' 
+          ? data.fromDate 
+          : new Date().toISOString().split('T')[0]; // Default to today if empty
+        
+        const newTransaction = await addTransaction({
+          deal: currentInvestmentName,
+          issuer: currentInvestmentName,
+          currency: data.currency || 'USD',
+          countryOfRisk: data.countryOfRisk || 'USA',
+          collateralDescription: data.collateralDescription || 'Investment facility',
+          contractDate: contractDate,
+          assetManager: data.assetManager || 'Default Manager',
+          assetManagerName: data.assetManagerName || 'Default Manager Name',
+          amount: data.amount || '0',
+          status: 'Active',
+          investorName: data.investorName,
+          fundName: data.fundName,
+          transactionType: 'investment',
+          notes: `Transaction created for facility: ${currentInvestmentName}`
+        });
+        
+        transactionId = newTransaction.id;
+        console.log('Created new transaction:', newTransaction);
+      }
+      
+      // Now create the facility with the transaction ID
+      const facilityData = {
+        transactionId: transactionId,
+        investmentName: currentInvestmentName,
+        facilityType: data.investmentType || 'Debt',
+        paymentRank: data.ranking || 'Senior Secured',
+        seniority: data.seniority || 'First Lien',
+        currency: data.currency || 'USD',
+        fromDate: data.fromDate || new Date().toISOString().split('T')[0],
+        status: data.facilityStatus || 'Active',
+        // Additional optional fields
+        investmentType: data.investmentType,
+        hasTranche: data.hasTranche,
+        isin: data.isin,
+        cusip: data.cusip,
+        bbgId: data.bbgId,
+        fisn: data.fisn,
+        internalDealId: data.internalDealId,
+        loanReferenceNumber: data.loanReferenceNumber,
+        fundId: data.fundId,
+        covenantId: data.covenantId,
+        assetClassification: data.assetClassification,
+        assetTag: data.assetTag,
+        sector: data.sector,
+        subSector: data.subSector,
+        instrumentType: data.instrumentType,
+        countryOfRisk: data.countryOfRisk,
+      };
+      
+      console.log('Facility data to create:', facilityData);
+      
+      // Persist via SupabaseDataContext
+      await addFacility(facilityData);
+      
+      console.log('Facility created successfully');
+    } catch (error) {
+      console.error('Error creating facility:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error
+      });
+      // You might want to show a toast notification here
+      alert(`Error creating facility: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+    }
   };
 
   // Use useEffect to handle navigation to prevent multiple calls
@@ -328,13 +440,30 @@ const InvestmentDetailPage = () => {
 
         {/* Main Content */}
         <div className="flex-1 p-6">
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700">Error loading data: {error}</p>
+            </div>
+          )}
+          
+          {/* Loading State */}
+          {loading && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-700">Loading facilities...</p>
+            </div>
+          )}
+          
+          {/* Debug Panel */}
+          <FacilityDebug currentInvestmentName={currentInvestmentName} />
+          
           {/* Page Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Building2 className="w-6 h-6 text-gray-600" />
               <h1 className="text-xl font-semibold text-gray-900">Investment Facilities</h1>
               <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">
-                {facilities.filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName).length}
+                {filteredFacilities.length}
               </span>
             </div>
             <Button
@@ -362,9 +491,7 @@ const InvestmentDetailPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {facilities
-                    .filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName)
-                    .map((f, idx) => (
+                  {filteredFacilities.map((f, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <button
@@ -390,7 +517,7 @@ const InvestmentDetailPage = () => {
                       </td>
                     </tr>
                   ))}
-                  {facilities.filter(f => ((f.transactionId || f.investmentName) || '').toString().trim() === currentInvestmentName).length === 0 && (
+                  {filteredFacilities.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
                         No facilities found for this investment.

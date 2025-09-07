@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3, Menu, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
-import { useData } from '@/context/DataContext';
+import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -361,7 +361,7 @@ const PortfolioSummary = ({ deal, transaction, facilities }) => {
 };
 
 const PortfolioTrackingPage = () => {
-  const { transactions, facilities } = useData();
+  const { transactions, facilities } = useSupabaseData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const navigate = useNavigate();

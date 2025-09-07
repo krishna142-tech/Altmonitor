@@ -1,12 +1,15 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home } from 'lucide-react'
+import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home, User } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/context/AuthContext'
 
 const MainPage = () => {
-  const navigationCards = [
+  const { user, logout, hasPermission } = useAuth()
+  
+  const allNavigationCards = [
     {
       title: 'Transactions',
       icon: Receipt,
@@ -90,6 +93,14 @@ const MainPage = () => {
     }
   ]
 
+  // Filter navigation cards based on user permissions
+  const navigationCards = allNavigationCards.filter(card => {
+    if (card.requiresPermission) {
+      return hasPermission(card.requiresPermission)
+    }
+    return true
+  })
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
@@ -124,11 +135,33 @@ const MainPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/login" className="flex items-center gap-2">
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Link>
+          {/* User Info */}
+          {user && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden sm:block">
+                <div className="font-medium text-gray-900">{user.name}</div>
+                <div className="text-xs text-gray-500">{user.role.replace('_', ' ').toUpperCase()}</div>
+              </div>
+            </div>
+          )}
+          
+          {/* Admin Management Link - Only for Super Admins */}
+          {user?.role === 'super_admin' && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Admin
+              </Link>
+            </Button>
+          )}
+          
+          {/* Logout Button */}
+          <Button variant="outline" size="sm" onClick={logout} className="flex items-center gap-2">
+            <LogOut className="w-4 h-4" />
+            Logout
           </Button>
         </div>
       </motion.header>
@@ -143,6 +176,18 @@ const MainPage = () => {
               <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{navigationCards.length} modules</span>
             </div>
           </div>
+
+          {/* Welcome Message */}
+          {user && (
+            <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                Welcome back, {user.name}!
+              </h2>
+              <p className="text-gray-600">
+                You are logged in as <span className="font-medium text-blue-600">{user.role.replace('_', ' ').toUpperCase()}</span>
+              </p>
+            </div>
+          )}
 
           {/* Navigation Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
