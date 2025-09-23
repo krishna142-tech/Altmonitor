@@ -204,11 +204,38 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
 const InvestmentDetailPage = () => {
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
-  const { facilities, addFacility, addTransaction, transactions, loading, error } = useSupabaseData();
+  const { facilities, addFacility, addTransaction, updateFacility, transactions, loading, error } = useSupabaseData();
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
   const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingRow, setEditingRow] = useState<any | null>(null);
+  
+  const startEdit = (idx: number, f: any) => {
+    setEditingIndex(idx);
+    setEditingRow({ ...f });
+  };
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditingRow(null);
+  };
+  const saveEdit = async (original: any) => {
+    if (!editingRow) return;
+    try {
+      await updateFacility(original.id, {
+        investmentName: editingRow.investmentName,
+        facilityType: editingRow.facilityType,
+        paymentRank: editingRow.paymentRank,
+        seniority: editingRow.seniority,
+        currency: editingRow.currency,
+        fromDate: editingRow.fromDate,
+        status: editingRow.status,
+      });
+      setEditingIndex(null);
+      setEditingRow(null);
+    } catch {}
+  };
   
   // Debug logging
   console.log('InvestmentDetailPage - currentInvestmentName:', currentInvestmentName);
@@ -497,26 +524,43 @@ const InvestmentDetailPage = () => {
                   {filteredFacilities.map((f, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <button
-                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-                          onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
-                        >
-                          {f.investmentName}
-                        </button>
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.investmentName || ''} onChange={e => setEditingRow({ ...editingRow, investmentName: e.target.value })} />
+                        ) : (
+                          <button
+                            className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                            onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
+                          >
+                            {f.investmentName}
+                          </button>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{f.facilityType}</td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">{f.paymentRank}</td>
-                      <td className="py-3 px-4 text-gray-600">{f.seniority}</td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">{f.currency}</td>
-                      <td className="py-3 px-4 text-gray-600">{f.fromDate}</td>
+                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.facilityType || ''} onChange={e => setEditingRow({ ...editingRow, facilityType: e.target.value })} />) : f.facilityType}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.paymentRank || ''} onChange={e => setEditingRow({ ...editingRow, paymentRank: e.target.value })} />) : f.paymentRank}</td>
+                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.seniority || ''} onChange={e => setEditingRow({ ...editingRow, seniority: e.target.value })} />) : f.seniority}</td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.currency || ''} onChange={e => setEditingRow({ ...editingRow, currency: e.target.value })} />) : f.currency}</td>
+                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input type="date" className="w-full border px-2 py-1 rounded" value={editingRow?.fromDate || ''} onChange={e => setEditingRow({ ...editingRow, fromDate: e.target.value })} />) : f.fromDate}</td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          f.status === 'Active' ? 'bg-green-100 text-green-800' :
-                          f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {f.status}
-                        </span>
+                        {editingIndex === idx ? (
+                          <div className="flex items-center gap-2">
+                            <input className="flex-1 border px-2 py-1 rounded" value={editingRow?.status || ''} onChange={e => setEditingRow({ ...editingRow, status: e.target.value })} />
+                            <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(f)}>Save</button>
+                            <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              f.status === 'Active' ? 'bg-green-100 text-green-800' :
+                              f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {f.status}
+                            </span>
+                            {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
+                              <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, f)}>Edit</button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

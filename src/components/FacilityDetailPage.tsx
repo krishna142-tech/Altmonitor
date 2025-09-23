@@ -65,7 +65,7 @@ const FacilityDetailPage = () => {
   const [commitment, setCommitment] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
   
-  const { facilities, addFacility, updateFacility, addCashflowSchedule } = useSupabaseData();
+  const { facilities, addFacility, updateFacility, addCashflowSchedule, getCashflowSchedulesForFacility, updateCashflowSchedule } = useSupabaseData();
   const { isSuperAdmin, isAdmin } = useAuth();
   const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
   const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
@@ -115,11 +115,18 @@ const FacilityDetailPage = () => {
       if (gt.interestType) setInterestTypeState(gt.interestType);
       if (gt.currency) setCurrencyState(gt.currency);
       
-      // Load cashflow schedule if it exists for this specific facility
-      if ((currentFacility as any).cashflows && Array.isArray((currentFacility as any).cashflows)) {
-        setCashflowSchedule((currentFacility as any).cashflows);
-      } else {
-        setCashflowSchedule([]); // Clear cashflows when switching facilities
+      // Load cashflow schedule for this specific facility from DB
+      try {
+        const schedules = getCashflowSchedulesForFacility(currentFacility.id);
+        if (schedules && schedules.length > 0) {
+          const latest = schedules[0];
+          const data = latest.schedule_data || [];
+          setCashflowSchedule(Array.isArray(data) ? data : []);
+        } else {
+          setCashflowSchedule([]);
+        }
+      } catch {
+        setCashflowSchedule([]);
       }
       
       // Load amortisation entries if they exist
@@ -283,7 +290,7 @@ const FacilityDetailPage = () => {
   };
 
   // Handler for saving edited row
-  const handleSaveRow = () => {
+  const handleSaveRow = async () => {
     if (editingRowIndex !== null && editingRowData) {
       // Basic validation
       if (editingRowData["From Date"] && editingRowData["To Date"]) {
@@ -304,12 +311,21 @@ const FacilityDetailPage = () => {
       updatedSchedule[editingRowIndex] = { ...editingRowData };
       setCashflowSchedule(updatedSchedule);
       
-      // Update facility if it exists
+      // Persist to cashflow schedule in DB if available
       if (currentFacility) {
-        updateFacility(currentFacility.id, {
-          ...currentFacility,
-          cashflows: updatedSchedule
-        });
+        try {
+          const schedules = getCashflowSchedulesForFacility(currentFacility.id);
+          if (schedules && schedules.length > 0) {
+            const latest = schedules[0];
+            await updateCashflowSchedule(latest.id, { schedule_data: updatedSchedule });
+          } else {
+            // fallback: store on facility to avoid data loss
+            updateFacility(currentFacility.id, { ...currentFacility, cashflows: updatedSchedule });
+          }
+        } catch {
+          // fallback on failure
+          updateFacility(currentFacility.id, { ...currentFacility, cashflows: updatedSchedule });
+        }
       }
       
       setEditingRowIndex(null);
@@ -1198,11 +1214,11 @@ const FacilityDetailPage = () => {
                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-success to-success-dark hover:from-success-dark hover:to-success text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                         onClick={() => {
                           // export csv
-                          const headers = ['To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Margin','Default Rate','Payment Convention','Holiday Adjustment','Days','Year Fraction','Interest Due','Outstanding'];
+                          const headers = ['From Date','To Date','Edate','Eomonth','Schedule IPD','Adjusted IPD','Margin','Default Rate','Payment Convention','Holiday Adjustment','Days','Year Fraction','Interest Due','Outstanding'];
                           const lines = [headers.join(',')];
                           for (const r of cashflowSchedule) {
                             lines.push([
-                              r["To Date"]||'', r["Edate"]||'', r["Eomonth"]||'', r["Schedule IPD"]||'', r["Adjusted IPD"]||'', String(r["Margin"]||0), String(r["Default Rate"]||0), r["Payment Convention"]||'', r["Holiday Adjustment"]||'', String(r["Days"]||0), String(r["Year Fraction"]||0), String(r["Interest Due"]||0), String(r["Outstanding"]||0)
+                              r["From Date"]||'', r["To Date"]||'', r["Edate"]||'', r["Eomonth"]||'', r["Schedule IPD"]||'', r["Adjusted IPD"]||'', String(r["Margin"]||0), String(r["Default Rate"]||0), r["Payment Convention"]||'', r["Holiday Adjustment"]||'', String(r["Days"]||0), String(r["Year Fraction"]||0), String(r["Interest Due"]||0), String(r["Outstanding"]||0)
                             ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
                           }
                           const csv = lines.join('\n');
@@ -1238,6 +1254,7 @@ const FacilityDetailPage = () => {
                       <table className="w-full min-w-max text-sm md:text-base border-separate border-spacing-0 bg-white rounded shadow-md">
   <thead className="sticky top-0 z-10 bg-[#c5daeb]">
     <tr className="text-[#121516]">
+      <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">From Date</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">To Date</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Edate</th>
       <th className="px-4 py-3 font-semibold text-left border-b border-[#40484f]">Eomonth</th>
@@ -1257,6 +1274,19 @@ const FacilityDetailPage = () => {
   <tbody>
   {cashflowSchedule.map((row, idx) => (
     <tr key={idx} className={`bg-white ${editingRowIndex === idx ? 'bg-yellow-50 border-2 border-yellow-300' : ''}`}>
+      {/* From Date */}
+      <td className="px-4 py-3 text-black whitespace-nowrap">
+        {editingRowIndex === idx ? (
+          <input
+            type="date"
+            value={editingRowData?.["From Date"] || ''}
+            onChange={(e) => handleEditFieldChange("From Date", e.target.value)}
+            className="w-full px-2 py-1 text-xs border rounded"
+          />
+        ) : (
+          (row["From Date"] || calcStartDateState || '')
+        )}
+      </td>
       {/* To Date */}
       <td className="px-4 py-3 text-black whitespace-nowrap">
         {editingRowIndex === idx ? (

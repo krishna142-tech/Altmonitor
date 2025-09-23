@@ -547,11 +547,13 @@ function ManageTransactionModal({ isOpen, onClose }) {
 }
 
 const TransactionsPage = () => {
-  const { transactions, addTransaction } = useSupabaseData();
+  const { transactions, addTransaction, updateTransaction } = useSupabaseData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingRow, setEditingRow] = useState<any | null>(null);
   // local, stateful deal names so user can add new deals from the modal
   const [localDealNames, setLocalDealNames] = useState(dealNames);
   const [localIssuers, setLocalIssuers] = useState(issuers);
@@ -559,6 +561,38 @@ const TransactionsPage = () => {
   const [localDealOwner3, setLocalDealOwner3] = useState(['OwnerA','OwnerB']);
   const [localDealTypes, setLocalDealTypes] = useState(['type1','type2']);
   const navigate = useNavigate();
+  
+  const startEdit = (idx: number, t: any) => {
+    setEditingIndex(idx);
+    setEditingRow({ ...t });
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditingRow(null);
+  };
+
+  const saveEdit = async (original: any) => {
+    if (!editingRow) return;
+    try {
+      await updateTransaction(original.id, {
+        deal: editingRow.deal,
+        issuer: editingRow.issuer,
+        currency: editingRow.currency,
+        countryOfRisk: editingRow.countryOfRisk,
+        collateralDescription: editingRow.collateralDescription,
+        contractDate: editingRow.contractDate,
+        assetManager: editingRow.assetManager,
+        assetManagerName: editingRow.assetManagerName,
+        amount: editingRow.amount,
+        status: editingRow.status,
+      });
+      setEditingIndex(null);
+      setEditingRow(null);
+    } catch (e) {
+      // no-op, context handles error state
+    }
+  };
 
   // Filter transactions based on search and filters
   const filteredTransactions = transactions.filter(t => {
@@ -802,20 +836,61 @@ const TransactionsPage = () => {
                   {filteredTransactions.map((t, idx) => (
                     <tr key={idx} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <button
-                          className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-                          onClick={() => navigate(`/investments/${encodeURIComponent(t.deal)}`)}
-                        >
-                          {t.deal}
-                        </button>
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.deal || ''} onChange={e => setEditingRow({ ...editingRow, deal: e.target.value })} />
+                        ) : (
+                          <button
+                            className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                            onClick={() => navigate(`/investments/${encodeURIComponent(t.deal)}`)}
+                          >
+                            {t.deal}
+                          </button>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{t.issuer}</td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">{t.currency}</td>
-                      <td className="py-3 px-4 text-gray-600">{t.countryOfRisk}</td>
-                      <td className="py-3 px-4 text-gray-600">{t.collateralDescription}</td>
-                      <td className="py-3 px-4 text-gray-900">{t.contractDate}</td>
-                      <td className="py-3 px-4 text-gray-600">{t.assetManager}</td>
-                      <td className="py-3 px-4 text-gray-600">{t.assetManagerName}</td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.issuer || ''} onChange={e => setEditingRow({ ...editingRow, issuer: e.target.value })} />
+                        ) : t.issuer}
+                      </td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.currency || ''} onChange={e => setEditingRow({ ...editingRow, currency: e.target.value })} />
+                        ) : t.currency}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.countryOfRisk || ''} onChange={e => setEditingRow({ ...editingRow, countryOfRisk: e.target.value })} />
+                        ) : t.countryOfRisk}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.collateralDescription || ''} onChange={e => setEditingRow({ ...editingRow, collateralDescription: e.target.value })} />
+                        ) : t.collateralDescription}
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">
+                        {editingIndex === idx ? (
+                          <input type="date" className="w-full border px-2 py-1 rounded" value={editingRow?.contractDate || ''} onChange={e => setEditingRow({ ...editingRow, contractDate: e.target.value })} />
+                        ) : t.contractDate}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {editingIndex === idx ? (
+                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.assetManager || ''} onChange={e => setEditingRow({ ...editingRow, assetManager: e.target.value })} />
+                        ) : t.assetManager}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {editingIndex === idx ? (
+                          <div className="flex items-center gap-2">
+                            <input className="flex-1 border px-2 py-1 rounded" value={editingRow?.assetManagerName || ''} onChange={e => setEditingRow({ ...editingRow, assetManagerName: e.target.value })} />
+                            <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(t)}>Save</button>
+                            <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span>{t.assetManagerName}</span>
+                            <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, t)}>Edit</button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {filteredTransactions.length === 0 && (
