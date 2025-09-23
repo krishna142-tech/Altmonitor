@@ -1481,40 +1481,40 @@ const FacilityDetailPage = () => {
       </td>
       
       {/* Actions */}
-      <td className="px-4 py-3 text-center whitespace-nowrap">
+      <td className="px-4 py-3 whitespace-nowrap relative text-center">
         {editingRowIndex === idx ? (
-          <div className="flex gap-2 justify-center">
+          <div className="pr-24">
             {(isSuperAdmin() || isAdmin()) && (
-            <button
-              onClick={handleSaveRow}
-              className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-              title="Save changes"
-            >
-              ✓
-            </button>
-            )}
-            {(isSuperAdmin() || isAdmin()) && (
-            <button
-              onClick={handleCancelEdit}
-              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-              title="Cancel editing"
-            >
-              ✕
-            </button>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <button
+                  onClick={handleSaveRow}
+                  className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                  title="Save changes"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 transition-colors"
+                  title="Cancel editing"
+                >
+                  Cancel
+                </button>
+              </div>
             )}
           </div>
         ) : (
           (isSuperAdmin() || isAdmin()) ? (
             <button
               onClick={() => handleEditRow(idx)}
-              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
               title="Edit row"
             >
               Edit
             </button>
           ) : null
         )}
-                            </td>
+      </td>
                           </tr>
   ))}
 </tbody>

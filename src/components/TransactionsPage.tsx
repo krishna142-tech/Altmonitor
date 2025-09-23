@@ -877,17 +877,19 @@ const TransactionsPage = () => {
                           <input className="w-full border px-2 py-1 rounded" value={editingRow?.assetManager || ''} onChange={e => setEditingRow({ ...editingRow, assetManager: e.target.value })} />
                         ) : t.assetManager}
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-3 px-4 text-gray-600 relative">
                         {editingIndex === idx ? (
-                          <div className="flex items-center gap-2">
-                            <input className="flex-1 border px-2 py-1 rounded" value={editingRow?.assetManagerName || ''} onChange={e => setEditingRow({ ...editingRow, assetManagerName: e.target.value })} />
-                            <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(t)}>Save</button>
-                            <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                          <div className="pr-20">
+                            <input className="w-full border px-2 py-1 rounded" value={editingRow?.assetManagerName || ''} onChange={e => setEditingRow({ ...editingRow, assetManagerName: e.target.value })} />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(t)}>Save</button>
+                              <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span>{t.assetManagerName}</span>
-                            <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, t)}>Edit</button>
+                          <div className="pr-20">
+                            <span className="block truncate">{t.assetManagerName}</span>
+                            <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, t)}>Edit</button>
                           </div>
                         )}
                       </td>

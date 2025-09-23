@@ -540,15 +540,17 @@ const InvestmentDetailPage = () => {
                       <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.seniority || ''} onChange={e => setEditingRow({ ...editingRow, seniority: e.target.value })} />) : f.seniority}</td>
                       <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.currency || ''} onChange={e => setEditingRow({ ...editingRow, currency: e.target.value })} />) : f.currency}</td>
                       <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input type="date" className="w-full border px-2 py-1 rounded" value={editingRow?.fromDate || ''} onChange={e => setEditingRow({ ...editingRow, fromDate: e.target.value })} />) : f.fromDate}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 relative">
                         {editingIndex === idx ? (
-                          <div className="flex items-center gap-2">
-                            <input className="flex-1 border px-2 py-1 rounded" value={editingRow?.status || ''} onChange={e => setEditingRow({ ...editingRow, status: e.target.value })} />
-                            <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(f)}>Save</button>
-                            <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                          <div className="pr-24">
+                            <input className="w-full border px-2 py-1 rounded" value={editingRow?.status || ''} onChange={e => setEditingRow({ ...editingRow, status: e.target.value })} />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                              <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(f)}>Save</button>
+                              <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
+                          <div className="pr-24">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               f.status === 'Active' ? 'bg-green-100 text-green-800' :
                               f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
@@ -557,7 +559,7 @@ const InvestmentDetailPage = () => {
                               {f.status}
                             </span>
                             {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
-                              <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, f)}>Edit</button>
+                              <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, f)}>Edit</button>
                             )}
                           </div>
                         )}
