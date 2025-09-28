@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Receipt, LogOut, FileText, Settings } from 'lucide-react';
+import { Receipt, LogOut, FileText, Settings, BarChart3, ShieldCheck } from 'lucide-react';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -11,25 +11,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 
   const navItems = [
     { path: '/transactions', icon: Receipt, label: 'Transactions' },
-    { path: '/reports', icon: FileText, label: 'Reports' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
   if (!isOpen) {
     return (
-      <div className="w-16 bg-background-secondary border-r border-border/30 min-h-screen relative transition-all duration-300">
-        <div className="p-4 border-b border-border/30">
-          <Link 
-            to="/main" 
-            className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
-          >
-            AM
-          </Link>
-        </div>
+      <div className="w-16 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300">
+        <div className="p-4 border-b border-border/30" />
         <nav className="mt-4">
           {navItems.map((item, _index) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = (() => {
+              // Exact match including query when present
+              const fullPath = location.pathname + (location.search || '');
+              if (fullPath === item.path) return true;
+              // Special case: covenant tab
+              if (item.path.startsWith('/portfolio-tracking?tab=covenants')) {
+                return location.pathname === '/portfolio-tracking' && (location.search || '').includes('tab=covenants');
+              }
+              return location.pathname === item.path;
+            })();
             
             return (
               <Link
@@ -54,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
   }
 
   return (
-    <div className="w-48 bg-background-secondary border-r border-border/30 min-h-screen relative transition-all duration-300">
+    <div className="w-48 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300">
       {/* Dark Grid Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 opacity-[0.02]">
@@ -88,17 +89,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
       </div>
 
       {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background-secondary/30 to-border/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#08122e]/50 to-[#08122e]/30 pointer-events-none" />
       
       <div className="relative z-10">
-        <div className="p-4 border-b border-border/30">
-          <Link 
-            to="/main" 
-            className="text-lg font-bold text-white hover:text-primary transition-colors duration-300 inline-block hover:scale-105 transform"
-          >
-            AltMonitor
-          </Link>
-        </div>
+        <div className="p-4 border-b border-border/30" />
 
         <nav className="mt-4">
           {navItems.map((item, index) => {

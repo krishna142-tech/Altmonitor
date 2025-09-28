@@ -19,6 +19,7 @@ import FacilityDetailPage from '@/components/FacilityDetailPage'
 import CashTermsPage from '@/components/CashTermsPage'
 import BauTab from '@/components/BauTab'
 import PortfolioTrackingPage from '@/components/PortfolioTrackingPage'
+import CovenantTrackingPage from '@/components/CovenantTrackingPage'
 
 // SEO Component
 const SEO: React.FC<{ title: string; description: string }> = ({ title, description }) => {
@@ -180,6 +181,21 @@ function App() {
                           description="Track and analyze your investment portfolio with Bloomberg-style summaries and detailed metrics."
                         />
                         <PortfolioTrackingPage />
+                      </>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/covenant-tracking"
+                  element={
+                    <ProtectedRoute>
+                      <>
+                        <SEO
+                          title="Covenant Tracking | AltMonitor"
+                          description="Upload compliance certificates, auto-parse covenants, and manage compliance."
+                        />
+                        <CovenantTrackingPage />
                       </>
                     </ProtectedRoute>
                   }

@@ -8,6 +8,8 @@ import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import Sidebar from '@/components/Sidebar';
+import CovenantTrackingPage from '@/components/CovenantTrackingPage';
 
 // Bloomberg-style Portfolio Summary Component
 const PortfolioSummary = ({ deal, transaction, facilities }) => {
@@ -362,10 +364,27 @@ const PortfolioSummary = ({ deal, transaction, facilities }) => {
 
 const PortfolioTrackingPage = () => {
   const { transactions, facilities } = useSupabaseData();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'covenants'>('overview');
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Sync query param ?tab= with local state
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab === 'covenants') setActiveTab('covenants');
+    else if (tab === 'overview') setActiveTab('overview');
+  }, [location.search]);
+
+  const handleSetTab = (tab: 'overview' | 'covenants') => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(location.search);
+    params.set('tab', tab);
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   // Helper: extract numeric commitment for a facility
   const getFacilityCommitment = (facility: any) => {
@@ -531,237 +550,251 @@ const PortfolioTrackingPage = () => {
         </Link>
         
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(v => !v)}>
+            <Menu className="w-4 h-4 mr-2" /> {sidebarOpen ? 'Collapse' : 'Expand'}
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/main" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back
             </Link>
           </Button>
+          {/* Removed navbar Covenant Tracking shortcut per request */}
         </div>
       </motion.header>
 
       <div className="flex flex-1 bg-gray-50">
         {/* Sidebar */}
-        <div className="w-16 bg-slate-800 flex flex-col items-center py-4">
-          <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-            <Menu className="w-4 h-4 text-slate-800" />
-          </div>
-        </div>
+        <Sidebar isOpen={sidebarOpen} />
 
         {/* Main Content */}
         <div className="flex-1 p-6">
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-gray-600" />
-              <h1 className="text-xl font-semibold text-gray-900">All Deals</h1>
-              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{filteredDeals.length}</span>
+          {/* Local Tabs */}
+          <div className="mb-4">
+            <div className="inline-flex items-center rounded-md border bg-white shadow-sm overflow-hidden">
+              <button className={`px-4 py-2 text-sm ${activeTab === 'overview' ? 'bg-gray-100 font-medium' : 'text-gray-600'}`} onClick={() => handleSetTab('overview')}>Overview</button>
+              <button className={`px-4 py-2 text-sm border-l ${activeTab === 'covenants' ? 'bg-gray-100 font-medium' : 'text-gray-600'}`} onClick={() => handleSetTab('covenants')}>Covenant Tracking</button>
             </div>
           </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="bg-white rounded-lg p-3 shadow-sm border">
-            <Input 
-              placeholder="Filter Lears"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="border-0 focus-visible:ring-0 text-gray-600"
-            />
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <Card className="p-4 bg-white shadow-sm">
-            <div className="space-y-2">
-              <h3 className="font-medium text-gray-900">Total Commitment</h3>
-              <p className="text-xl font-semibold text-gray-900">
-                ${portfolioStats.totalCommitment.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500">Portfolio commitment</p>
-            </div>
-          </Card>
-          <Card className="p-4 bg-white shadow-sm">
-            <div className="space-y-2">
-              <h3 className="font-medium text-gray-900">Total Funded</h3>
-              <p className="text-xl font-semibold text-gray-900">
-                ${portfolioStats.totalFunded.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500">Disbursed amount</p>
-            </div>
-          </Card>
-          <Card className="p-4 bg-white shadow-sm">
-            <div className="space-y-2">
-              <h3 className="font-medium text-gray-900">Available</h3>
-              <p className="text-xl font-semibold text-gray-900">
-                ${portfolioStats.available.toLocaleString()}
-              </p>
-              <p className="text-sm text-gray-500">Remaining capacity</p>
-            </div>
-          </Card>
-          <Card className="p-4 bg-white shadow-sm">
-            <div className="space-y-2">
-              <h3 className="font-medium text-gray-900">Active Deals</h3>
-              <p className="text-xl font-semibold text-gray-900">
-                {portfolioStats.activeDeals}
-              </p>
-              <p className="text-sm text-gray-500">Current investments</p>
-            </div>
-          </Card>
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-3 gap-6 mb-6">
-          {/* Bar Chart */}
-          <Card className="col-span-2 p-4 bg-white shadow-sm">
-            <div className="mb-4">
-              <h3 className="font-medium text-gray-900 mb-2">Aconuecxista Redord</h3>
-              <div className="text-sm text-gray-600">0 1 6 5</div>
-            </div>
-            <div className="h-40 flex items-end justify-center space-x-2">
-              {barSeries.length === 0 ? (
-                <div className="text-sm text-gray-500">No data</div>
-              ) : (
-                barSeries.slice(0, 10).map((b, i) => {
-                  const max = Math.max(...barSeries.map(x => x.value), 1);
-                  const h = Math.max(6, Math.round((b.value / max) * 140));
-                  const color = i % 2 === 0 ? 'bg-blue-400' : 'bg-amber-500';
-                  return (
-                    <div key={i} className="flex flex-col items-center">
-                      <div className={`w-8 ${color} rounded-t`} style={{ height: `${h}px` }} title={`${b.label}: ${b.value.toLocaleString()}`}></div>
-                      <div className="text-[10px] text-gray-600 mt-1 truncate max-w-[48px]" title={b.label}>{b.label}</div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-
-          {/* Pie Chart */}
-          <Card className="p-4 bg-white shadow-sm">
-            <div className="mb-4">
-              <h3 className="font-medium text-gray-900">Split By Consort</h3>
-            </div>
-            <div className="flex items-center justify-center h-32">
-              {pieSeries.length === 0 ? (
-                <div className="text-sm text-gray-500">No data</div>
-              ) : (
-                <div className="relative w-40 h-40">
-                  {/* Simple donut via stacked arcs */}
-                  <svg viewBox="0 0 120 120" className="transform -rotate-90">
-                    <circle cx="60" cy="60" r="45" fill="none" stroke="#e5e7eb" strokeWidth="18" />
-                    {(() => {
-                      const total = pieSeries.reduce((s, p) => s + p.value, 0) || 1;
-                      let offset = 0;
-                      const colors = ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'];
-                      return pieSeries.slice(0, 6).map((p, i) => {
-                        const frac = p.value / total;
-                        const dash = 2 * Math.PI * 45 * frac;
-                        const gap = 2 * Math.PI * 45 - dash;
-                        const el = (
-                          <circle key={i} cx="60" cy="60" r="45" fill="none" stroke={colors[i % colors.length]} strokeWidth="18" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset} />
-                        );
-                        offset += dash;
-                        return el;
-                      });
-                    })()}
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-xs text-gray-700">{pieSeries.length} groups</div>
-                  </div>
+          {activeTab === 'overview' ? (
+            <>
+              {/* Page Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-6 h-6 text-gray-600" />
+                  <h1 className="text-xl font-semibold text-gray-900">All Deals</h1>
+                  <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{filteredDeals.length}</span>
                 </div>
-              )}
-            </div>
-            {pieSeries.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {pieSeries.slice(0,6).map((p, i) => (
-                  <div key={i} className="flex items-center text-xs text-gray-600">
-                    <span className="inline-block w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'][i % 6] }}></span>
-                    <span className="truncate">{p.label}</span>
-                    <span className="ml-auto">${p.value.toLocaleString()}</span>
-                  </div>
-                ))}
               </div>
-            )}
-          </Card>
-        </div>
 
-        {/* Search Input */}
-        <div className="mb-4">
-          <Input 
-            placeholder="Search by deal or issuer"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64 bg-white shadow-sm"
-          />
-        </div>
+              {/* Search Bar */}
+              <div className="mb-6">
+                <div className="bg-white rounded-lg p-3 shadow-sm border">
+                  <Input 
+                    placeholder="Filter Lears"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="border-0 focus-visible:ring-0 text-gray-600"
+                  />
+                </div>
+              </div>
 
-        {/* Data Table */}
-        <Card className="bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Deal Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Issuer</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Amount</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Country</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDeals.map((deal, index) => {
-                  const dealFacilities = facilities.filter(f => 
-                    f.transactionId === deal.deal || f.investmentName === deal.deal
-                  );
-                  const totalCommitment = dealFacilities.reduce((sum, f) => sum + getFacilityCommitment(f), 0);
-                  // Dynamic status: Active if outstanding > 0 and before maturity, Closed if maturity passed and outstanding == 0, else Pending
-                  const maturity = dealFacilities[0]?.generalTerms?.maturityDate ? new Date(dealFacilities[0].generalTerms.maturityDate) : undefined;
-                  const outstanding = dealFacilities.reduce((s, f) => s + getFacilityOutstanding(f), 0);
-                  const now = new Date();
-                  let status = deal.status;
-                  if (outstanding > 0) status = 'Active';
-                  else if (maturity && now > maturity) status = 'Closed';
-                  else status = 'Pending';
-                  
-                  return (
-                    <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-900 font-medium">{deal.deal}</td>
-                      <td className="py-3 px-4 text-gray-600">{deal.issuer}</td>
-                      <td className="py-3 px-4 text-gray-900">
-                        {totalCommitment > 0 ? `$${totalCommitment.toLocaleString()}` : deal.amount || 'N/A'}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{deal.currency}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          status === 'Active' ? 'bg-green-100 text-green-800' :
-                          status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{deal.countryOfRisk}</td>
-                      <td className="py-3 px-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => navigate(`/investments/${encodeURIComponent(deal.deal)}`)}
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          View
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <Card className="p-4 bg-white shadow-sm">
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Total Commitment</h3>
+                    <p className="text-xl font-semibold text-gray-900">
+                      ${portfolioStats.totalCommitment.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">Portfolio commitment</p>
+                  </div>
+                </Card>
+                <Card className="p-4 bg-white shadow-sm">
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Total Funded</h3>
+                    <p className="text-xl font-semibold text-gray-900">
+                      ${portfolioStats.totalFunded.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">Disbursed amount</p>
+                  </div>
+                </Card>
+                <Card className="p-4 bg-white shadow-sm">
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Available</h3>
+                    <p className="text-xl font-semibold text-gray-900">
+                      ${portfolioStats.available.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">Remaining capacity</p>
+                  </div>
+                </Card>
+                <Card className="p-4 bg-white shadow-sm">
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Active Deals</h3>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {portfolioStats.activeDeals}
+                    </p>
+                    <p className="text-sm text-gray-500">Current investments</p>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Charts Section */}
+              <div className="grid grid-cols-3 gap-6 mb-6">
+                {/* Bar Chart */}
+                <Card className="col-span-2 p-4 bg-white shadow-sm">
+                  <div className="mb-4">
+                    <h3 className="font-medium text-gray-900 mb-2">Aconuecxista Redord</h3>
+                    <div className="text-sm text-gray-600">0 1 6 5</div>
+                  </div>
+                  <div className="h-40 flex items-end justify-center space-x-2">
+                    {barSeries.length === 0 ? (
+                      <div className="text-sm text-gray-500">No data</div>
+                    ) : (
+                      barSeries.slice(0, 10).map((b, i) => {
+                        const max = Math.max(...barSeries.map(x => x.value), 1);
+                        const h = Math.max(6, Math.round((b.value / max) * 140));
+                        const color = i % 2 === 0 ? 'bg-blue-400' : 'bg-amber-500';
+                        return (
+                          <div key={i} className="flex flex-col items-center">
+                            <div className={`w-8 ${color} rounded-t`} style={{ height: `${h}px` }} title={`${b.label}: ${b.value.toLocaleString()}`}></div>
+                            <div className="text-[10px] text-gray-600 mt-1 truncate max-w-[48px]" title={b.label}>{b.label}</div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </Card>
+
+                {/* Pie Chart */}
+                <Card className="p-4 bg-white shadow-sm">
+                  <div className="mb-4">
+                    <h3 className="font-medium text-gray-900">Split By Consort</h3>
+                  </div>
+                  <div className="flex items-center justify-center h-32">
+                    {pieSeries.length === 0 ? (
+                      <div className="text-sm text-gray-500">No data</div>
+                    ) : (
+                      <div className="relative w-40 h-40">
+                        {/* Simple donut via stacked arcs */}
+                        <svg viewBox="0 0 120 120" className="transform -rotate-90">
+                          <circle cx="60" cy="60" r="45" fill="none" stroke="#e5e7eb" strokeWidth="18" />
+                          {(() => {
+                            const total = pieSeries.reduce((s, p) => s + p.value, 0) || 1;
+                            let offset = 0;
+                            const colors = ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'];
+                            return pieSeries.slice(0, 6).map((p, i) => {
+                              const frac = p.value / total;
+                              const dash = 2 * Math.PI * 45 * frac;
+                              const gap = 2 * Math.PI * 45 - dash;
+                              const el = (
+                                <circle key={i} cx="60" cy="60" r="45" fill="none" stroke={colors[i % colors.length]} strokeWidth="18" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset} />
+                              );
+                              offset += dash;
+                              return el;
+                            });
+                          })()}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-xs text-gray-700">{pieSeries.length} groups</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {pieSeries.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      {pieSeries.slice(0,6).map((p, i) => (
+                        <div key={i} className="flex items-center text-xs text-gray-600">
+                          <span className="inline-block w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'][i % 6] }}></span>
+                          <span className="truncate">{p.label}</span>
+                          <span className="ml-auto">${p.value.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* Search Input */}
+              <div className="mb-4">
+                <Input 
+                  placeholder="Search by deal or issuer"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-64 bg-white shadow-sm"
+                />
+              </div>
+
+              {/* Data Table */}
+              <Card className="bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Deal Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Issuer</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Amount</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Country</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredDeals.map((deal, index) => {
+                        const dealFacilities = facilities.filter(f => 
+                          f.transactionId === deal.deal || f.investmentName === deal.deal
+                        );
+                        const totalCommitment = dealFacilities.reduce((sum, f) => sum + getFacilityCommitment(f), 0);
+                        // Dynamic status: Active if outstanding > 0 and before maturity, Closed if maturity passed and outstanding == 0, else Pending
+                        const maturity = dealFacilities[0]?.generalTerms?.maturityDate ? new Date(dealFacilities[0].generalTerms.maturityDate) : undefined;
+                        const outstanding = dealFacilities.reduce((s, f) => s + getFacilityOutstanding(f), 0);
+                        const now = new Date();
+                        let status = deal.status;
+                        if (outstanding > 0) status = 'Active';
+                        else if (maturity && now > maturity) status = 'Closed';
+                        else status = 'Pending';
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-4 text-gray-900 font-medium">{deal.deal}</td>
+                            <td className="py-3 px-4 text-gray-600">{deal.issuer}</td>
+                            <td className="py-3 px-4 text-gray-900">
+                              {totalCommitment > 0 ? `$${totalCommitment.toLocaleString()}` : deal.amount || 'N/A'}
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{deal.currency}</td>
+                            <td className="py-3 px-4">
+                              <span className={`${'px-2 py-1 rounded-full text-xs font-medium'} ${
+                                status === 'Active' ? 'bg-green-100 text-green-800' :
+                                status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-600">{deal.countryOfRisk}</td>
+                            <td className="py-3 px-4">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigate(`/investments/${encodeURIComponent(deal.deal)}`)}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                View
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </>
+          ) : (
+            <CovenantTrackingPage />
+          )}
         </div>
       </div>
     </div>
