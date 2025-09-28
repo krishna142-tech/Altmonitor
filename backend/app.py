@@ -3,6 +3,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
+import logging
 
 from .db import init_db, db_session
 from .models import CovenantEntry
@@ -12,6 +13,10 @@ from .parse_covenant import parse_compliance_certificate
 def create_app():
     app = Flask(__name__)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
     uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
     os.makedirs(uploads_dir, exist_ok=True)
@@ -23,7 +28,8 @@ def create_app():
 
     @app.route("/api/health", methods=["GET"])
     def health():
-        return jsonify({"status": "ok"})
+        logger.info("Health check endpoint called")
+        return jsonify({"status": "ok", "message": "Backend is running"})
 
     @app.route("/api/covenants", methods=["GET"])
     def list_covenants():
@@ -114,6 +120,9 @@ def create_app():
 if __name__ == "__main__":
     init_db()
     app = create_app()
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    port = int(os.environ.get("PORT", 5001))
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting Flask app on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
