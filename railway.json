@@ -1,7 +1,6 @@
-# Railway deployment configuration
-# Backend will run on Railway, frontend on Vercel
-
-# Environment variables needed:
-# COVENANT_DATABASE_URL=sqlite:///covenants.db (or PostgreSQL URL)
-
-# Railway will automatically detect Python and install requirements.txt
+{
+  "deploy": {
+    "startCommand": "python -m backend.app",
+    "healthcheckPath": "/api/health"
+  }
+}
