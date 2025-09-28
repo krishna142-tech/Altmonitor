@@ -1,4 +1,5 @@
-const API_BASE = (import.meta as any)?.env?.VITE_COVENANT_API || 'http://localhost:5001/api';
+const API_BASE = (import.meta as any)?.env?.VITE_COVENANT_API || 
+  (import.meta as any)?.env?.PROD ? 'https://your-backend-url.railway.app/api' : 'http://localhost:5001/api';
 
 export type CovenantEntry = {
   id?: number;
