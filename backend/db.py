@@ -3,7 +3,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
 
-DATABASE_URL = os.getenv("COVENANT_DATABASE_URL", "sqlite:///covenants.db")
+# Use Supabase PostgreSQL URL
+DATABASE_URL = os.getenv("COVENANT_DATABASE_URL") or os.getenv("SUPABASE_DATABASE_URL") or "sqlite:///covenants.db"
 
 engine = create_engine(
     DATABASE_URL,
