@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Date, Text
-from .db import Base
+from db import Base
 
 
 class CovenantEntry(Base):
