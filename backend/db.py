@@ -17,7 +17,7 @@ Base.query = db_session.query_property()
 
 def init_db():
     # Late import to avoid circular
-    from models import CovenantEntry  # noqa: F401
+    from .models import CovenantEntry  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
 

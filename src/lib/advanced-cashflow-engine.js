@@ -387,13 +387,15 @@ export function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
   // anchors (periods) generation - firstIPD override respected
   const anchors = []
   let cursor = accrualStart
+  let currentStart = accrualStart
   // If user provided firstInterestPaymentDate and it's > accrualStart, use it as the first 'to' date
   const firstIPD = loan.firstInterestPaymentDate ? parseToDT(loan.firstInterestPaymentDate) : null
 
   // If firstIPD exists and <= accrualStart, ignore it
   if (firstIPD && firstIPD > accrualStart) {
-    anchors.push({ start: accrualStart, end: firstIPD })
+    anchors.push({ start: currentStart, end: firstIPD })
     cursor = firstIPD
+    currentStart = firstIPD.plus({ days: 1 })
   }
 
   while (cursor < maturity) {
@@ -408,8 +410,9 @@ export function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
       next = candidate.startOf('day')
     }
     // If interestPaymentDates overrides exist and one falls after cursor and <= next, we could split - but we still keep anchors.
-    anchors.push({ start: cursor, end: next })
+    anchors.push({ start: currentStart, end: next })
     cursor = next
+    currentStart = next.plus({ days: 1 })
     if (anchors.length > 10000) throw new Error('Too many anchor periods (possible infinite loop)')
   }
   // Ensure last anchor ends exactly at maturity (not beyond)

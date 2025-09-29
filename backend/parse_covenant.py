@@ -1,4 +1,8 @@
 import re
+import os
+import json
+from urllib import request as urlrequest
+from urllib.error import URLError, HTTPError
 from datetime import datetime
 from typing import List, Tuple, Dict, Optional
 import logging
@@ -106,12 +110,42 @@ def parse_we_confirm_section(text: str) -> dict:
     return parse_key_value_pairs(section)
 
 
+def _extract_number_pair(s: str) -> Tuple[Optional[float], Optional[float]]:
+    # Extract patterns like "981,775 / 900,000" or "981,775/900,000"
+    m = re.search(r"([0-9][0-9,]*\.?[0-9]*)\s*/\s*([0-9][0-9,]*\.?[0-9]*)", s)
+    if not m:
+        return None, None
+    def conv(x: str) -> Optional[float]:
+        try:
+            return float(x.replace(",", ""))
+        except Exception:
+            return None
+    return conv(m.group(1)), conv(m.group(2))
+
+
 def parse_schedule_2(text: str) -> dict:
     sched_match = re.search(r"Schedule\s*2(.*?)(?:Schedule\s*3|\Z)", text, re.IGNORECASE | re.DOTALL)
     if not sched_match:
         return {}
     section = sched_match.group(1)
     values = parse_key_value_pairs(section)
+    # Try to extract actual/projected pairs from lines themselves
+    pairs: Dict[str, Dict[str, Optional[float]]] = {}
+    pair_targets = {
+        "Senior Net Debt": r"senior\s+net\s+debt[^\n]*",
+        "EBITDA for Test Period": r"ebitda\s+for\s+test\s+period[^\n]*|\bebitda\b[^\n]*",
+        "Cash Flow": r"cash\s*flow[^\n]*",
+        "Debt Service": r"debt\s*service[^\n]*",
+        "Net Interest Payable": r"net\s*interest[^\n]*",
+    }
+    for key, pat in pair_targets.items():
+        m = re.search(pat, section, re.IGNORECASE)
+        if m:
+            line = m.group(0)
+            a, b = _extract_number_pair(line)
+            if a is not None or b is not None:
+                pairs[key] = {"actual": a, "projected": b}
+
     # Also try to extract lock-up thresholds near ratio names
     threshold_map: Dict[str, str] = {}
     lines = [l.strip() for l in section.splitlines() if l.strip()]
@@ -125,12 +159,14 @@ def parse_schedule_2(text: str) -> dict:
             m = re.search(r"(lock[- ]?up\s*)?threshold\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
             if m:
                 threshold_map["Senior Cashflow DSCR"] = m.group(2)
-        if re.search(r"interest\s*cover", line, re.IGNORECASE):
+        if re.search(r"interest\s*cover|\bicr\b", line, re.IGNORECASE):
             m = re.search(r"(lock[- ]?up\s*)?threshold\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)", line, re.IGNORECASE)
             if m:
-                threshold_map["Senior Cashflow Interest Cover Ratio"] = m.group(2)
+                threshold_map["Senior Cashflow ICR"] = m.group(2)
     if threshold_map:
         values["__thresholds__"] = threshold_map
+    if pairs:
+        values["__pairs__"] = pairs
     return values
 
 
@@ -160,7 +196,7 @@ def compute_compliance(rows):
             # If < threshold -> EoD
             if threshold is not None and borrower_ratio is not None:
                 compliance = "Event of Default" if borrower_ratio < threshold else "Compliant"
-        elif "interest cover" in name:
+        elif "interest cover" in name or "icr" in name:
             if borrower_ratio is not None:
                 compliance = "Event of Default" if borrower_ratio < 2.0 else "Compliant"
 
@@ -233,34 +269,88 @@ def parse_compliance_certificate(pdf_path: str):
     calc_date = parse_calc_date(text)
     we_confirm = parse_we_confirm_section(text)
     schedule2 = parse_schedule_2(text)
+    # Optional: try to refine Schedule 2 numerators/denominators using Camelot if available
+    try:
+        import camelot  # type: ignore
+        tables = camelot.read_pdf(pdf_path, pages="all")
+        # Attempt to find rows of interest and extract pairs A/B
+        interest_keys = [
+            ("Senior Net Debt", ["senior", "net", "debt"]),
+            ("EBITDA for Test Period", ["ebitda", "test", "period"]),
+            ("Cash Flow", ["cash", "flow"]),
+            ("Debt Service", ["debt", "service"]),
+            ("Net Interest Payable", ["net", "interest"]),
+        ]
+        for t in tables:
+            try:
+                df = t.df
+            except Exception:
+                continue
+            for _, row in df.iterrows():
+                line = " ".join([str(x) for x in row.tolist() if str(x).strip()])
+                low = line.lower()
+                for key, tokens in interest_keys:
+                    if all(tok in low for tok in tokens):
+                        a, b = _extract_number_pair(line)
+                        if a is not None or b is not None:
+                            schedule2.setdefault("__pairs__", {})
+                            schedule2["__pairs__"][key] = {"actual": a, "projected": b}
+    except Exception:
+        # Camelot not available or PDF structure incompatible; ignore
+        pass
     borrower, lender = parse_borrower_lender(text)
 
     # Build rows combining keys that likely represent covenants
     covenant_rows = []
-    candidates = {
-        "Senior Net Debt to EBITDA": (we_confirm.get("Senior Net Debt to EBITDA") or schedule2.get("Senior Net Debt to EBITDA")),
-        "Senior Cashflow DSCR": (we_confirm.get("Senior Cashflow DSCR") or schedule2.get("Senior Cashflow DSCR")),
-        "Senior Cashflow Interest Cover Ratio": (we_confirm.get("Senior Cashflow Interest Cover Ratio") or schedule2.get("Senior Cashflow Interest Cover Ratio")),
+    # Map borrower ratios from multiple possible labels (Historic/Projected aliases)
+    def first_present(d: dict, keys: List[str]) -> Optional[str]:
+        for k in keys:
+            if d.get(k) is not None:
+                return d.get(k)
+        return None
+
+    borrowers = {
+        "Senior Net Debt to EBITDA": first_present(we_confirm, [
+            "Senior Net Debt to EBITDA",
+            "Historic Net Debt to EBITDA",
+            "Projected Net Debt to EBITDA",
+        ]),
+        "Senior Cashflow DSCR": first_present(we_confirm, [
+            "Senior Cashflow DSCR",
+            "Historic Cashflow DSCR",
+            "Projected Cashflow DSCR",
+        ]),
+        "Senior Cashflow ICR": first_present(we_confirm, [
+            "Senior Cashflow ICR",
+            "Historic Cashflow ICR",
+            "Projected Cashflow ICR",
+            "Senior Cashflow Interest Cover Ratio",
+            "Historic Cashflow Interest Cover Ratio",
+            "Projected Cashflow Interest Cover Ratio",
+        ]),
     }
 
     # thresholds from the text if present (look for nearby 'threshold' words)
     # As a simple heuristic, use the same value where only one number found; these can be edited manually later.
     thresholds = schedule2.get("__thresholds__", {}) if isinstance(schedule2, dict) else {}
-    # Extract base numerics from Schedule 2 for lender recompute
-    net_debt = normalize_number(schedule2.get("Senior Net Debt")) if isinstance(schedule2, dict) else None
-    ebitda = normalize_number(schedule2.get("EBITDA")) if isinstance(schedule2, dict) else None
-    cash_flow = normalize_number(schedule2.get("Cash Flow")) if isinstance(schedule2, dict) else None
-    debt_service = normalize_number(schedule2.get("Debt Service")) if isinstance(schedule2, dict) else None
-    net_interest = normalize_number(schedule2.get("Net Interest")) if isinstance(schedule2, dict) else None
+    # Extract base numerics (actuals) from Schedule 2 for lender recompute
+    pairs = schedule2.get("__pairs__", {}) if isinstance(schedule2, dict) else {}
+    net_debt = pairs.get("Senior Net Debt", {}).get("actual") if isinstance(pairs, dict) else None
+    ebitda = pairs.get("EBITDA for Test Period", {}).get("actual") if isinstance(pairs, dict) else None
+    cash_flow = pairs.get("Cash Flow", {}).get("actual") if isinstance(pairs, dict) else None
+    debt_service = pairs.get("Debt Service", {}).get("actual") if isinstance(pairs, dict) else None
+    net_interest = pairs.get("Net Interest Payable", {}).get("actual") if isinstance(pairs, dict) else None
 
-    for name, val in candidates.items():
+    filename = pdf_path.split("/")[-1].split("\\")[-1]
+
+    for name, val in borrowers.items():
         if val is None:
             # try compute from components
             if name == "Senior Net Debt to EBITDA" and net_debt is not None and ebitda is not None and ebitda != 0:
                 val = f"{net_debt / ebitda:.2f}x"
             elif name == "Senior Cashflow DSCR" and cash_flow is not None and debt_service is not None and debt_service != 0:
                 val = f"{cash_flow / debt_service:.2f}x"
-            elif name == "Senior Cashflow Interest Cover Ratio" and cash_flow is not None and net_interest is not None and net_interest != 0:
+            elif name == "Senior Cashflow ICR" and cash_flow is not None and net_interest is not None and net_interest != 0:
                 val = f"{cash_flow / net_interest:.2f}x"
 
         borrower_ratio = val
@@ -272,7 +362,7 @@ def parse_compliance_certificate(pdf_path: str):
             lender_ratio_num = round(net_debt / ebitda, 2)
         elif name == "Senior Cashflow DSCR" and cash_flow is not None and debt_service is not None and debt_service != 0:
             lender_ratio_num = round(cash_flow / debt_service, 2)
-        elif name == "Senior Cashflow Interest Cover Ratio" and cash_flow is not None and net_interest is not None and net_interest != 0:
+        elif name == "Senior Cashflow ICR" and cash_flow is not None and net_interest is not None and net_interest != 0:
             lender_ratio_num = round(cash_flow / net_interest, 2)
 
         threshold_val = thresholds.get(name) if isinstance(thresholds, dict) else None
@@ -297,7 +387,7 @@ def parse_compliance_certificate(pdf_path: str):
             "consequence": consequence,
             "compliance_check": compliance,
             "comment": None,
-            "source_file": None,
+            "source_file": filename,
             "reference_file": None,
         }
         covenant_rows.append(row)
@@ -308,7 +398,7 @@ def parse_compliance_certificate(pdf_path: str):
         "EBITDA",
         "Cash Flow",
         "Debt Service",
-        "Net Interest",
+        "Net Interest Payable",
     ]
     for metric in base_metrics:
         val = schedule2.get(metric)
@@ -352,6 +442,7 @@ def parse_compliance_certificate(pdf_path: str):
 
     # Also produce normalized API items for the new JSON shape with references
     items = []
+    covenants_json = []
     filename = pdf_path.split("/")[-1].split("\\")[-1]
     for r in covenant_rows:
         name = r.get("covenant_name") or ""
@@ -381,10 +472,124 @@ def parse_compliance_certificate(pdf_path: str):
             "reference": page_ref or "",
         })
 
+        # Build covenants schema entry if this is one of the three target ratios
+        if name in ("Senior Net Debt to EBITDA", "Senior Cashflow DSCR", "Senior Cashflow ICR"):
+            # Determine numerator/denominator from pairs
+            num = None
+            den = None
+            if name == "Senior Net Debt to EBITDA":
+                num = net_debt
+                den = ebitda
+            elif name == "Senior Cashflow DSCR":
+                num = cash_flow
+                den = debt_service
+            elif name == "Senior Cashflow ICR":
+                num = cash_flow
+                den = net_interest
+
+            covenants_json.append({
+                "name": name,
+                "ratio": normalize_number(r.get("borrower_calc")) if r.get("borrower_calc") else None,
+                "numerator": num,
+                "denominator": den,
+                "threshold": normalize_number(thresh) if thresh else None,
+                "consequence": consequence,
+                "compliance": r.get("compliance_check") or compliance,
+                "sourceFile": filename,
+            })
+
+    # AI fallback: if key ratios missing, query LLM to extract
+    def needs_ai(covs):
+        # Use Gemini as the primary extractor: always attempt AI
+        return True
+
+    if needs_ai(covenants_json):
+        # Prefer Gemini (Google Generative Language API) if available
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if google_key:
+            try:
+                schema_example = {"covenants":[{"name":"string","ratio":0.0,"numerator":0.0,"denominator":0.0,"threshold":0.0,"consequence":"string","compliance":"string","sourceFile":"string"}]}
+                schema_str = json.dumps(schema_example)
+                prompt = (
+                    "Extract covenant ratios (Net Debt to EBITDA, Cashflow DSCR, Cashflow ICR), their numerators and denominators, thresholds, and compliance status from this Compliance Certificate. "
+                    f"Return ONLY JSON with schema {schema_str} .\n\n"
+                    f"PDF Text:\n{text[:15000]}"
+                )
+                body = json.dumps({
+                    "contents": [
+                        {"role": "user", "parts": [{"text": prompt}]}
+                    ]
+                }).encode("utf-8")
+                req = urlrequest.Request(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={google_key}",
+                    data=body,
+                    headers={
+                        "Content-Type": "application/json",
+                    },
+                )
+                with urlrequest.urlopen(req, timeout=30) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                    text_parts = (
+                        payload.get("candidates", [{}])[0]
+                        .get("content", {})
+                        .get("parts", [{}])
+                    )
+                    content_text = "\n".join([p.get("text", "") for p in text_parts])
+                    if content_text:
+                        # Some models return markdown fencing; strip if present
+                        cleaned = content_text.strip()
+                        if cleaned.startswith("```"):
+                            cleaned = cleaned.strip("`\n ")
+                        ai_obj = json.loads(cleaned)
+                        ai_covs = ai_obj.get("covenants")
+                        if isinstance(ai_covs, list) and ai_covs:
+                            covenants_json = ai_covs
+            except (URLError, HTTPError, json.JSONDecodeError, Exception):
+                pass
+        # Fallback to OpenAI if configured
+        if not covenants_json:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                try:
+                    schema_example = {"covenants":[{"name":"string","ratio":0.0,"numerator":0.0,"denominator":0.0,"threshold":0.0,"consequence":"string","compliance":"string","sourceFile":"string"}]}
+                    schema_str = json.dumps(schema_example)
+                    prompt = (
+                        "Extract covenant ratios (Net Debt to EBITDA, Cashflow DSCR, Cashflow ICR), their numerators and denominators, thresholds, and compliance status from this Compliance Certificate. "
+                        f"Return ONLY JSON with schema {schema_str} .\n\n"
+                        f"PDF Text:\n{text[:15000]}"
+                    )
+                    body = json.dumps({
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {"role": "system", "content": "You are a precise information extractor."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        "response_format": {"type": "json_object"}
+                    }).encode("utf-8")
+                    req = urlrequest.Request(
+                        "https://api.openai.com/v1/chat/completions",
+                        data=body,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                    )
+                    with urlrequest.urlopen(req, timeout=30) as resp:
+                        payload = json.loads(resp.read().decode("utf-8"))
+                        content = payload.get("choices", [{}])[0].get("message", {}).get("content")
+                        if content:
+                            ai_obj = json.loads(content)
+                            ai_covs = ai_obj.get("covenants")
+                            if isinstance(ai_covs, list) and ai_covs:
+                                covenants_json = ai_covs
+                except (URLError, HTTPError, json.JSONDecodeError, Exception):
+                    pass
+
     return {
         "calc_date": calc_date.isoformat() if calc_date else None,
         "rows": covenant_rows,
         "items": items,
+        "covenants": covenants_json,
         "raw_keys": {"we_confirm": we_confirm, "schedule2": schedule2},
     }
 

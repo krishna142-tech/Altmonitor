@@ -6,4 +6,8 @@ PyPDF2==3.0.1
 werkzeug==3.0.3
 pdf2image==1.17.0
 pytesseract==0.3.10
-psycopg2-binary==2.9.9
+# Optional: install a Postgres driver only if you use Postgres in production.
+# On Windows, psycopg2-binary wheels may be unavailable. Install later as needed.
+# psycopg2-binary==2.9.9
+# Alternatively for psycopg3:
+# psycopg[binary]==3.2.1

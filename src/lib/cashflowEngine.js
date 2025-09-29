@@ -327,8 +327,8 @@ function generateCashflowSchedule(params, options = {}) {
       undrawn: Number(undrawn.toFixed(6)),
     });
 
-    // step period
-    from = clone(to);
+    // step period: next fromDate is the day after current toDate
+    from = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
     to = computeScheduleDate(to, cashTerm);
     // stop if we overshoot maturity by more than a day
     if (to > maturity && diffDays(maturity, to) !== 0) {

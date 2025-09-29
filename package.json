@@ -8,6 +8,7 @@
     "setup:backend": "cmd /C \"python -m venv .venv && .\\.venv\\Scripts\\python.exe -m pip install --upgrade pip && .\\.venv\\Scripts\\python.exe -m pip install -r backend\\requirements.txt\"",
     "dev:backend": ".\\.venv\\Scripts\\python.exe -m backend.app",
     "dev:all": "concurrently -n FRONTEND,BACKEND -c green,blue \"npm:dev\" \"npm:dev:backend\"",
+    "dev:all:setup": "npm run setup:backend && npm run dev:all",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
