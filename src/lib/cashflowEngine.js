@@ -67,7 +67,9 @@ function isHoliday(d, holidaysSet) {
 function adjustBusinessDay(d, convention, holidaysSet) {
   if (convention === "None") return d;
 
-  const tmp = clone(d);
+  const original = clone(d);
+  const origMonth = d.getMonth();
+
   if (convention === "Following") {
     while (isHoliday(d, holidaysSet)) d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
     return d;
@@ -77,10 +79,9 @@ function adjustBusinessDay(d, convention, holidaysSet) {
     return d;
   }
   if (convention === "Modified Following") {
-    const month = d.getMonth();
     while (isHoliday(d, holidaysSet)) d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-    if (d.getMonth() !== month) {
-      d = clone(tmp);
+    if (d.getMonth() !== origMonth) {
+      d = clone(original);
       while (isHoliday(d, holidaysSet)) d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
     }
     return d;
@@ -89,8 +90,15 @@ function adjustBusinessDay(d, convention, holidaysSet) {
 }
 
 // Day count conventions
+function toUtcMidnight(d) {
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 function diffDays(a, b) {
-  return Math.round((b - a) / (24 * 3600 * 1000));
+  // Use UTC-midnight to avoid DST issues and ensure integer day differences
+  const au = toUtcMidnight(a);
+  const bu = toUtcMidnight(b);
+  return Math.floor((bu - au) / (24 * 3600 * 1000));
 }
 
 function yearFraction(from, to, dcc) {
@@ -261,7 +269,9 @@ function generateCashflowSchedule(params, options = {}) {
   const holidaysSet = buildHolidaysSet(options);
   const dcc = cashTerm.dayCountConvention || "ACT/365";
   const marginPct = Number(cashTerm.margin || 0);
+  const defaultRatePct = Number(cashTerm.defaultRate || 0);
   const margin = marginPct / 100;
+  const defaultRate = defaultRatePct / 100;
   const commitFeePct = Number(options.commitmentFeePct || marginPct) / 100;
 
   const rows = [];
@@ -284,6 +294,7 @@ function generateCashflowSchedule(params, options = {}) {
       if (override) scheduleIPD = override;
     }
 
+    // Apply business day adjustment to the payment date (IPD) per convention
     const adjustedIPD = cashTerm.holidayAdjustment
       ? adjustBusinessDay(clone(scheduleIPD), cashTerm.holidayConvention || "Following", holidaysSet)
       : scheduleIPD;
@@ -293,7 +304,7 @@ function generateCashflowSchedule(params, options = {}) {
 
     // reference rate (fixed or from curve)
     const baseRate = getBaseRate(to, cashTerm, options); // decimal (e.g., 0.0525)
-    const allIn = baseRate + margin;
+    const allIn = baseRate + margin + defaultRate;
 
     // events
     const periodDrawn = applyDrawdowns(drawdowns, from, to);
@@ -319,6 +330,7 @@ function generateCashflowSchedule(params, options = {}) {
       yearFraction: Number(yf.toFixed(10)),
       baseRatePct: Number((baseRate * 100).toFixed(6)),
       marginPct: Number(marginPct.toFixed(6)),
+      defaultRatePct: Number(defaultRatePct.toFixed(6)),
       allInRatePct: Number((allIn * 100).toFixed(6)),
       interestDue: Number(interestDue.toFixed(6)),
       principalDue: Number(principalDue.toFixed(6)),
@@ -327,7 +339,7 @@ function generateCashflowSchedule(params, options = {}) {
       undrawn: Number(undrawn.toFixed(6)),
     });
 
-    // step period: next fromDate is the day after current toDate
+    // step period: next fromDate is the day after current toDate to ensure continuity
     from = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
     to = computeScheduleDate(to, cashTerm);
     // stop if we overshoot maturity by more than a day

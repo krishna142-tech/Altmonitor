@@ -644,8 +644,9 @@ function serializeRowForUI(row, serialize = 'number') {
     // matching Excel headers (you can change keys to exact UI keys)
     'From Date': row.interestStartDate,
     'To Date': row.interestEndDate,
-    'Edate': row.scheduledInterestPaymentDate,
-    'Eomonth': row.scheduledInterestPaymentDate ? DateTime.fromISO(row.scheduledInterestPaymentDate).endOf('month').toISODate() : row.scheduledInterestPaymentDate,
+    // Edate must equal To Date per requirements
+    'Edate': row.interestEndDate,
+    'Eomonth': row.interestEndDate ? DateTime.fromISO(row.interestEndDate).endOf('month').toISODate() : row.interestEndDate,
     'Schedule IPD': row.scheduledInterestPaymentDate,
     'Adjusted IPD': row.adjustedInterestPaymentDate,
     'Days': Number(row.noOfDays || 0),
