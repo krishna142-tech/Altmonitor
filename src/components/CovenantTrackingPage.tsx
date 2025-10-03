@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Upload, Save, PlusCircle } from 'lucide-react';
 import { uploadCompliancePdf, listCovenants, saveCovenants, type CovenantEntry, getPortfolioPeriods, uploadPortfolioExcel, uploadPortfolioPdf, updatePeriod } from '@/lib/covenantApi';
-import { Calendar } from 'lucide-react';
+ 
 
 type Row = CovenantEntry & { sno?: number };
 
@@ -52,7 +52,23 @@ const CovenantTrackingPage: React.FC = () => {
     (async () => {
       try {
         const result = await getPortfolioPeriods(portfolioId);
-        if (Array.isArray(result)) setPeriods(result);
+        if (Array.isArray(result)) {
+          // sort desc by ipd_date
+          const sorted = [...result].sort((a:any,b:any)=> (a.ipd_date > b.ipd_date ? -1 : a.ipd_date < b.ipd_date ? 1 : 0));
+          setPeriods(sorted);
+          if (sorted.length > 0) {
+            const latest = sorted[0];
+            setSelectedPeriodId(latest.id);
+            setCalcDate(latest.ipd_date);
+            try{
+              const res:any = await getPortfolioPeriods(portfolioId, latest.ipd_date);
+              if (res && (res as any).entries) {
+                const withSno = (res as any).entries.map((r:any, i:number)=> ({...r, sno: i+1 }));
+                setRows(withSno);
+              }
+            }catch(e){}
+          }
+        }
       } catch (e:any) {}
     })();
   }, [portfolioId]);
@@ -162,10 +178,7 @@ const CovenantTrackingPage: React.FC = () => {
     }
   };
 
-  const onFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) handleUpload(f);
-  };
+  
 
   const addEmptyRow = () => {
     setRows(prev => {
@@ -188,10 +201,11 @@ const CovenantTrackingPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-lg font-semibold">Covenant Tracking</h2>
-        <div className="flex gap-2">
+        <p className='text-sm text-red-600'>*make sure there is no notes if you upload excel cause the code can be misdirected</p>
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setShowExcelUpload(true)} disabled={uploading}>
             <Upload className="w-4 h-4 mr-2" /> Upload Excel
           </Button>
@@ -242,30 +256,22 @@ const CovenantTrackingPage: React.FC = () => {
                     </td>
                     <td className="py-2 px-2">{p.display_name}</td>
                     <td className="py-2 px-2">
-                      <select className="bg-transparent border rounded px-2 py-1" value={p.template_status}
-                        onChange={async (e)=>{
-                          const val = e.target.value as 'Draft'|'Approved';
-                          const updated = await updatePeriod(portfolioId, p.id, { template_status: val });
+                      <label className="inline-flex items-center gap-2">
+                        <input type="checkbox" checked={p.template_status === 'Approved'} onChange={async (e)=>{
+                          const nextStatus = e.target.checked ? 'Approved' : 'Draft';
+                          const updated = await updatePeriod(portfolioId, p.id, { template_status: nextStatus });
                           setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
-                        }}>
-                        <option>Draft</option>
-                        <option>Approved</option>
-                      </select>
+                        }} />
+                        <span className="text-sm">{p.template_status}</span>
+                      </label>
                     </td>
                     <td className="py-2 px-2">
-                      <select className="bg-transparent border rounded px-2 py-1" value={p.source}
-                        onChange={async (e)=>{
-                          const val = e.target.value as 'Actuals'|'Provisional';
-                          const updated = await updatePeriod(portfolioId, p.id, { source: val, is_provisional: val==='Provisional' });
-                          setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
-                        }}>
-                        <option>Actuals</option>
-                        <option>Provisional</option>
-                      </select>
+                      <span className="text-sm px-2 py-1 inline-block border rounded bg-gray-50">{p.source}</span>
                     </td>
                     <td className="py-2 px-2">
                       <input type="checkbox" checked={!!p.is_provisional} onChange={async (e)=>{
-                        const updated = await updatePeriod(portfolioId, p.id, { is_provisional: e.target.checked });
+                        const checked = e.target.checked;
+                        const updated = await updatePeriod(portfolioId, p.id, { is_provisional: checked, source: checked ? 'Provisional' : 'Actuals' });
                         setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
                       }} />
                     </td>
@@ -324,11 +330,12 @@ const CovenantTrackingPage: React.FC = () => {
             </div>
           </div>
         )}
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               {headers.map(h => (
-                <TableHead key={h} className={h === 'Covenant Name' ? 'min-w-[280px]' : ''}>{h}</TableHead>
+                <TableHead key={h} className={h === 'Covenant Name' ? 'min-w-[220px] sm:min-w-[280px]' : ''}>{h}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
@@ -337,19 +344,19 @@ const CovenantTrackingPage: React.FC = () => {
               <TableRow key={i}>
                 <TableCell>{r.sno || i + 1}</TableCell>
                 <TableCell>
-                  <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)} />
+                  <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="w-full min-w-[220px] sm:min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.threshold || ''} placeholder="N/A" onChange={e => handleChange(i, 'threshold', e.target.value)} />
+                  <Input value={r.threshold || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'threshold', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} onChange={e => handleChange(i, 'consequence', e.target.value)} />
+                  <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} className="w-full" onChange={e => handleChange(i, 'consequence', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.borrower_calc || ''} placeholder="N/A" onChange={e => handleChange(i, 'borrower_calc', e.target.value)} />
+                  <Input value={r.borrower_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'borrower_calc', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.lender_calc || ''} placeholder="N/A" onChange={e => handleChange(i, 'lender_calc', e.target.value)} />
+                  <Input value={r.lender_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'lender_calc', e.target.value)} />
                 </TableCell>
                 <TableCell>
                   {(() => {
@@ -362,18 +369,19 @@ const CovenantTrackingPage: React.FC = () => {
                   })()}
                 </TableCell>
                 <TableCell>
-                  <Input value={r.comment || ''} placeholder="N/A" onChange={e => handleChange(i, 'comment', e.target.value)} />
+                  <Input value={r.comment || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'comment', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.source_file || ''} placeholder="N/A" onChange={e => handleChange(i, 'source_file', e.target.value)} />
+                  <Input value={r.source_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'source_file', e.target.value)} />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.reference_file || ''} placeholder="N/A" onChange={e => handleChange(i, 'reference_file', e.target.value)} />
+                  <Input value={r.reference_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'reference_file', e.target.value)} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        </div>
         <div className="mt-3">
           <Button variant="outline" onClick={addEmptyRow}>
             <PlusCircle className="w-4 h-4 mr-2" /> Add Row
@@ -383,7 +391,7 @@ const CovenantTrackingPage: React.FC = () => {
 
       {showUpload && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-md border w-[480px]">
+          <div className="bg-background p-6 rounded-md border w-[90vw] max-w-[480px]">
             <h3 className="text-base font-semibold mb-4">Upload Compliance Certificate (PDF)</h3>
             <input type="file" accept="application/pdf" onChange={async (e)=>{
               const f = e.target.files?.[0];
@@ -445,15 +453,15 @@ const CovenantTrackingPage: React.FC = () => {
 
       {showExcelUpload && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-md border w-[520px]">
+          <div className="bg-background p-6 rounded-md border w-[90vw] max-w-[520px]">
             <h3 className="text-base font-semibold mb-4">Upload Covenant Data (Excel/CSV)</h3>
             <div className="space-y-2 mb-3">
               <label className="text-sm">Portfolio ID</label>
-              <Input value={portfolioId} onChange={(e)=> setPortfolioId(e.target.value)} placeholder="e.g., DEAL-123" />
+              <Input className="w-full" value={portfolioId} onChange={(e)=> setPortfolioId(e.target.value)} placeholder="e.g., DEAL-123" />
               <label className="text-sm">IPD Date (YYYY-MM-DD)</label>
-              <Input value={ipdDateInput} onChange={(e)=> setIpdDateInput(e.target.value)} placeholder="2025-03-31" />
+              <Input className="w-full" value={ipdDateInput} onChange={(e)=> setIpdDateInput(e.target.value)} placeholder="2025-03-31" />
               <label className="text-sm">Display Name</label>
-              <Input value={displayNameInput} onChange={(e)=> setDisplayNameInput(e.target.value)} placeholder="Mar-2025" />
+              <Input className="w-full" value={displayNameInput} onChange={(e)=> setDisplayNameInput(e.target.value)} placeholder="Mar-2025" />
             </div>
             <input type="file" accept=".xlsx,.xls,.csv" onChange={async (e)=>{
               const f = e.target.files?.[0];
