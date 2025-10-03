@@ -494,6 +494,7 @@ export function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
       indexedInterestAmountReceived: new Decimal(0),
       closingBalance: ctx.outstanding,
       margin: new Decimal(loan.margin || 0),
+      defaultRate: new Decimal(loan.defaultRate || 0),
       referenceRate: new Decimal(0),
       allInRate: new Decimal(0),
       currency: loan.currency,
@@ -541,9 +542,11 @@ export function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
     const segEndISO = segEnd.toISODate()
     const refRate = getRefRateForDate(loan, maps.refRateMap, segEndISO, options) // Decimal
     const marginDec = new Decimal(loan.margin || 0) // note: loan.margin typically decimal (e.g., 0.05) or percent? Accept both. We'll treat as decimal unless user used percent.
+    const defaultRateDec = new Decimal(loan.defaultRate || 0)
     // if user provided margin in percent (common), convert if >1: (5 -> 0.05)
     const marginNormalized = marginDec.greaterThan(1) ? marginDec.div(100) : marginDec
-    const allIn = refRate.plus(marginNormalized)
+    const defaultRateNormalized = defaultRateDec.greaterThan(1) ? defaultRateDec.div(100) : defaultRateDec
+    const allIn = refRate.plus(marginNormalized).plus(defaultRateNormalized)
     // compute interest for the segment using outstanding at segStart
     const interestSeg = ctx.outstanding.times(allIn).times(segYF)
     // commitment fee prorated for undrawn at segStart
@@ -570,8 +573,11 @@ export function generateAdvancedSchedule(loan = {}, events = [], options = {}) {
   // normalize margin as decimal (if recorded as percent > 1)
   const marginNormalizedFinal = new Decimal(loan.margin || 0)
   const marginFinal = marginNormalizedFinal.greaterThan(1) ? marginNormalizedFinal.div(100) : marginNormalizedFinal
+  const defaultRateFinalRaw = new Decimal(loan.defaultRate || 0)
+  const defaultRateFinal = defaultRateFinalRaw.greaterThan(1) ? defaultRateFinalRaw.div(100) : defaultRateFinalRaw
   row.margin = marginFinal
-  row.allInRate = refRateAdj.plus(marginFinal)
+  row.defaultRate = defaultRateFinal
+  row.allInRate = refRateAdj.plus(marginFinal).plus(defaultRateFinal)
 
   // FX revaluation outstanding -> base currency
   const fxOutstanding = getFXRate(maps.fxMap, loan.currency, baseCurrency, adjustedISO)
@@ -644,20 +650,22 @@ function serializeRowForUI(row, serialize = 'number') {
     // matching Excel headers (you can change keys to exact UI keys)
     'From Date': row.interestStartDate,
     'To Date': row.interestEndDate,
-    'Edate': row.scheduledInterestPaymentDate,
-    'Eomonth': row.scheduledInterestPaymentDate ? DateTime.fromISO(row.scheduledInterestPaymentDate).endOf('month').toISODate() : row.scheduledInterestPaymentDate,
+    // Edate must equal To Date per requirements
+    'Edate': row.interestEndDate,
+    'Eomonth': row.interestEndDate ? DateTime.fromISO(row.interestEndDate).endOf('month').toISODate() : row.interestEndDate,
     'Schedule IPD': row.scheduledInterestPaymentDate,
     'Adjusted IPD': row.adjustedInterestPaymentDate,
     'Days': Number(row.noOfDays || 0),
     'Year Fraction': typeof row.yearFraction.toNumber === 'function' ? Number(row.yearFraction.toNumber()) : Number(row.yearFraction),
-    'Margin': serializeDecimal(row.margin, serialize),
-    'Base Rate': serializeDecimal(row.referenceRate, serialize),
-    'All In Rate': serializeDecimal(row.allInRate, serialize),
-    'Interest Due': serializeDecimal(row.interestAmountDue, serialize),
-    'Principal Due': serializeDecimal(row.amortisationDue.plus ? row.amortisationDue : row.amortisationDue, serialize),
-    'Commitment Fee Due': serializeDecimal(row.commitmentFeeDue, serialize),
-    'Outstanding': serializeDecimal(row.closingBalance, serialize),
-    'Undrawn': serializeDecimal(row.undrawnAmount, serialize),
+    'Margin': serializeDecimal(row.margin || 0, serialize),
+    'Default Rate': serializeDecimal(row.defaultRate || 0, serialize),
+    'Base Rate': serializeDecimal(row.referenceRate || 0, serialize),
+    'All In Rate': serializeDecimal(row.allInRate || 0, serialize),
+    'Interest Due': serializeDecimal(row.interestAmountDue || 0, serialize),
+    'Principal Due': serializeDecimal(row.amortisationDue.plus ? row.amortisationDue : (row.amortisationDue || 0), serialize),
+    'Commitment Fee Due': serializeDecimal(row.commitmentFeeDue || 0, serialize),
+    'Outstanding': serializeDecimal(row.closingBalance || 0, serialize),
+    'Undrawn': serializeDecimal(row.undrawnAmount || 0, serialize),
     // extras (raw)
     '_raw': {
       drawdowns: (row.drawdowns || []).map((d) => ({ ...d })),
