@@ -4,10 +4,11 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 import logging
+ 
 
 from .db import init_db, db_session
 from .models import CovenantEntry, CovenantPeriod, CovenantEntryV2, Document
-from .parse_covenant import parse_compliance_certificate
+from .parse_covenant import parse_compliance_certificate, parse_xlsx
 
 
 def create_app():
@@ -22,6 +23,8 @@ def create_app():
     os.makedirs(uploads_dir, exist_ok=True)
     app.config["UPLOAD_FOLDER"] = uploads_dir
 
+    # Swagger / OpenAPI setup removed
+
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         db_session.remove()
@@ -30,6 +33,8 @@ def create_app():
     def health():
         logger.info("Health check endpoint called")
         return jsonify({"status": "ok", "message": "Backend is running"})
+
+    # Docs routes removed
 
     @app.route("/api/covenants", methods=["GET"])
     def list_covenants():
@@ -59,8 +64,13 @@ def create_app():
             return jsonify({"error": "Expected a list of covenant entries"}), 400
 
         saved = []
+        skipped = 0
         for item in data:
             try:
+                # Skip rows without a covenant name
+                if not (item.get("covenant_name") and str(item.get("covenant_name")).strip()):
+                    skipped += 1
+                    continue
                 calc_date_raw = item.get("calc_date")
                 if isinstance(calc_date_raw, str):
                     try:
@@ -89,7 +99,11 @@ def create_app():
                 return jsonify({"error": f"Failed to save entry: {ex}"}), 400
 
         db_session.commit()
-        return jsonify([e.to_dict() for e in saved]), 201
+        result = [e.to_dict() for e in saved]
+        # Include metadata if some rows were skipped
+        if skipped:
+            return jsonify({"saved": result, "skipped": skipped}), 201
+        return jsonify(result), 201
 
     @app.route("/api/covenants/upload", methods=["POST"])
     def upload_and_parse():
@@ -152,54 +166,53 @@ def create_app():
         db_session.add(doc)
         db_session.commit()
 
-        # Basic CSV/XLSX parsing placeholder: expect a simple CSV-like content if .csv
-        rows = []
+        # Parse spreadsheet: support .xlsx via parse_xlsx and .csv via DictReader
         try:
-            if filename.lower().endswith(".csv"):
+            if filename.lower().endswith(".xlsx"):
+                parsed = parse_xlsx(save_path)
+            elif filename.lower().endswith(".csv"):
                 import csv
+                covenants = []
                 with open(save_path, newline="", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for r in reader:
-                        rows.append({
-                            "covenant_name": r.get("covenant_name") or r.get("Covenant") or "",
-                            "threshold": r.get("threshold") or r.get("Threshold") or "",
-                            "borrower_calc": r.get("borrower_calc") or r.get("Borrower") or "",
-                            "lender_calc": r.get("lender_calc") or r.get("Lender") or "",
-                            "consequence": r.get("consequence") or r.get("Consequence") or "",
-                            "compliance_check": r.get("compliance_check") or r.get("Compliance") or "",
-                            "comment": r.get("comment") or r.get("Comment") or "",
-                            "source_file": filename,
-                            "reference_file": r.get("reference") or r.get("Reference") or "",
+                        covenants.append({
+                            "Covenant Name": r.get("Covenant Name") or r.get("covenant_name") or r.get("Covenant") or "",
+                            "Threshold": r.get("Threshold") or r.get("threshold") or "",
+                            "Borrower Calculation": r.get("Borrower Calculation") or r.get("borrower_calc") or r.get("Borrower") or "",
+                            "Lender Calculation": r.get("Lender Calculation") or r.get("lender_calc") or r.get("Lender") or "",
+                            "Consequence": r.get("Consequence") or r.get("consequence") or "",
+                            "Compliance Check": r.get("Compliance Check") or r.get("compliance_check") or r.get("Compliance") or "",
+                            "Comment": r.get("Comment") or r.get("comment") or "",
+                            "Source File": filename,
+                            "Reference File": r.get("Reference File") or r.get("reference_file") or r.get("Reference") or "",
                         })
+                parsed = [{"Calculation Date": None, "Show in Report": None, "SNO": None, "Covenants": covenants}]
             else:
-                # For xlsx, require pandas if available
-                try:
-                    import pandas as pd  # type: ignore
-                    df = pd.read_excel(save_path)
-                    for _, r in df.iterrows():
-                        rows.append({
-                            "covenant_name": str(r.get("covenant_name") or r.get("Covenant") or ""),
-                            "threshold": str(r.get("threshold") or r.get("Threshold") or ""),
-                            "borrower_calc": str(r.get("borrower_calc") or r.get("Borrower") or ""),
-                            "lender_calc": str(r.get("lender_calc") or r.get("Lender") or ""),
-                            "consequence": str(r.get("consequence") or r.get("Consequence") or ""),
-                            "compliance_check": str(r.get("compliance_check") or r.get("Compliance") or ""),
-                            "comment": str(r.get("comment") or r.get("Comment") or ""),
-                            "source_file": filename,
-                            "reference_file": str(r.get("reference") or r.get("Reference") or ""),
-                        })
-                except Exception:
-                    return jsonify({"error": "Install pandas to parse Excel or upload CSV"}), 400
+                return jsonify({"error": "Unsupported file type. Upload .xlsx or .csv"}), 400
         except Exception as ex:
             return jsonify({"error": f"Failed to parse file: {ex}"}), 400
 
-        # Create or find a period by query param ipd_date, otherwise today
+        # Determine period ipd_date
         ipd_date_qs = request.args.get("ipd_date")
         display_name = request.args.get("display_name")
-        try:
-            ipd_date = datetime.strptime(ipd_date_qs, "%Y-%m-%d").date() if ipd_date_qs else datetime.utcnow().date()
-        except Exception:
-            return jsonify({"error": "Invalid ipd_date"}), 400
+        ipd_date = None
+        if ipd_date_qs:
+            try:
+                ipd_date = datetime.strptime(ipd_date_qs, "%Y-%m-%d").date()
+            except Exception:
+                return jsonify({"error": "Invalid ipd_date"}), 400
+        else:
+            # Fallback to first Calculation Date from sheet
+            try:
+                first_calc_date = next((item.get("Calculation Date") for item in parsed if item.get("Calculation Date")), None)
+                if first_calc_date is not None:
+                    # openpyxl may return datetime or date
+                    ipd_date = first_calc_date.date() if hasattr(first_calc_date, "date") else first_calc_date
+                else:
+                    ipd_date = datetime.utcnow().date()
+            except Exception:
+                ipd_date = datetime.utcnow().date()
         if not display_name:
             display_name = datetime.strftime(ipd_date, "%b-%Y")
 
@@ -220,24 +233,26 @@ def create_app():
             db_session.add(period)
             db_session.commit()
 
-        # Map rows to entries
+        # Map parsed covenants to entries
         created = []
-        for r in rows:
-            entry = CovenantEntryV2(
-                period_id=period.id,
-                covenant_name=r.get("covenant_name") or "",
-                threshold=r.get("threshold"),
-                borrower_calc=r.get("borrower_calc"),
-                lender_calc=r.get("lender_calc"),
-                consequence=r.get("consequence"),
-                compliance_check=r.get("compliance_check"),
-                comment=r.get("comment"),
-                source_file=r.get("source_file"),
-                reference_file=r.get("reference_file"),
-                document_id=doc.id,
-            )
-            db_session.add(entry)
-            created.append(entry)
+        for block in parsed or []:
+            covenants = block.get("Covenants") or []
+            for cov in covenants:
+                entry = CovenantEntryV2(
+                    period_id=period.id,
+                    covenant_name=str(cov.get("Covenant Name") or ""),
+                    threshold=str(cov.get("Threshold") or "") or None,
+                    borrower_calc=str(cov.get("Borrower Calculation") or "") or None,
+                    lender_calc=str(cov.get("Lender Calculation") or "") or None,
+                    consequence=str(cov.get("Consequence") or "") or None,
+                    compliance_check=str(cov.get("Compliance Check") or "") or None,
+                    comment=str(cov.get("Comment") or "") or None,
+                    source_file=str(cov.get("Source File") or filename),
+                    reference_file=str(cov.get("Reference File") or "") or None,
+                    document_id=doc.id,
+                )
+                db_session.add(entry)
+                created.append(entry)
         db_session.commit()
         return jsonify({"period": period.to_dict(), "entries": [e.to_dict() for e in created]})
 
