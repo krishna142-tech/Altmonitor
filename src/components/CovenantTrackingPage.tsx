@@ -35,6 +35,8 @@ const CovenantTrackingPage: React.FC = () => {
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [ipdDateInput, setIpdDateInput] = useState<string>('');
   const [displayNameInput, setDisplayNameInput] = useState<string>('');
+  const [isEditing, setIsEditing] = useState(false);
+
 
   useEffect(() => {
     (async () => {
@@ -212,6 +214,10 @@ const CovenantTrackingPage: React.FC = () => {
           <Button variant="outline" onClick={() => setShowUpload(true)} disabled={uploading}>
             <Upload className="w-4 h-4 mr-2" /> Upload PDF
           </Button>
+          <Button variant="outline" onClick={() => setIsEditing(!isEditing)}> 
+  {isEditing ? 'Lock Editing' : 'Edit'}
+</Button>
+
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4 mr-2" /> Save
           </Button>
@@ -344,19 +350,29 @@ const CovenantTrackingPage: React.FC = () => {
               <TableRow key={i}>
                 <TableCell>{r.sno || i + 1}</TableCell>
                 <TableCell>
-                  <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="w-full min-w-[220px] sm:min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)} />
+                  <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="w-full min-w-[220px] sm:min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.threshold || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'threshold', e.target.value)} />
+                  <Input value={r.threshold || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'threshold', e.target.value)}
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} className="w-full" onChange={e => handleChange(i, 'consequence', e.target.value)} />
+                  <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} className="w-full" onChange={e => handleChange(i, 'consequence', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.borrower_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'borrower_calc', e.target.value)} />
+                  <Input value={r.borrower_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'borrower_calc', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.lender_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'lender_calc', e.target.value)} />
+                  <Input value={r.lender_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'lender_calc', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
                   {(() => {
@@ -369,13 +385,19 @@ const CovenantTrackingPage: React.FC = () => {
                   })()}
                 </TableCell>
                 <TableCell>
-                  <Input value={r.comment || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'comment', e.target.value)} />
+                  <Input value={r.comment || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'comment', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.source_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'source_file', e.target.value)} />
+                  <Input value={r.source_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'source_file', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
                 <TableCell>
-                  <Input value={r.reference_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'reference_file', e.target.value)} />
+                  <Input value={r.reference_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'reference_file', e.target.value)} 
+                  disabled={!isEditing}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -383,7 +405,7 @@ const CovenantTrackingPage: React.FC = () => {
         </Table>
         </div>
         <div className="mt-3">
-          <Button variant="outline" onClick={addEmptyRow}>
+          <Button variant="outline" onClick={addEmptyRow} disabled={!isEditing}>
             <PlusCircle className="w-4 h-4 mr-2" /> Add Row
           </Button>
         </div>
