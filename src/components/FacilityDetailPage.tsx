@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileSpreadsheet, Settings, CreditCard, TrendingUp, Download, CalendarDays } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Settings, CreditCard, TrendingUp, Download, CalendarDays, Activity, BarChart3, FileText, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { Dialog, DialogTrigger, DialogContent } from "./ui/dialog";
@@ -10,6 +10,8 @@ import { useAuth } from '@/context/AuthContext';
 // Cashflow engine
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 // Cashflow scheduler moved to its own page
+import CovenantTrackingPage from './CovenantTrackingPage';
+import CashflowScheduleChart from './CashflowScheduleChart';
 
 const allCountries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini (fmr. \"Swaziland\")", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
@@ -17,6 +19,495 @@ const allCountries = [
 
 
 const yesNo = ["Yes", "No"];
+
+// Facility-specific Report Tracking Component
+const FacilityReportTracking = ({ facility }: { facility: any }) => {
+  const { getReportingRequirements, addReportingRequirement } = useSupabaseData();
+  const [reportingRequirements, setReportingRequirements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newRequirement, setNewRequirement] = useState({
+    obligor: facility?.issuerName || '',
+    role: 'Borrower',
+    reportingRequirement: '',
+    previousReportingDate: '',
+    nextReportingDate: '',
+    daysToProvide: 20,
+    reportingDueDate: '',
+    alter: ''
+  });
+
+  useEffect(() => {
+    const fetchReportingRequirements = async () => {
+      if (facility?.id) {
+        try {
+          // Try to fetch reporting requirements from database
+          const requirements = await getReportingRequirements(facility.id);
+          if (requirements && requirements.length > 0) {
+            setReportingRequirements(requirements);
+          } else {
+            // If no data in database, show empty state
+            setReportingRequirements([]);
+          }
+        } catch (error) {
+          console.error('Error fetching reporting requirements:', error);
+          setReportingRequirements([]);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchReportingRequirements();
+  }, [facility, getReportingRequirements]);
+
+  const handleAddRequirement = async () => {
+    try {
+      await addReportingRequirement({
+        ...newRequirement,
+        facility_id: facility.id
+      });
+      
+      // Refresh the requirements list
+      const updatedRequirements = await getReportingRequirements(facility.id);
+      setReportingRequirements(updatedRequirements);
+      
+      // Reset form and close dialog
+      setNewRequirement({
+        obligor: facility?.issuerName || '',
+        role: 'Borrower',
+        reportingRequirement: '',
+        previousReportingDate: '',
+        nextReportingDate: '',
+        daysToProvide: 20,
+        reportingDueDate: '',
+        alter: ''
+      });
+      setShowAddDialog(false);
+    } catch (error) {
+      console.error('Error adding reporting requirement:', error);
+    }
+  };
+
+  if (!facility) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        <p>No facility data available</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        <p>Loading reporting requirements...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <FileText className="w-6 h-6 text-gray-600" />
+          <h1 className="text-xl font-semibold text-gray-900">Report Tracking</h1>
+        </div>
+        <Button 
+          onClick={() => setShowAddDialog(true)}
+          className="flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Reporting Requirement
+        </Button>
+      </div>
+
+      {/* Reporting Requirements Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Reporting Requirement</h3>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-blue-600">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Obligor
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Role
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Reporting Requirement
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Previous reporting Date
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Next Reporting date
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Days to provide
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Reporting Due Date
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Alter
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {reportingRequirements.length > 0 ? (
+                reportingRequirements.map((requirement) => (
+                  <tr key={requirement.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {requirement.obligor || facility.issuerName || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.role || 'Borrower'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.reportingRequirement || requirement.reporting_requirement || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.previousReportingDate || requirement.previous_reporting_date || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.nextReportingDate || requirement.next_reporting_date || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.daysToProvide || requirement.days_to_provide || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.reportingDueDate || requirement.reporting_due_date || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {requirement.alter || ''}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    <div className="text-center">
+                      <div className="text-lg font-medium mb-2">No Reporting Requirements Found</div>
+                      <div className="text-sm">Add reporting requirements to track compliance obligations</div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Additional Information */}
+      <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+        <div>Asset</div>
+        <div>Deal</div>
+        <div>Deal</div>
+      </div>
+
+      {/* Add Reporting Requirement Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement</h2>
+              <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Obligor
+                </label>
+                <input
+                  type="text"
+                  value={newRequirement.obligor}
+                  onChange={(e) => setNewRequirement({...newRequirement, obligor: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter obligor name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </label>
+                <select
+                  value={newRequirement.role}
+                  onChange={(e) => setNewRequirement({...newRequirement, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Borrower">Borrower</option>
+                  <option value="Guarantor">Guarantor</option>
+                  <option value="Sponsor">Sponsor</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reporting Requirement
+                </label>
+                <input
+                  type="text"
+                  value={newRequirement.reportingRequirement}
+                  onChange={(e) => setNewRequirement({...newRequirement, reportingRequirement: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Annual statements, Financial Model, Compliance Certificate"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Previous Reporting Date
+                </label>
+                <input
+                  type="date"
+                  value={newRequirement.previousReportingDate}
+                  onChange={(e) => setNewRequirement({...newRequirement, previousReportingDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Next Reporting Date
+                </label>
+                <input
+                  type="date"
+                  value={newRequirement.nextReportingDate}
+                  onChange={(e) => setNewRequirement({...newRequirement, nextReportingDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Days to Provide
+                </label>
+                <input
+                  type="number"
+                  value={newRequirement.daysToProvide}
+                  onChange={(e) => setNewRequirement({...newRequirement, daysToProvide: parseInt(e.target.value) || 0})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="20"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reporting Due Date
+                </label>
+                <input
+                  type="date"
+                  value={newRequirement.reportingDueDate}
+                  onChange={(e) => setNewRequirement({...newRequirement, reportingDueDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddRequirement}
+                disabled={!newRequirement.reportingRequirement}
+              >
+                Add Requirement
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// Facility-specific Portfolio Tracking Component
+const FacilityPortfolioTracking = ({ facility, transactions }: { facility: any; transactions: any[] }) => {
+  const { getCashflowSchedulesForFacility } = useSupabaseData();
+  const [generatedCashflows, setGeneratedCashflows] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAndGenerateCashflows = async () => {
+      if (facility?.id) {
+        let cashflows = facility.cashflows;
+        if (!cashflows || cashflows.length === 0) {
+          // If no cashflows are directly on the facility, try fetching from DB
+          const fetchedSchedules = await getCashflowSchedulesForFacility(facility.id);
+          if (fetchedSchedules && fetchedSchedules.length > 0) {
+            cashflows = fetchedSchedules[0].schedule_data;
+          }
+        }
+
+        if (!cashflows || cashflows.length === 0) {
+          // If still no cashflows, generate them
+          const generated = generateAdvancedSchedule(facility);
+          setGeneratedCashflows(generated.rows || []);
+        } else {
+          setGeneratedCashflows(cashflows);
+        }
+      }
+    };
+
+    fetchAndGenerateCashflows();
+  }, [facility, getCashflowSchedulesForFacility]);
+
+  if (!facility) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        <p>No facility data available</p>
+      </div>
+    );
+  }
+
+  // Find the transaction associated with this facility
+  const associatedTransaction = transactions.find((t: any) => 
+    t.deal === facility.transactionId || 
+    t.deal === facility.investmentName ||
+    t.issuer === facility.issuerName
+  );
+
+  // Helper functions for calculations
+  const getFacilityCommitment = () => {
+    const commitment = facility?.generalTerms?.initialCommitment || facility?.generalTerms?.commitment || 0;
+    return typeof commitment === 'number' ? commitment : (typeof commitment === 'string' ? parseFloat(commitment) || 0 : 0);
+  };
+
+
+  const commitment = getFacilityCommitment();
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* General Information Section - Top Left */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div>
+          <h3 className="text-lg font-semibold mb-4">General Information</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Issuer:</span>
+              <span className="text-gray-900">{facility.issuerName || associatedTransaction?.issuer || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Total Commitment:</span>
+              <span className="text-gray-900">${commitment.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Issuer Commitment:</span>
+              <span className="text-gray-900">${commitment.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Issuer Percentage:</span>
+              <span className="text-gray-900">{facility.generalTerms?.issuerPercentage || '100%'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Amortisation:</span>
+              <span className="text-gray-900">{facility.generalTerms?.amortisation || 'Yes'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">First IPD:</span>
+              <span className="text-gray-900">{facility.generalTerms?.firstInterestPaymentDate || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Interest Rate Type:</span>
+              <span className="text-gray-900">{facility.generalTerms?.interestType || 'Floating'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Drawdown Types:</span>
+              <span className="text-gray-900">{facility.generalTerms?.drawdownTypes || 'Scheduled'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Day Count:</span>
+              <span className="text-gray-900">{facility.generalTerms?.dayCountConvention || 'Actual/365'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Margin:</span>
+              <span className="text-gray-900">{facility.generalTerms?.marginRate ? `${facility.generalTerms.marginRate}%` : 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Holiday City:</span>
+              <span className="text-gray-900">{facility.generalTerms?.holidayCity || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Holiday Convention:</span>
+              <span className="text-gray-900">{facility.generalTerms?.holidayConvention || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Default Margin:</span>
+              <span className="text-gray-900">{facility.generalTerms?.defaultMargin || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ratings Section - Top Right */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Ratings</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">External Rating S/M/F:</span>
+              <span className="text-gray-900">{facility.ratings?.externalRating || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Internal Rating:</span>
+              <span className="text-gray-900">{facility.ratings?.internalRating || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Cashflow Schedule Chart Section */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-4">Cashflow Schedule</h3>
+        <div className="h-80 w-full bg-white rounded-lg border border-gray-200 p-4">
+          <CashflowScheduleChart cashflowData={generatedCashflows} />
+        </div>
+      </div>
+
+      {/* Covenant Compliance Table */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-4">Covenant Compliance</h3>
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2023</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2022</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2021</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2020</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Dscr</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.dscr2023 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.dscr2022 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.dscr2021 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.dscr2020 || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">PDSCR</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.pdscr2023 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.pdscr2022 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.pdscr2021 || 'N/A'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{facility.covenants?.pdscr2020 || 'N/A'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
 const interestTypes = ["Cash Interest", "Floating", "Fixed", "Other"];
 const holidayConventions = ["Following", "Modified Following", "Preceding", "Modified Preceding", "None"];
 const dayCountConventions = ["360", "365", "Actual/360", "Actual/365", "30/360", "Other"];
@@ -65,7 +556,7 @@ const FacilityDetailPage = () => {
   const [commitment, setCommitment] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
   
-  const { facilities, addFacility, updateFacility, addCashflowSchedule, getCashflowSchedulesForFacility, updateCashflowSchedule } = useSupabaseData();
+  const { facilities, transactions, addFacility, updateFacility, addCashflowSchedule, getCashflowSchedulesForFacility, updateCashflowSchedule } = useSupabaseData();
   const { isSuperAdmin, isAdmin } = useAuth();
   const facilityKey = facilityId ? decodeURIComponent(facilityId).trim() : '';
   const currentFacility = facilities.find(f => (f.id === facilityKey) || (f.transactionId === facilityKey) || (f.investmentName === facilityKey));
@@ -461,6 +952,9 @@ const FacilityDetailPage = () => {
     ...(amortisationValue === 'Yes' ? [{ id: 'amortisation', label: 'Amortisation', icon: TrendingUp }] : []),
     { id: 'drawdown', label: 'Drawdown', icon: Download },
     { id: 'cashflow', label: 'Cashflow Schedule', icon: CalendarDays },
+    { id: 'covenants', label: 'Covenant Tracking', icon: Activity },
+    { id: 'portfolio', label: 'Portfolio Tracking', icon: BarChart3 },
+    { id: 'reports', label: 'Report Tracking', icon: FileText },
   ];
 
   return (
@@ -1524,6 +2018,39 @@ const FacilityDetailPage = () => {
                 </div>
               )}
             </div>
+          </motion.div>
+        )}
+        {activeTab === 'covenants' && (
+          <motion.div 
+            className="w-full h-full"
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 40, scale: 0.98 }}
+          >
+            <CovenantTrackingPage />
+          </motion.div>
+        )}
+        {activeTab === 'portfolio' && (
+          <motion.div 
+            className="w-full h-full"
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 40, scale: 0.98 }}
+          >
+            <FacilityPortfolioTracking facility={currentFacility} transactions={transactions} />
+          </motion.div>
+        )}
+        {activeTab === 'reports' && (
+          <motion.div 
+            className="w-full h-full"
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 40, scale: 0.98 }}
+          >
+            <FacilityReportTracking facility={currentFacility} />
           </motion.div>
         )}
         </div>

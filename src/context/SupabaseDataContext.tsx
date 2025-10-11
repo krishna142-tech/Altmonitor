@@ -60,6 +60,12 @@ interface SupabaseDataContextType {
   getCashflowSchedulesForFacility: (facilityId: string) => any[];
   getCashflowSchedulesForTransaction: (transactionId: string) => any[];
   
+  // CRUD operations for reporting requirements
+  getReportingRequirements: (facilityId: string) => Promise<any[]>;
+  addReportingRequirement: (requirement: any) => Promise<void>;
+  updateReportingRequirement: (id: string, updates: any) => Promise<void>;
+  deleteReportingRequirement: (id: string) => Promise<void>;
+  
   // Dashboard stats calculation
   recalculateStats: () => Promise<void>;
   
@@ -388,6 +394,48 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     return cashflowSchedules.filter(schedule => schedule.transaction_id === transactionId);
   };
 
+  // Reporting requirements functions
+  const getReportingRequirements = async (facilityId: string) => {
+    try {
+      // For now, return empty array - this would be connected to your database
+      // In a real implementation, you would query your reporting_requirements table
+      return [];
+    } catch (err) {
+      console.error('Failed to get reporting requirements:', err);
+      return [];
+    }
+  };
+
+  const addReportingRequirement = async (requirement: any) => {
+    try {
+      // Implementation would add to database
+      console.log('Adding reporting requirement:', requirement);
+    } catch (err) {
+      console.error('Failed to add reporting requirement:', err);
+      throw err;
+    }
+  };
+
+  const updateReportingRequirement = async (id: string, updates: any) => {
+    try {
+      // Implementation would update in database
+      console.log('Updating reporting requirement:', id, updates);
+    } catch (err) {
+      console.error('Failed to update reporting requirement:', err);
+      throw err;
+    }
+  };
+
+  const deleteReportingRequirement = async (id: string) => {
+    try {
+      // Implementation would delete from database
+      console.log('Deleting reporting requirement:', id);
+    } catch (err) {
+      console.error('Failed to delete reporting requirement:', err);
+      throw err;
+    }
+  };
+
   // Calculate dashboard statistics
   const recalculateStats = async () => {
     try {
@@ -444,6 +492,10 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     deleteCashflowSchedule,
     getCashflowSchedulesForFacility,
     getCashflowSchedulesForTransaction,
+    getReportingRequirements,
+    addReportingRequirement,
+    updateReportingRequirement,
+    deleteReportingRequirement,
     recalculateStats,
     refreshData
   };

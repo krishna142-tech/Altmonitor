@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import Sidebar from '@/components/Sidebar';
-import CovenantTrackingPage from '@/components/CovenantTrackingPage';
 
 // Bloomberg-style Portfolio Summary Component
 const PortfolioSummary = ({ deal, transaction, facilities }) => {
@@ -365,7 +364,7 @@ const PortfolioSummary = ({ deal, transaction, facilities }) => {
 const PortfolioTrackingPage = () => {
   const { transactions, facilities } = useSupabaseData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'covenants'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview'>('overview');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -373,16 +372,8 @@ const PortfolioTrackingPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    if (tab === 'covenants') setActiveTab('covenants');
-    else if (tab === 'overview') setActiveTab('overview');
+    if (tab === 'overview') setActiveTab('overview');
   }, [location.search]);
-
-  const handleSetTab = (tab: 'overview' | 'covenants') => {
-    setActiveTab(tab);
-    const params = new URLSearchParams(location.search);
-    params.set('tab', tab);
-    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-  };
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -569,16 +560,8 @@ const PortfolioTrackingPage = () => {
 
         {/* Main Content */}
         <div className="flex-1 p-6">
-          {/* Local Tabs */}
-          <div className="mb-4">
-            <div className="inline-flex items-center rounded-md border bg-white shadow-sm overflow-hidden">
-              <button className={`px-4 py-2 text-sm ${activeTab === 'overview' ? 'bg-gray-100 font-medium' : 'text-gray-600'}`} onClick={() => handleSetTab('overview')}>Overview</button>
-              <button className={`px-4 py-2 text-sm border-l ${activeTab === 'covenants' ? 'bg-gray-100 font-medium' : 'text-gray-600'}`} onClick={() => handleSetTab('covenants')}>Covenant Tracking</button>
-            </div>
-          </div>
 
-          {activeTab === 'overview' ? (
-            <>
+          <>
               {/* Page Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
@@ -792,9 +775,6 @@ const PortfolioTrackingPage = () => {
                 </div>
               </Card>
             </>
-          ) : (
-            <CovenantTrackingPage />
-          )}
         </div>
       </div>
     </div>
