@@ -6,6 +6,6 @@
     }
   ],
   "env": {
-    "VITE_COVENANT_API": "@vite_covenant_api"
+    "VITE_COVENANT_API": "https://your-backend-url.railway.app/api"
   }
 }
