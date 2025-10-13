@@ -142,7 +142,7 @@ const AddTransactionPage = () => {
     <div className="relative flex min-h-screen flex-col bg-background text-foreground font-sans overflow-x-hidden">
       {/* Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border-secondary bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 md:px-10 py-4"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border-secondary bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 md:px-10 py-4 ml-48"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -255,7 +255,7 @@ const AddTransactionPage = () => {
 
       <Sidebar />
       
-      <div className="flex-1 p-8 max-w-4xl relative z-10">
+      <div className="flex-1 p-8 max-w-4xl relative z-10 ml-48">
         <div className="mb-8 animate-slide-in-down">
           <h1 className="text-3xl font-bold text-white mb-2">Add Transaction</h1>
           <p className="text-[#a2acb3] font-normal">Create a new investment transaction record.</p>

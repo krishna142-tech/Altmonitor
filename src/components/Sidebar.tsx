@@ -16,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
 
   if (!isOpen) {
     return (
-      <div className="w-16 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300">
+      <div className="w-16 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300 fixed left-0 top-0 z-40">
         <div className="p-4 border-b border-border/30" />
         <nav className="mt-4">
           {navItems.map((item, _index) => {
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = true }) => {
   }
 
   return (
-    <div className="w-48 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300">
+    <div className="w-48 bg-[#08122e] border-r border-border/30 min-h-screen relative transition-all duration-300 fixed left-0 top-0 z-40">
       {/* Dark Grid Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 opacity-[0.02]">

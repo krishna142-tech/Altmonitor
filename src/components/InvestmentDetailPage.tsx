@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
+import { Card } from './ui/Card';
 import { Button } from '@/components/ui/button'
-import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
-import { PlusCircle, Edit, Trash2, Eye, Menu, Building2, BarChart3, Database, Activity, Calendar } from 'lucide-react';
+import { PlusCircle, Building2, BarChart3, Database, Activity, Calendar, FileText, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { useAuth } from '@/context/AuthContext';
+import CovenantTrackingPage from './CovenantTrackingPage';
+import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
 
@@ -24,14 +23,16 @@ const sidebarItems = [
   { name: 'Static Data', icon: Database },
   { name: 'Events Tracker', icon: Activity },
   { name: 'Reporting Tracking', icon: BarChart3 },
+  { name: 'Covenant Tracking', icon: Activity },
   { name: 'Portfolio Tracking', icon: Calendar },
 ];
 
-function AddFacilityModal({ isOpen, onClose, onSave }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+type AddFacilityModalProps = { isOpen: boolean; onClose: () => void; onSave: (data: any) => void };
+function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
+  const { register, handleSubmit, reset, formState: {} } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       // Simulate API call
@@ -204,13 +205,21 @@ function AddFacilityModal({ isOpen, onClose, onSave }) {
 const InvestmentDetailPage = () => {
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
-  const { facilities, addFacility, addTransaction, updateFacility, transactions, loading, error } = useSupabaseData();
+  const { facilities, addFacility, addTransaction, updateFacility, transactions, loading, error, getReportingRequirements, addReportingRequirement, getCashflowSchedulesForFacility } = useSupabaseData();
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const [activeSidebarItem, setActiveSidebarItem] = useState(0);
   const navigate = useNavigate();
   const currentInvestmentName = investmentId ? decodeURIComponent(investmentId).trim() : '';
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingRow, setEditingRow] = useState<any | null>(null);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
+  const [reportingRequirements, setReportingRequirements] = useState<any[]>([]);
+  const [showAddReportDialog, setShowAddReportDialog] = useState(false);
+  const [newRequirement, setNewRequirement] = useState<any>({ obligor: '', role: 'Borrower', reportingRequirement: '', previousReportingDate: '', nextReportingDate: '', daysToProvide: 20, reportingDueDate: '', alter: '' });
+  const [isEditingInterestTerms, setIsEditingInterestTerms] = useState(false);
+  const [isEditingTransactionSummary, setIsEditingTransactionSummary] = useState(false);
+  const [investmentSummaryComment, setInvestmentSummaryComment] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
   
   const startEdit = (idx: number, f: any) => {
     setEditingIndex(idx);
@@ -295,7 +304,7 @@ const InvestmentDetailPage = () => {
           ? data.fromDate 
           : new Date().toISOString().split('T')[0]; // Default to today if empty
         
-        const newTransaction = await addTransaction({
+        const newTransaction: any = await addTransaction({
           deal: currentInvestmentName,
           issuer: currentInvestmentName,
           currency: data.currency || 'USD',
@@ -312,7 +321,7 @@ const InvestmentDetailPage = () => {
           notes: `Transaction created for facility: ${currentInvestmentName}`
         });
         
-        transactionId = newTransaction.id;
+        transactionId = (newTransaction as any).id;
         console.log('Created new transaction:', newTransaction);
       }
       
@@ -363,35 +372,130 @@ const InvestmentDetailPage = () => {
     }
   };
 
-  // Use useEffect to handle navigation to prevent multiple calls
+  // Initialize selected facility and load related data
+  const selectedFacility = selectedFacilityId ? filteredFacilities.find(f => f.id === selectedFacilityId) || null : (filteredFacilities[0] || null);
   useEffect(() => {
-    if (activeSidebarItem === 2) {
-      navigate('/bau', { 
-        state: { 
-          investmentId: currentInvestmentName,
-          returnPath: `/investments/${encodeURIComponent(currentInvestmentName)}`
-        }
-      });
-    } else if (activeSidebarItem === 4) {
-      navigate('/portfolio-tracking', {
-        state: {
-          selectedDeal: currentInvestmentName,
-          returnPath: `/investments/${encodeURIComponent(currentInvestmentName)}`
-        }
-      });
+    if (!selectedFacilityId && filteredFacilities.length > 0) {
+      setSelectedFacilityId(filteredFacilities[0].id);
     }
-  }, [activeSidebarItem, navigate, currentInvestmentName]);
+  }, [filteredFacilities, selectedFacilityId]);
 
-  // Don't render content if navigating to BAU or Portfolio Tracking
-  if (activeSidebarItem === 2 || activeSidebarItem === 4) {
-    return null;
-  }
+  // Load reporting requirements when facility changes
+  useEffect(() => {
+    (async () => {
+      if (selectedFacility && selectedFacility.id) {
+        try {
+          const reqs = await getReportingRequirements(selectedFacility.id);
+          setReportingRequirements(Array.isArray(reqs) ? reqs : []);
+          // Portfolio: prefer existing schedule, else generate
+          let cashflows = (selectedFacility as any).cashflows;
+          if (!cashflows || cashflows.length === 0) {
+            const fetched = await getCashflowSchedulesForFacility(selectedFacility.id);
+            if (Array.isArray(fetched) && fetched.length > 0) {
+              cashflows = fetched[0].schedule_data;
+            }
+          }
+          if (!cashflows || cashflows.length === 0) {
+            const sched = generateAdvancedSchedule(selectedFacility);
+            cashflows = (sched && sched.rows) ? sched.rows : [];
+          }
+        } catch {
+          setReportingRequirements([]);
+        }
+      } else {
+        setReportingRequirements([]);
+      }
+    })();
+  }, [selectedFacility, getReportingRequirements, getCashflowSchedulesForFacility]);
+
+  // Load comments when facility changes
+  useEffect(() => {
+    loadInvestmentSummaryComments();
+  }, [selectedFacility]);
+
+  const handleAddRequirement = async () => {
+    if (!selectedFacility) return;
+    try {
+      await addReportingRequirement({ ...newRequirement, obligor: (selectedFacility as any)?.issuerName || newRequirement.obligor || selectedFacility?.investmentName || '', facility_id: (selectedFacility as any).id });
+      const updated = await getReportingRequirements(selectedFacility.id);
+      setReportingRequirements(updated || []);
+      setNewRequirement({ obligor: (selectedFacility as any)?.issuerName || '', role: 'Borrower', reportingRequirement: '', previousReportingDate: '', nextReportingDate: '', daysToProvide: 20, reportingDueDate: '', alter: '' });
+      setShowAddReportDialog(false);
+    } catch {}
+  };
+
+  // Save investment summary comment to database
+  const saveInvestmentSummaryComment = async () => {
+    if (!investmentSummaryComment.trim() || !selectedFacility) return;
+    
+    setIsSavingComment(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      
+      const { data, error } = await supabase
+        .from('investment_summary_comments')
+        .insert({
+          facility_id: selectedFacility.id,
+          investment_name: selectedFacility.investmentName,
+          comment: investmentSummaryComment.trim(),
+          user_email: user?.email || 'anonymous',
+          user_id: user?.id || null,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving comment:', error);
+        alert('Failed to save comment. Please try again.');
+        return;
+      }
+
+      console.log('Comment saved successfully:', data);
+      // Optionally clear the comment after saving
+      // setInvestmentSummaryComment('');
+      
+    } catch (error) {
+      console.error('Error saving comment:', error);
+      alert('Failed to save comment. Please try again.');
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
+  // Load investment summary comments from database
+  const loadInvestmentSummaryComments = async () => {
+    if (!selectedFacility) return;
+    
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      
+      const { data, error } = await supabase
+        .from('investment_summary_comments')
+        .select('*')
+        .eq('facility_id', selectedFacility.id)
+        .order('created_at', { ascending: false })
+        .limit(1); // Get the latest comment
+
+      if (error) {
+        console.error('Error loading comments:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setInvestmentSummaryComment(data[0].comment);
+      }
+      
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-64"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -432,7 +536,7 @@ const InvestmentDetailPage = () => {
 
       <div className="flex flex-1 bg-gray-50">
         {/* Enhanced Sidebar with Icons */}
-        <div className="w-64 bg-slate-800 flex flex-col">
+        <div className="w-64 bg-slate-800 flex flex-col fixed left-0 top-0 h-screen z-40">
           <div className="p-4 border-b border-slate-700">
             <div className="flex items-center gap-2 text-white">
               <Building2 className="w-5 h-5" />
@@ -468,7 +572,7 @@ const InvestmentDetailPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 ml-64">
           {/* Error Display */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
@@ -485,98 +589,953 @@ const InvestmentDetailPage = () => {
           
           {/* Debug Panel removed */}
           
-          {/* Page Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-6 h-6 text-gray-600" />
-              <h1 className="text-xl font-semibold text-gray-900">Investment Facilities</h1>
-              <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">
-                {filteredFacilities.length}
-              </span>
-            </div>
-            {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
-              <Button
-                onClick={() => setModalOpen(true)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Add Facility
-              </Button>
-            )}
-          </div>
+          {/* Show facilities only on Investment Data tab */}
+          {activeSidebarItem === 0 && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-6 h-6 text-gray-600" />
+                  <h1 className="text-xl font-semibold text-gray-900">Investment Facilities</h1>
+                  <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">
+                    {filteredFacilities.length}
+                  </span>
+                </div>
+                {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
+                  <Button
+                    onClick={() => setModalOpen(true)}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Add Facility
+                  </Button>
+                )}
+              </div>
 
-          {/* Facilities Table */}
-          <Card className="bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Investment Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Facility Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Payment Rank</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Seniority</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">From Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredFacilities.map((f, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">
-                        {editingIndex === idx ? (
-                          <input className="w-full border px-2 py-1 rounded" value={editingRow?.investmentName || ''} onChange={e => setEditingRow({ ...editingRow, investmentName: e.target.value })} />
-                        ) : (
-                          <button
-                            className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-                            onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
-                          >
-                            {f.investmentName}
-                          </button>
+              <Card className="bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Investment Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Facility Type</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Payment Rank</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Seniority</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Currency</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">From Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredFacilities.map((f, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            {editingIndex === idx ? (
+                              <input className="w-full border px-2 py-1 rounded" value={editingRow?.investmentName || ''} onChange={e => setEditingRow({ ...editingRow, investmentName: e.target.value })} />
+                            ) : (
+                              <button
+                                className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                                onClick={() => navigate(`/facilities/${encodeURIComponent(f.investmentName)}`)}
+                              >
+                                {f.investmentName}
+                              </button>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.facilityType || ''} onChange={e => setEditingRow({ ...editingRow, facilityType: e.target.value })} />) : f.facilityType}</td>
+                          <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.paymentRank || ''} onChange={e => setEditingRow({ ...editingRow, paymentRank: e.target.value })} />) : f.paymentRank}</td>
+                          <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.seniority || ''} onChange={e => setEditingRow({ ...editingRow, seniority: e.target.value })} />) : f.seniority}</td>
+                          <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.currency || ''} onChange={e => setEditingRow({ ...editingRow, currency: e.target.value })} />) : f.currency}</td>
+                          <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input type="date" className="w-full border px-2 py-1 rounded" value={editingRow?.fromDate || ''} onChange={e => setEditingRow({ ...editingRow, fromDate: e.target.value })} />) : f.fromDate}</td>
+                          <td className="py-3 px-4 relative">
+                            {editingIndex === idx ? (
+                              <div className="pr-24">
+                                <input className="w-full border px-2 py-1 rounded" value={editingRow?.status || ''} onChange={e => setEditingRow({ ...editingRow, status: e.target.value })} />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                  <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(f)}>Save</button>
+                                  <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="pr-24">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  f.status === 'Active' ? 'bg-green-100 text-green-800' :
+                                  f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {f.status}
+                                </span>
+                                {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
+                                  <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, f)}>Edit</button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredFacilities.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
+                            No facilities found for this investment.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* Tracking Sections */}
+          {(activeSidebarItem === 3 || activeSidebarItem === 4 || activeSidebarItem === 5) && (
+            <div className="mt-8 space-y-6">
+              {/* Facility selector */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700">Select Facility</label>
+                <select
+                  className="px-3 py-2 border rounded-md bg-white"
+                  value={selectedFacility?.id || ''}
+                  onChange={e => setSelectedFacilityId(e.target.value)}
+                >
+                  {filteredFacilities.map(f => (
+                    <option key={f.id} value={f.id}>{f.investmentName} — {f.facilityType}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reporting Tracking */}
+              {activeSidebarItem === 3 && (
+                <div className="p-6 space-y-6 bg-white rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-gray-600" />
+                      <h2 className="text-lg font-semibold">Report Tracking</h2>
+                    </div>
+                    <Button onClick={() => setShowAddReportDialog(true)} className="flex items-center gap-2">
+                      <Plus className="w-4 h-4" /> Add Reporting Requirement
+                    </Button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-blue-600">
+                        <tr>
+                          {['Obligor','Role','Reporting Requirement','Previous reporting Date','Next Reporting date','Days to provide','Reporting Due Date','Alter'].map(h => (
+                            <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {reportingRequirements.length > 0 ? reportingRequirements.map((r:any) => (
+                          <tr key={r.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.obligor || (selectedFacility as any)?.issuerName || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.role || 'Borrower'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingRequirement || r.reporting_requirement || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.previousReportingDate || r.previous_reporting_date || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.nextReportingDate || r.next_reporting_date || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.daysToProvide || r.days_to_provide || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingDueDate || r.reporting_due_date || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.alter || ''}</td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No Reporting Requirements Found</td>
+                          </tr>
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.facilityType || ''} onChange={e => setEditingRow({ ...editingRow, facilityType: e.target.value })} />) : f.facilityType}</td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.paymentRank || ''} onChange={e => setEditingRow({ ...editingRow, paymentRank: e.target.value })} />) : f.paymentRank}</td>
-                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.seniority || ''} onChange={e => setEditingRow({ ...editingRow, seniority: e.target.value })} />) : f.seniority}</td>
-                      <td className="py-3 px-4 text-gray-900 font-medium">{editingIndex === idx ? (<input className="w-full border px-2 py-1 rounded" value={editingRow?.currency || ''} onChange={e => setEditingRow({ ...editingRow, currency: e.target.value })} />) : f.currency}</td>
-                      <td className="py-3 px-4 text-gray-600">{editingIndex === idx ? (<input type="date" className="w-full border px-2 py-1 rounded" value={editingRow?.fromDate || ''} onChange={e => setEditingRow({ ...editingRow, fromDate: e.target.value })} />) : f.fromDate}</td>
-                      <td className="py-3 px-4 relative">
-                        {editingIndex === idx ? (
-                          <div className="pr-24">
-                            <input className="w-full border px-2 py-1 rounded" value={editingRow?.status || ''} onChange={e => setEditingRow({ ...editingRow, status: e.target.value })} />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                              <button className="px-2 py-1 bg-green-600 text-white rounded text-xs" onClick={() => saveEdit(f)}>Save</button>
-                              <button className="px-2 py-1 bg-gray-400 text-white rounded text-xs" onClick={cancelEdit}>Cancel</button>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <Dialog open={showAddReportDialog} onOpenChange={setShowAddReportDialog}>
+                    <DialogContent className="max-w-2xl">
+                      <div className="space-y-6">
+                        <div>
+                          <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement</h2>
+                          <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
+                            <input type="text" value={newRequirement.obligor} onChange={(e)=> setNewRequirement({ ...newRequirement, obligor: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <select value={newRequirement.role} onChange={(e)=> setNewRequirement({ ...newRequirement, role: e.target.value })} className="w-full px-3 py-2 border rounded-md">
+                              {['Borrower','Guarantor','Sponsor','Other'].map(o=> <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
+                            <input type="text" value={newRequirement.reportingRequirement} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Annual statements" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
+                            <input type="date" value={newRequirement.previousReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
+                            <input type="date" value={newRequirement.nextReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
+                            <input type="number" value={newRequirement.daysToProvide} onChange={(e)=> setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
+                            <input type="date" value={newRequirement.reportingDueDate} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                          <Button variant="outline" onClick={()=> setShowAddReportDialog(false)}>Cancel</Button>
+                          <Button onClick={handleAddRequirement} disabled={!newRequirement.reportingRequirement}>Add Requirement</Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
+
+              {/* Covenant Tracking */}
+              {activeSidebarItem === 4 && (
+                <div className="bg-white rounded-lg border p-4">
+                  <CovenantTrackingPage />
+                </div>
+              )}
+
+              {/* Portfolio Tracking */}
+              {activeSidebarItem === 5 && (
+                <div className="p-6 space-y-6 bg-white rounded-lg border">
+                  {/* Single sub-tab label for clarity */}
+                  <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                    <span className="px-4 py-2 rounded-md text-sm font-medium bg-white text-blue-600 shadow-sm">Investment Summary</span>
+                  </div>
+
+                  {/* Comment Section */}
+                  <div className="bg-white border rounded-lg">
+                    <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                      <h3 className="font-semibold">Investment Summary Comments</h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Add Comment</label>
+                          <textarea
+                            value={investmentSummaryComment}
+                            onChange={(e) => setInvestmentSummaryComment(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            rows={3}
+                            placeholder="Enter your comments about this investment summary..."
+                          />
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              onClick={saveInvestmentSummaryComment}
+                              disabled={!investmentSummaryComment.trim() || isSavingComment}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            >
+                              {isSavingComment ? 'Saving...' : 'Save Comment'}
+                            </button>
+                          </div>
+                        </div>
+                        {investmentSummaryComment && (
+                          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    {(user?.email || 'U').charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {user?.email || 'User'}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date().toLocaleString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{investmentSummaryComment}</p>
+                              </div>
                             </div>
                           </div>
-                        ) : (
-                          <div className="pr-24">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              f.status === 'Active' ? 'bg-green-100 text-green-800' :
-                              f.status === 'Inactive' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {f.status}
-                            </span>
-                            {(isSuperAdmin() || isAdmin() || user?.role === 'manager') && (
-                              <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, f)}>Edit</button>
-                            )}
-                          </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredFacilities.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-6 text-center text-gray-500">
-                        No facilities found for this investment.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                      {/* Header with As on Date and Export */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-600">As on Date:</span>
+                            <span className="text-sm text-gray-900">{new Date().toLocaleDateString()}</span>
+                            <button className="p-1 hover:bg-gray-100 rounded">
+                              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">{selectedFacility?.investmentName || 'Investment Details'}</h2>
+                      </div>
+
+                      {/* Identifiers Row */}
+                      <div className="grid grid-cols-6 gap-4 mb-6 p-3 bg-gray-50 rounded">
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">SEDOL</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.sedol || 'N/A'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">CUSIP</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.cusip || 'N/A'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">PPN</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.ppn || 'N/A'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">Bloomberg Reference</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.bbgId || 'N/A'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">Internal DealId</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.internalDealId || 'N/A'}</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-medium text-gray-500">Other Data</div>
+                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.fisn || 'N/A'}</div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-6">
+                        {/* Project Summary */}
+                        <div className="bg-white border rounded-lg">
+                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Project Summary</h3>
+                          </div>
+                          <div className="p-4 space-y-3">
+                            <div>
+                              <div className="text-sm font-medium text-gray-600">Project Name</div>
+                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectName || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-600">Project Type</div>
+                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectType || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-600">Project Location</div>
+                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectLocation || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-600">Project Status</div>
+                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectStatus || 'N/A'}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Transaction Summary */}
+                        <div className="bg-white border rounded-lg">
+                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Transaction Summary</h3>
+                          </div>
+                          <div className="p-6">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Issuer Name</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t:any)=> t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
+                                      placeholder="Enter issuer name"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t:any)=> t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Instrument Type</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.instrumentType || 'Private Placement'}
+                                      placeholder="Enter instrument type"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.instrumentType || 'Private Placement'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.sector || 'Utilities'}
+                                      placeholder="Enter sector"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.sector || 'Utilities'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Sector</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.subSector || 'Electric'}
+                                      placeholder="Enter sub-sector"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.subSector || 'Electric'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={selectedFacility?.paymentRank || 'Senior Secured'}
+                                      placeholder="Enter rank"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {selectedFacility?.paymentRank || 'Senior Secured'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Drawdown Type</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue="Scheduled"
+                                      placeholder="Enter drawdown type"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      Scheduled
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Repayment Type</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue="Scheduled"
+                                      placeholder="Enter repayment type"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      Scheduled
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Country of Risk</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.countryOfRisk || 'USA'}
+                                      placeholder="Enter country of risk"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.countryOfRisk || 'USA'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency Type</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={selectedFacility?.currency || 'GBP'}
+                                      placeholder="Enter currency"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {selectedFacility?.currency || 'GBP'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Commitment</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
+                                      placeholder="Enter total commitment"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Investor Share</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
+                                      placeholder="Enter investor share"
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Agreement Date</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="date" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={selectedFacility?.fromDate || '2025-02-11'}
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {selectedFacility?.fromDate || '2025-02-11'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Funding Date</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="date" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={selectedFacility?.fromDate || '2025-02-11'}
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {selectedFacility?.fromDate || '2025-02-11'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Maturity Date</label>
+                                  {isEditingTransactionSummary ? (
+                                    <input 
+                                      type="date" 
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      defaultValue={(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
+                                    />
+                                  ) : (
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Edit/Save Button */}
+                            <div className="mt-6 flex justify-end">
+                              {isEditingTransactionSummary ? (
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => setIsEditingTransactionSummary(false)}
+                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Save Transaction Summary
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setIsEditingTransactionSummary(true)}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  Edit Transaction Summary
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Investor Exposure Chart */}
+                        <div className="bg-white border rounded-lg">
+                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Investor Exposure</h3>
+                          </div>
+                          <div className="p-4">
+                            <div className="h-48 flex items-end justify-center space-x-4">
+                              <div className="flex flex-col items-center">
+                                <div className="flex flex-col items-end space-y-1 mb-2">
+                                  <div className="w-8 bg-blue-500" style={{height: '25%'}}></div>
+                                  <div className="w-8 bg-orange-500" style={{height: '70%'}}></div>
+                                </div>
+                                <span className="text-xs text-gray-600">1</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <div className="flex flex-col items-end space-y-1 mb-2">
+                                  <div className="w-8 bg-blue-500" style={{height: '0%'}}></div>
+                                  <div className="w-8 bg-orange-500" style={{height: '0%'}}></div>
+                                </div>
+                                <span className="text-xs text-gray-600">2</span>
+                              </div>
+                            </div>
+                            <div className="flex justify-center space-x-4 mt-2">
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-blue-500"></div>
+                                <span className="text-xs text-gray-600">Series1</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-orange-500"></div>
+                                <span className="text-xs text-gray-600">Series2</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Interest Terms */}
+                        <div className="bg-white border rounded-lg">
+                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Interest Terms</h3>
+                          </div>
+                          <div className="p-6">
+                            <div className="grid grid-cols-2 gap-8">
+                              {/* Left Column */}
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Coupon Type</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Risk Free Rate</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">All In Rate</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Frequency</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Interest Payment Date</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">First IPD</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Right Column */}
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Numerator Lag</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.inflationRate || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.inflationRate || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Day Count</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.dayCount || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.dayCount || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Day</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.businessDay || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.businessDay || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Holiday Convention</label>
+                                    {isEditingInterestTerms ? (
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        defaultValue={(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
+                                        placeholder="Enter value"
+                                      />
+                                    ) : (
+                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                        {(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Edit/Save Button */}
+                            <div className="mt-6 flex justify-end">
+                              {isEditingInterestTerms ? (
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={() => setIsEditingInterestTerms(false)}
+                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Save Interest Terms
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setIsEditingInterestTerms(true)}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  Edit Interest Terms
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Historic Rating */}
+                        <div className="bg-white border rounded-lg">
+                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Historic Rating</h3>
+                          </div>
+                          <div className="p-4">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="text-left py-2">Agency</th>
+                                    <th className="text-center py-2">Inception</th>
+                                    <th className="text-center py-2">31-Dec-24</th>
+                                    <th className="text-center py-2">30-09-2024</th>
+                                    <th className="text-center py-2">30-06-2024</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr className="border-b">
+                                    <td className="py-2 font-medium">S&P</td>
+                                    <td className="text-center py-2">A</td>
+                                    <td className="text-center py-2">Aaa</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                  </tr>
+                                  <tr className="border-b">
+                                    <td className="py-2 font-medium">Moody's</td>
+                                    <td className="text-center py-2">Aaa</td>
+                                    <td className="text-center py-2">AA</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                  </tr>
+                                  <tr className="border-b">
+                                    <td className="py-2 font-medium">Fitch</td>
+                                    <td className="text-center py-2">AA</td>
+                                    <td className="text-center py-2">Aaa</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="py-2 font-medium">Others</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                    <td className="text-center py-2">-</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Key Performance */}
+                      <div className="bg-white border rounded-lg">
+                        <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                          <h3 className="font-semibold">Key Performance</h3>
+                        </div>
+                        <div className="p-4">
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-600">Covenant Compliance</div>
+                            <div className="text-gray-900 mt-1">N/A</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+              )}
             </div>
-          </Card>
+          )}
         </div>
       </div>
         

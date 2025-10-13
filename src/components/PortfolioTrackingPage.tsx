@@ -511,7 +511,7 @@ const PortfolioTrackingPage = () => {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-48"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -559,7 +559,7 @@ const PortfolioTrackingPage = () => {
         <Sidebar isOpen={sidebarOpen} />
 
         {/* Main Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 ml-48">
 
           <>
               {/* Page Header */}
