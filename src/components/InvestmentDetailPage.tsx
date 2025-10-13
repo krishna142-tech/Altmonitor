@@ -218,6 +218,7 @@ const InvestmentDetailPage = () => {
   const [newRequirement, setNewRequirement] = useState<any>({ obligor: '', role: 'Borrower', reportingRequirement: '', previousReportingDate: '', nextReportingDate: '', daysToProvide: 20, reportingDueDate: '', alter: '' });
   const [isEditingInterestTerms, setIsEditingInterestTerms] = useState(false);
   const [isEditingTransactionSummary, setIsEditingTransactionSummary] = useState(false);
+  const [isEditingProjectSummary, setIsEditingProjectSummary] = useState(false);
   const [investmentSummaryComment, setInvestmentSummaryComment] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
   
@@ -915,20 +916,87 @@ const InvestmentDetailPage = () => {
                           </div>
                           <div className="p-4 space-y-3">
                             <div>
-                              <div className="text-sm font-medium text-gray-600">Project Name</div>
-                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectName || 'N/A'}</div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                              {isEditingProjectSummary ? (
+                                <input 
+                                  type="text" 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  defaultValue={(selectedFacility as any)?.projectName || ''}
+                                  placeholder="Enter project name"
+                                />
+                              ) : (
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectName || 'N/A'}
+                                </div>
+                              )}
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-600">Project Type</div>
-                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectType || 'N/A'}</div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+                              {isEditingProjectSummary ? (
+                                <input 
+                                  type="text" 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  defaultValue={(selectedFacility as any)?.projectType || ''}
+                                  placeholder="Enter project type"
+                                />
+                              ) : (
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectType || 'N/A'}
+                                </div>
+                              )}
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-600">Project Location</div>
-                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectLocation || 'N/A'}</div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Location</label>
+                              {isEditingProjectSummary ? (
+                                <input 
+                                  type="text" 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  defaultValue={(selectedFacility as any)?.projectLocation || ''}
+                                  placeholder="Enter project location"
+                                />
+                              ) : (
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectLocation || 'N/A'}
+                                </div>
+                              )}
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-600">Project Status</div>
-                              <div className="text-sm text-gray-900">{(selectedFacility as any)?.projectStatus || 'N/A'}</div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
+                              {isEditingProjectSummary ? (
+                                <input 
+                                  type="text" 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  defaultValue={(selectedFacility as any)?.projectStatus || ''}
+                                  placeholder="Enter project status"
+                                />
+                              ) : (
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectStatus || 'N/A'}
+                                </div>
+                              )}
+                            </div>
+                            {/* Edit/Save Button */}
+                            <div className="mt-4 flex justify-end">
+                              {isEditingProjectSummary ? (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setIsEditingProjectSummary(false)}
+                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Save Project Summary
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setIsEditingProjectSummary(true)}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  Edit Project Summary
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
