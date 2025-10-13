@@ -1,0 +1,9 @@
+SNO	Covenant Name	Threshold	Consequence	Borrower Calculation	Lender Calculation	Compliance Check	Comment	Source File	Reference File
+1	Senior Net Debt to EBITDA	<3.50x	Event of Default	2.85x	2.85x	Compliant	Within acceptable limits	Covenant_Mechanism.xlsx	Loan Agreement v2.1
+2	Senior Cashflow DSCR	>1.25x	Event of Default	1.45x	1.45x	Compliant	Strong cashflow coverage	Covenant_Mechanism.xlsx	Financial Statements Q3
+3	Senior Cashflow Interest Cover Ratio	>2.00x	Event of Default	3.20x	3.20x	Compliant	Excellent interest coverage	Covenant_Mechanism.xlsx	Audited Financials 2024
+4	Senior Net Debt	<500000000	Event of Default	425000000	425000000	Compliant	Below threshold limit	Covenant_Mechanism.xlsx	Debt Schedule
+5	Total Net Debt to EBITDA	<4.00x	Event of Default	3.15x	3.15x	Compliant	Within covenant limits	Covenant_Mechanism.xlsx	Consolidated Financials
+6	Total Cashflow DSCR	>1.20x	Event of Default	1.38x	1.38x	Compliant	Healthy cashflow position	Covenant_Mechanism.xlsx	Cashflow Statement
+7	Total Cashflow Interest Cover	>1.80x	Event of Default	2.95x	2.95x	Compliant	Strong interest coverage	Covenant_Mechanism.xlsx	Interest Schedule
+8	Total Net Debt	<750000000	Event of Default	680000000	680000000	Compliant	Under debt limit	Covenant_Mechanism.xlsx	Debt Register

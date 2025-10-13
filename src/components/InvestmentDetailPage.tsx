@@ -7,13 +7,15 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
-import { PlusCircle, Building2, BarChart3, Database, Activity, Calendar, FileText, Plus } from 'lucide-react';
+import { PlusCircle, Building2, Database, Activity, Calendar, FileText, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { useAuth } from '@/context/AuthContext';
 import CovenantTrackingPage from './CovenantTrackingPage';
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
+// import { listCovenants } from '@/lib/covenantApi'; // TODO: Implement facility-specific covenant data
+import CovenantChart from './CovenantChart';
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
 
@@ -22,7 +24,6 @@ const sidebarItems = [
   { name: 'Investment Data', icon: Building2 },
   { name: 'Static Data', icon: Database },
   { name: 'Events Tracker', icon: Activity },
-  { name: 'Reporting Tracking', icon: BarChart3 },
   { name: 'Covenant Tracking', icon: Activity },
   { name: 'Portfolio Tracking', icon: Calendar },
 ];
@@ -221,6 +222,9 @@ const InvestmentDetailPage = () => {
   const [isEditingProjectSummary, setIsEditingProjectSummary] = useState(false);
   const [investmentSummaryComment, setInvestmentSummaryComment] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+  const [activePortfolioTab, setActivePortfolioTab] = useState<'summary' | 'covenant' | 'reporting'>('summary');
+  const [covenantData, setCovenantData] = useState<any[]>([]);
+  const [covenantCalcDate, setCovenantCalcDate] = useState<string | null>(null);
   
   const startEdit = (idx: number, f: any) => {
     setEditingIndex(idx);
@@ -387,7 +391,14 @@ const InvestmentDetailPage = () => {
       if (selectedFacility && selectedFacility.id) {
         try {
           const reqs = await getReportingRequirements(selectedFacility.id);
-          setReportingRequirements(Array.isArray(reqs) ? reqs : []);
+          const manualRequirements = Array.isArray(reqs) ? reqs : [];
+          
+          // Generate automated reporting requirements
+          const automatedRequirements = generateAutomatedReportingRequirements(selectedFacility);
+          
+          // Combine manual and automated requirements
+          setReportingRequirements([...manualRequirements, ...automatedRequirements]);
+          
           // Portfolio: prefer existing schedule, else generate
           let cashflows = (selectedFacility as any).cashflows;
           if (!cashflows || cashflows.length === 0) {
@@ -490,6 +501,98 @@ const InvestmentDetailPage = () => {
     } catch (error) {
       console.error('Error loading comments:', error);
     }
+  };
+
+  // Load covenant data from Excel uploads
+  const loadCovenantData = async () => {
+    try {
+      // For now, show empty state since covenant data should be facility-specific
+      // TODO: Implement facility-specific covenant data filtering
+      if (!selectedFacility?.id) {
+        setCovenantData([]);
+        setCovenantCalcDate(null);
+        return;
+      }
+
+      // Check if we have facility-specific covenant data
+      // Since the current API doesn't support facility filtering, we'll show empty state
+      // until facility-specific covenant data is implemented
+      setCovenantData([]);
+      setCovenantCalcDate(null);
+      
+      console.log('Covenant data should be facility-specific for:', selectedFacility.investmentName);
+    } catch (error) {
+      console.error('Error loading covenant data:', error);
+      setCovenantData([]);
+      setCovenantCalcDate(null);
+    }
+  };
+
+  // TODO: Implement facility-specific covenant compliance calculation
+
+  // Generate automated reporting requirements from funding to maturity
+  const generateAutomatedReportingRequirements = (facility: any): any[] => {
+    if (!facility) return [];
+
+    const requirements: any[] = [];
+    const fundingDate = new Date(facility.fundingDate || facility.createdAt);
+    const maturityDate = new Date(facility.maturityDate || facility.endDate);
+    
+    if (!fundingDate || !maturityDate || fundingDate >= maturityDate) {
+      return requirements;
+    }
+
+    // Calculate the number of months between funding and maturity
+    const monthsDiff = (maturityDate.getFullYear() - fundingDate.getFullYear()) * 12 + 
+                      (maturityDate.getMonth() - fundingDate.getMonth());
+
+    // Generate quarterly reporting requirements
+    for (let i = 0; i <= monthsDiff; i += 3) {
+      const reportDate = new Date(fundingDate);
+      reportDate.setMonth(reportDate.getMonth() + i);
+      
+      if (reportDate <= maturityDate) {
+        const nextReportDate = new Date(reportDate);
+        nextReportDate.setMonth(nextReportDate.getMonth() + 3);
+        
+        requirements.push({
+          id: `auto-${i}`,
+          obligor: facility.issuerName || facility.borrowerName || 'Borrower',
+          role: 'Borrower',
+          reportingRequirement: `Quarterly Financial Statements - Q${Math.floor(i/3) + 1}`,
+          previousReportingDate: i === 0 ? null : reportDate.toISOString().split('T')[0],
+          nextReportingDate: nextReportDate.toISOString().split('T')[0],
+          daysToProvide: 30,
+          reportingDueDate: new Date(reportDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          status: reportDate > new Date() ? 'Pending' : (reportDate < new Date() ? 'Overdue' : 'Due Soon'),
+          alter: `Automated quarterly reporting requirement for ${facility.investmentName}`,
+          isAutomated: true
+        });
+      }
+    }
+
+    // Generate annual reporting requirements
+    for (let year = fundingDate.getFullYear(); year <= maturityDate.getFullYear(); year++) {
+      const annualDate = new Date(year, 11, 31); // December 31st of each year
+      
+      if (annualDate >= fundingDate && annualDate <= maturityDate) {
+        requirements.push({
+          id: `annual-${year}`,
+          obligor: facility.issuerName || facility.borrowerName || 'Borrower',
+          role: 'Borrower',
+          reportingRequirement: `Annual Financial Statements - ${year}`,
+          previousReportingDate: year === fundingDate.getFullYear() ? null : new Date(year - 1, 11, 31).toISOString().split('T')[0],
+          nextReportingDate: new Date(year + 1, 11, 31).toISOString().split('T')[0],
+          daysToProvide: 90,
+          reportingDueDate: new Date(year + 1, 2, 31).toISOString().split('T')[0], // March 31st of next year
+          status: annualDate > new Date() ? 'Pending' : (annualDate < new Date() ? 'Overdue' : 'Due Soon'),
+          alter: `Automated annual reporting requirement for ${facility.investmentName}`,
+          isAutomated: true
+        });
+      }
+    }
+
+    return requirements;
   };
 
   return (
@@ -687,7 +790,7 @@ const InvestmentDetailPage = () => {
           )}
 
           {/* Tracking Sections */}
-          {(activeSidebarItem === 3 || activeSidebarItem === 4 || activeSidebarItem === 5) && (
+              {(activeSidebarItem === 3 || activeSidebarItem === 4) && (
             <div className="mt-8 space-y-6">
               {/* Facility selector */}
               <div className="flex items-center gap-3">
@@ -795,18 +898,67 @@ const InvestmentDetailPage = () => {
               )}
 
               {/* Covenant Tracking */}
-              {activeSidebarItem === 4 && (
+              {activeSidebarItem === 3 && (
                 <div className="bg-white rounded-lg border p-4">
                   <CovenantTrackingPage />
                 </div>
               )}
 
               {/* Portfolio Tracking */}
-              {activeSidebarItem === 5 && (
+              {activeSidebarItem === 4 && (
                 <div className="p-6 space-y-6 bg-white rounded-lg border">
-                  {/* Single sub-tab label for clarity */}
-                  <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-                    <span className="px-4 py-2 rounded-md text-sm font-medium bg-white text-blue-600 shadow-sm">Investment Summary</span>
+                  {/* Sub-tabs for Portfolio Tracking */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">Portfolio Tracking</h3>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        <span>3 tabs available</span>
+                      </div>
+                    </div>
+                    <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
+                      <button
+                        onClick={() => setActivePortfolioTab('summary')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activePortfolioTab === 'summary'
+                            ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        }`}
+                      >
+                        Investment Summary
+                      </button>
+                    <button
+                      onClick={() => {
+                        setActivePortfolioTab('covenant');
+                        loadCovenantData();
+                      }}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        activePortfolioTab === 'covenant'
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      Covenant Tracking
+                    </button>
+                    <button
+                      onClick={() => setActivePortfolioTab('reporting')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        activePortfolioTab === 'reporting'
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      Reporting Tracking
+                    </button>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      {activePortfolioTab === 'summary' 
+                        ? 'View investment details and summary information' 
+                        : activePortfolioTab === 'covenant'
+                        ? 'View covenant compliance data and calculations'
+                        : 'View automated reporting requirements and tracking'
+                      }
+                    </div>
                   </div>
 
                   {/* Comment Section */}
@@ -863,7 +1015,9 @@ const InvestmentDetailPage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  {/* Investment Summary Tab Content */}
+                  {activePortfolioTab === 'summary' && (
+                    <div className="space-y-6">
                       {/* Header with As on Date and Export */}
                       <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-4">
@@ -1600,6 +1754,340 @@ const InvestmentDetailPage = () => {
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* Covenant Tracking Tab Content */}
+                  {activePortfolioTab === 'covenant' && (
+                    <div className="space-y-6">
+                      {/* Header with Date */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-600">Calcula:</span>
+                            <span className="text-sm text-gray-900">{covenantCalcDate || new Date().toLocaleDateString()}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            Facility: {selectedFacility?.investmentName || 'Not Selected'}
+                          </div>
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">Covenant Tracking</h2>
+                      </div>
+
+                      {/* Covenant Data Table */}
+                      <div className="bg-white border rounded-lg overflow-hidden">
+                        <div className="bg-blue-800 text-white px-4 py-3">
+                          <h3 className="font-semibold">Covenant Compliance Table</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-blue-800 text-white">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium">SNO</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Covenant Name</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Threshold</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Consequence</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Borrower Calculation</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Lender Calculation</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Compliance Check</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Comment</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Source File</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium">Reference File</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {covenantData.length > 0 ? (
+                                covenantData.map((covenant, index) => (
+                                  <tr key={covenant.id || index} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.covenant_name || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.threshold || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.consequence || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.borrower_calc || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.lender_calc || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        covenant.compliance_check === 'Non-Compliant' 
+                                          ? 'bg-red-100 text-red-800' 
+                                          : covenant.compliance_check === 'Compliant'
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {covenant.compliance_check || 'N/A'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.comment || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.source_file || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.reference_file || '-'}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={10} className="px-4 py-12 text-center">
+                                    <div className="flex flex-col items-center space-y-4">
+                                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                      </div>
+                                      <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Covenant Data Available</h3>
+                                        <p className="text-gray-500 mb-2">
+                                          No covenant data found for <strong>{selectedFacility?.investmentName || 'this facility'}</strong>.
+                                        </p>
+                                        <p className="text-gray-500 mb-4">
+                                          Covenant data should be facility-specific. Upload Excel files for this specific facility.
+                                        </p>
+                                        <div className="flex items-center justify-center space-x-4">
+                                          <span className="text-sm text-gray-400">Go to:</span>
+                                          <button 
+                                            onClick={() => setActiveSidebarItem(4)}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                                          >
+                                            Covenant Tracking Page
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Covenant Graph Section */}
+                      <div className="bg-white border rounded-lg">
+                        <div className="bg-blue-800 text-white px-4 py-3 rounded-t-lg">
+                          <h3 className="font-semibold">Covenant Graph</h3>
+                        </div>
+                        <div className="p-6">
+                          <CovenantChart 
+                            data={covenantData} 
+                            title="Historic Debt Service" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reporting Tracking Tab Content */}
+                  {activePortfolioTab === 'reporting' && (
+                    <div className="space-y-6">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            Facility: {selectedFacility?.investmentName || 'Not Selected'}
+                          </div>
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-900">Reporting Tracking</h2>
+                      </div>
+
+                      {/* Automated Report Tracking Table */}
+                      <div className="bg-white border rounded-lg overflow-hidden">
+                        <div className="bg-blue-800 text-white px-4 py-3">
+                          <h3 className="font-semibold">Automated Reporting Requirements</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Obligor</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Role</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Reporting Requirement</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Previous Reporting Date</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Next Reporting Date</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Days to Provide</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Reporting Due Date</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {reportingRequirements.length > 0 ? (
+                                reportingRequirements.map((requirement, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.obligor || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.role || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.reportingRequirement || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {requirement.previousReportingDate ? new Date(requirement.previousReportingDate).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {requirement.nextReportingDate ? new Date(requirement.nextReportingDate).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.daysToProvide || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {requirement.reportingDueDate ? new Date(requirement.reportingDueDate).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        requirement.status === 'Completed' 
+                                          ? 'bg-green-100 text-green-800' 
+                                          : requirement.status === 'Overdue'
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {requirement.status || 'Pending'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm">
+                                      <button className="text-blue-600 hover:text-blue-800 text-xs">
+                                        View Details
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={9} className="px-4 py-12 text-center">
+                                    <div className="flex flex-col items-center space-y-4">
+                                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                      </div>
+                                      <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Reporting Requirements</h3>
+                                        <p className="text-gray-500 mb-2">
+                                          No automated reporting requirements found for <strong>{selectedFacility?.investmentName || 'this facility'}</strong>.
+                                        </p>
+                                        <p className="text-gray-500 mb-4">
+                                          Reporting requirements will be automatically generated from funding date to maturity.
+                                        </p>
+                                        <button 
+                                          onClick={() => setShowAddReportDialog(true)}
+                                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                                        >
+                                          Add Reporting Requirement
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Add Report Dialog */}
+                      {showAddReportDialog && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement</h2>
+                                <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
+                              </div>
+                              <button
+                                onClick={() => setShowAddReportDialog(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
+                                <input 
+                                  type="text" 
+                                  value={newRequirement.obligor} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, obligor: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select 
+                                  value={newRequirement.role} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, role: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  {['Borrower', 'Guarantor', 'Sponsor', 'Other'].map(role => (
+                                    <option key={role} value={role}>{role}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
+                                <input 
+                                  type="text" 
+                                  value={newRequirement.reportingRequirement} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                  placeholder="e.g., Annual statements"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
+                                <input 
+                                  type="date" 
+                                  value={newRequirement.previousReportingDate} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
+                                <input 
+                                  type="date" 
+                                  value={newRequirement.nextReportingDate} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
+                                <input 
+                                  type="number" 
+                                  value={newRequirement.daysToProvide} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
+                                <input 
+                                  type="date" 
+                                  value={newRequirement.reportingDueDate} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                                <textarea 
+                                  value={newRequirement.alter} 
+                                  onChange={(e) => setNewRequirement({ ...newRequirement, alter: e.target.value })} 
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                  rows={3}
+                                  placeholder="Any additional notes or requirements..."
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end space-x-3 mt-6">
+                              <button
+                                onClick={() => setShowAddReportDialog(false)}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={handleAddRequirement}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                Add Requirement
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
