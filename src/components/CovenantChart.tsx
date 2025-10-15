@@ -1,12 +1,118 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Line } from 'react-chartjs-2';
+import 'chart.js/auto';
+
+interface CovenantEntryLike {
+  covenant_name?: string;
+  threshold?: string | number | null;
+  borrower_calc?: string | number | null;
+  lender_calc?: string | number | null;
+  compliance_check?: string | null;
+  calc_date?: string | null;
+}
 
 interface CovenantChartProps {
-  data: any[];
+  data: CovenantEntryLike[];
   title?: string;
 }
 
+const parseNumeric = (val: any): number | null => {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number' && isFinite(val)) return val;
+  const s = String(val).trim();
+  const cleaned = s.replace(/[\,\s]/g, '').replace(/x$/i, '').replace(/%$/, '');
+  const num = parseFloat(cleaned);
+  return isFinite(num) ? num : null;
+};
+
+const parseThreshold = (val: any): { value: number | null; comparator: '<' | '>' | '<=' | '>=' | null } => {
+  if (val === null || val === undefined) return { value: null, comparator: null };
+  const s = String(val).trim();
+  const match = s.match(/^(<=|>=|<|>)\s*(.+)$/);
+  if (match) {
+    const comp = match[1] as '<' | '>' | '<=' | '>=';
+    const num = parseNumeric(match[2]);
+    return { value: num, comparator: comp };
+  }
+  return { value: parseNumeric(s), comparator: null };
+};
+
+const byDateAsc = (a: any, b: any) => {
+  const da = a?.calc_date ? new Date(a.calc_date).getTime() : 0;
+  const db = b?.calc_date ? new Date(b.calc_date).getTime() : 0;
+  return da - db;
+};
+
+const pickSeries = (rows: CovenantEntryLike[]): CovenantEntryLike[] => {
+  if (!rows || rows.length === 0) return [];
+  const dscrLike = rows.filter(r => (r.covenant_name || '').toLowerCase().includes('dscr'));
+  const series = dscrLike.length > 0 ? dscrLike : rows;
+  return [...series].sort(byDateAsc);
+};
+
 const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant Graph" }) => {
-  if (!data || data.length === 0) {
+  const series = useMemo(() => pickSeries(data || []), [data]);
+  const points = useMemo(() => (series.map(r => ({
+    label: r.calc_date ? new Date(r.calc_date).toLocaleDateString() : '',
+    y: parseNumeric(r.lender_calc ?? r.borrower_calc),
+  })).filter(p => p.y !== null) as { label: string; y: number }[]), [series]);
+
+  const thresholdValue = useMemo(() => {
+    const thresholds = series
+      .map(r => parseThreshold(r.threshold))
+      .filter(t => t.value !== null) as { value: number; comparator: any }[];
+    return thresholds.length > 0 ? thresholds[0].value : null;
+  }, [series]);
+
+  const chartData = useMemo(() => {
+    return {
+      labels: points.map(p => p.label),
+      datasets: [
+        {
+          label: 'Lender Calc',
+          data: points.map(p => p.y),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          tension: 0.25,
+          fill: false,
+          pointRadius: 3,
+          pointHoverRadius: 4,
+        },
+        ...(thresholdValue !== null ? [{
+          label: 'Threshold',
+          data: points.map(() => thresholdValue as number),
+          borderColor: '#ef4444',
+          borderDash: [6, 6],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+        }] : []),
+      ],
+    };
+  }, [points, thresholdValue]);
+
+  const options = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'bottom' as const, labels: { usePointStyle: true } },
+      title: { display: false },
+      tooltip: { mode: 'index' as const, intersect: false },
+    },
+    interaction: { mode: 'nearest' as const, axis: 'x' as const, intersect: false },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { maxRotation: 0, autoSkip: true },
+      },
+      y: {
+        grid: { color: '#e5e7eb' },
+        ticks: { callback: (v: any) => Number(v).toFixed(2) },
+      },
+    },
+  }), []);
+
+  if (!data || data.length === 0 || points.length === 0) {
     return (
       <div className="text-center text-gray-500 py-8">
         <div className="text-lg font-medium mb-2">{title}</div>
@@ -15,167 +121,17 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
     );
   }
 
-  // Sample DSCR data for the line chart (2020-2023)
-  const dscrData = [
-    { year: 2020, value: 3.00 },
-    { year: 2021, value: 2.00 },
-    { year: 2022, value: 1.90 },
-    { year: 2023, value: 2.50 }
-  ];
-
-  // Calculate chart dimensions and scaling
-  const maxValue = Math.max(...dscrData.map(d => d.value));
-  const minValue = Math.min(...dscrData.map(d => d.value));
-  const range = maxValue - minValue;
-  const padding = range * 0.1;
-  const chartMin = Math.max(0, minValue - padding);
-  const chartMax = maxValue + padding;
-
-  // Chart dimensions
-  const chartWidth = 400;
-  const chartHeight = 200;
-  const paddingX = 40;
-  const paddingY = 20;
-
-  // Convert data points to SVG coordinates
-  const getX = (year: number) => {
-    const years = dscrData.map(d => d.year);
-    const minYear = Math.min(...years);
-    const maxYear = Math.max(...years);
-    const yearRange = maxYear - minYear;
-    const x = ((year - minYear) / yearRange) * (chartWidth - 2 * paddingX) + paddingX;
-    return x;
-  };
-
-  const getY = (value: number) => {
-    const y = chartHeight - paddingY - ((value - chartMin) / (chartMax - chartMin)) * (chartHeight - 2 * paddingY);
-    return y;
-  };
-
-  // Create path for the line
-  const pathData = dscrData.map((point, index) => {
-    const x = getX(point.year);
-    const y = getY(point.value);
-    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-  }).join(' ');
-
   return (
     <div className="space-y-4">
-      {/* Chart Title */}
       <div className="text-left">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
       </div>
-      
-      {/* Line Chart */}
       <div className="bg-white border rounded-lg p-6">
         <div className="mb-4">
-          <h4 className="text-md font-medium text-gray-800">Dscr</h4>
+          <h4 className="text-md font-medium text-gray-800">{(series[0]?.covenant_name || '').toString() || 'Covenant'}</h4>
         </div>
-        
-        <div className="relative">
-          <svg width={chartWidth} height={chartHeight} className="border border-gray-200 rounded">
-            {/* Grid lines */}
-            {[0, 1, 2, 3, 4].map(value => {
-              const y = getY(value);
-              return (
-                <g key={value}>
-                  <line
-                    x1={paddingX}
-                    y1={y}
-                    x2={chartWidth - paddingX}
-                    y2={y}
-                    stroke="#e5e7eb"
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={paddingX - 10}
-                    y={y + 4}
-                    textAnchor="end"
-                    className="text-xs fill-gray-500"
-                  >
-                    {value.toFixed(2)}
-                  </text>
-                </g>
-              );
-            })}
-            
-            {/* Year labels */}
-            {dscrData.map(point => {
-              const x = getX(point.year);
-              return (
-                <text
-                  key={point.year}
-                  x={x}
-                  y={chartHeight - 5}
-                  textAnchor="middle"
-                  className="text-xs fill-gray-600"
-                >
-                  {point.year}
-                </text>
-              );
-            })}
-            
-            {/* Line path */}
-            <path
-              d={pathData}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            
-            {/* Data points */}
-            {dscrData.map((point, index) => {
-              const x = getX(point.year);
-              const y = getY(point.value);
-              return (
-                <circle
-                  key={index}
-                  cx={x}
-                  cy={y}
-                  r={4}
-                  fill="#3b82f6"
-                  stroke="white"
-                  strokeWidth={2}
-                />
-              );
-            })}
-            
-            {/* Data point labels */}
-            {dscrData.map((point, index) => {
-              const x = getX(point.year);
-              const y = getY(point.value);
-              return (
-                <text
-                  key={`label-${index}`}
-                  x={x}
-                  y={y - 10}
-                  textAnchor="middle"
-                  className="text-xs fill-gray-700 font-medium"
-                >
-                  {point.value.toFixed(2)}
-                </text>
-              );
-            })}
-          </svg>
-          
-          {/* Plot Area label */}
-          <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-            Plot Area
-          </div>
-        </div>
-      </div>
-
-      {/* Alert Features */}
-      <div className="space-y-2 text-sm text-gray-600">
-        <div className="flex items-center">
-          <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-          <span>Real-time alerts for covenant breaches.</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-          <span>Email notifications for significant changes.</span>
+        <div className="relative" style={{ height: 260 }}>
+          <Line data={chartData} options={options} />
         </div>
       </div>
     </div>

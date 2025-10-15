@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Card } from './ui/Card';
@@ -14,11 +15,13 @@ import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { useAuth } from '@/context/AuthContext';
 import CovenantTrackingPage from './CovenantTrackingPage';
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
+import { listCovenants } from '@/lib/covenantApi';
 // import { listCovenants } from '@/lib/covenantApi'; // TODO: Implement facility-specific covenant data
 import CovenantChart from './CovenantChart';
+import StaticData from './StaticData';
+
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
-
 
 const sidebarItems = [
   { name: 'Investment Data', icon: Building2 },
@@ -26,11 +29,12 @@ const sidebarItems = [
   { name: 'Events Tracker', icon: Activity },
   { name: 'Covenant Tracking', icon: Activity },
   { name: 'Portfolio Tracking', icon: Calendar },
+  { name: 'Reporting Requirements', icon: FileText },
 ];
 
 type AddFacilityModalProps = { isOpen: boolean; onClose: () => void; onSave: (data: any) => void };
 function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
-  const { register, handleSubmit, reset, formState: {} } = useForm();
+  const { register, handleSubmit, reset } = useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const onSubmit = async (data: any) => {
@@ -47,6 +51,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
       setIsSubmitting(false);
     }
   };
+
   
   const investmentTypes = ["Debt", "Equity", "Hybrid", "Other"];
   const rankings = ["Senior Secured", "Senior Unsecured", "Subordinated", "Mezzanine", "Other"];
@@ -204,6 +209,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
 }
 
 const InvestmentDetailPage = () => {
+  
   const { investmentId } = useParams();
   const [isModalOpen, setModalOpen] = useState(false);
   const { facilities, addFacility, addTransaction, updateFacility, transactions, loading, error, getReportingRequirements, addReportingRequirement, getCashflowSchedulesForFacility } = useSupabaseData();
@@ -225,6 +231,54 @@ const InvestmentDetailPage = () => {
   const [activePortfolioTab, setActivePortfolioTab] = useState<'summary' | 'covenant' | 'reporting'>('summary');
   const [covenantData, setCovenantData] = useState<any[]>([]);
   const [covenantCalcDate, setCovenantCalcDate] = useState<string | null>(null);
+  
+  // Utilities for Reporting Requirements schedule generation
+  const parseDate = (d?: string) => d ? new Date(d) : undefined;
+  const formatISODate = (dt: Date) => dt.toISOString().slice(0,10);
+  const addMonths = (dt: Date, months: number) => {
+    const d = new Date(dt.getTime());
+    const day = d.getDate();
+    d.setMonth(d.getMonth() + months);
+    // Handle month rollovers (e.g., Jan 31 + 1 month)
+    if (d.getDate() < day) d.setDate(0);
+    return d;
+  };
+  const diffInMonths = (a: Date, b: Date) => {
+    return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) || 1;
+  };
+
+  const generateReportingSchedule = () => {
+    const facility: any = selectedFacility || {};
+    const start = parseDate(facility.fromDate || facility.startDate);
+    const maturity = parseDate(facility.maturityDate || facility.endDate);
+    const prev = parseDate(newRequirement.previousReportingDate);
+    const next = parseDate(newRequirement.nextReportingDate);
+    if (!start || !maturity) return;
+    // Determine frequency in months from prev->next, fallback to quarterly (3)
+    const frequencyMonths = (prev && next) ? Math.max(1, diffInMonths(prev, next)) : 3;
+    // Seed first date: use next if available, else start
+    let cursor = next ? new Date(next.getTime()) : new Date(start.getTime());
+    const rows: any[] = [];
+    while (cursor <= maturity) {
+      const dueDate = new Date(cursor.getTime());
+      const provideDays = Number(newRequirement.daysToProvide) || 0;
+      const reportingDueDate = new Date(dueDate.getTime());
+      if (provideDays > 0) reportingDueDate.setDate(reportingDueDate.getDate() + provideDays);
+      rows.push({
+        id: `${formatISODate(dueDate)}-${rows.length+1}`,
+        obligor: facility.issuerName || facility.obligor || '',
+        role: newRequirement.role || 'Borrower',
+        reportingRequirement: newRequirement.reportingRequirement || '',
+        previousReportingDate: formatISODate(addMonths(dueDate, -frequencyMonths)),
+        nextReportingDate: formatISODate(dueDate),
+        daysToProvide: provideDays,
+        reportingDueDate: formatISODate(reportingDueDate),
+        alter: ''
+      });
+      cursor = addMonths(cursor, frequencyMonths);
+    }
+    setReportingRequirements(rows);
+  };
   
   const startEdit = (idx: number, f: any) => {
     setEditingIndex(idx);
@@ -248,7 +302,9 @@ const InvestmentDetailPage = () => {
       });
       setEditingIndex(null);
       setEditingRow(null);
-    } catch {}
+    } catch (err) {
+      console.error('Error in saveEdit:', err);
+    }
   };
   
   // Debug logging
@@ -290,7 +346,7 @@ const InvestmentDetailPage = () => {
       // First, create or find a transaction for this investment
       
       // Check if a transaction already exists for this investment
-      let existingTransaction = transactions.find(t => 
+      const existingTransaction = transactions.find(t => 
         t.deal === currentInvestmentName || 
         t.issuer === currentInvestmentName
       );
@@ -420,10 +476,14 @@ const InvestmentDetailPage = () => {
     })();
   }, [selectedFacility, getReportingRequirements, getCashflowSchedulesForFacility]);
 
-  // Load comments when facility changes
+  // Load comments when the Investment Summary sub-tab is active and the selected facility changes
   useEffect(() => {
-    loadInvestmentSummaryComments();
-  }, [selectedFacility]);
+    if (activePortfolioTab === 'summary' && selectedFacility?.id) {
+      loadInvestmentSummaryComments();
+    }
+    // We intentionally avoid including the function reference in deps to prevent re-creating the effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePortfolioTab, selectedFacility?.id]);
 
   const handleAddRequirement = async () => {
     if (!selectedFacility) return;
@@ -433,7 +493,9 @@ const InvestmentDetailPage = () => {
       setReportingRequirements(updated || []);
       setNewRequirement({ obligor: (selectedFacility as any)?.issuerName || '', role: 'Borrower', reportingRequirement: '', previousReportingDate: '', nextReportingDate: '', daysToProvide: 20, reportingDueDate: '', alter: '' });
       setShowAddReportDialog(false);
-    } catch {}
+    } catch (err) {
+      console.error('Error adding reporting requirement:', err);
+    }
   };
 
   // Save investment summary comment to database
@@ -503,30 +565,37 @@ const InvestmentDetailPage = () => {
     }
   };
 
-  // Load covenant data from Excel uploads
-  const loadCovenantData = async () => {
+  // Load covenant data from Excel uploads / API
+  const loadCovenantData = useCallback(async () => {
     try {
-      // For now, show empty state since covenant data should be facility-specific
-      // TODO: Implement facility-specific covenant data filtering
       if (!selectedFacility?.id) {
         setCovenantData([]);
         setCovenantCalcDate(null);
         return;
       }
-
-      // Check if we have facility-specific covenant data
-      // Since the current API doesn't support facility filtering, we'll show empty state
-      // until facility-specific covenant data is implemented
-      setCovenantData([]);
-      setCovenantCalcDate(null);
-      
-      console.log('Covenant data should be facility-specific for:', selectedFacility.investmentName);
+      // Fetch latest covenant entries (API currently not facility-scoped)
+      const rows = await listCovenants();
+      setCovenantData(Array.isArray(rows) ? rows : []);
+      setCovenantCalcDate(new Date().toLocaleDateString());
     } catch (error) {
       console.error('Error loading covenant data:', error);
       setCovenantData([]);
       setCovenantCalcDate(null);
     }
-  };
+  }, [selectedFacility?.id]);
+
+  // Keep covenant chart data fresh for the selected facility and when viewing summary/covenant tabs
+  // We intentionally call loadCovenantData here when selectedFacilityId changes.
+  useEffect(() => {
+    loadCovenantData();
+  }, [selectedFacilityId, loadCovenantData]);
+
+  // Keep covenant data fresh when the portfolio tab changes; loadCovenantData is stable here.
+  useEffect(() => {
+    if (activePortfolioTab === 'summary' || activePortfolioTab === 'covenant') {
+      loadCovenantData();
+    }
+  }, [activePortfolioTab, loadCovenantData]);
 
   // TODO: Implement facility-specific covenant compliance calculation
 
@@ -790,6 +859,19 @@ const InvestmentDetailPage = () => {
           )}
 
           {/* Tracking Sections */}
+              {activeSidebarItem === 1 && (
+                <StaticData
+                  reportingRequirements={reportingRequirements}
+                  generateReportingSchedule={generateReportingSchedule}
+                  showAddReportDialog={showAddReportDialog}
+                  setShowAddReportDialog={setShowAddReportDialog}
+                  newRequirement={newRequirement}
+                  setNewRequirement={setNewRequirement}
+                  handleAddRequirement={handleAddRequirement}
+                  selectedFacility={selectedFacility}
+                />
+              )}
+
               {(activeSidebarItem === 3 || activeSidebarItem === 4) && (
             <div className="mt-8 space-y-6">
               {/* Facility selector */}
@@ -806,96 +888,7 @@ const InvestmentDetailPage = () => {
                 </select>
               </div>
 
-              {/* Reporting Tracking */}
-              {activeSidebarItem === 3 && (
-                <div className="p-6 space-y-6 bg-white rounded-lg border">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-gray-600" />
-                      <h2 className="text-lg font-semibold">Report Tracking</h2>
-                    </div>
-                    <Button onClick={() => setShowAddReportDialog(true)} className="flex items-center gap-2">
-                      <Plus className="w-4 h-4" /> Add Reporting Requirement
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-blue-600">
-                        <tr>
-                          {['Obligor','Role','Reporting Requirement','Previous reporting Date','Next Reporting date','Days to provide','Reporting Due Date','Alter'].map(h => (
-                            <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {reportingRequirements.length > 0 ? reportingRequirements.map((r:any) => (
-                          <tr key={r.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.obligor || (selectedFacility as any)?.issuerName || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.role || 'Borrower'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingRequirement || r.reporting_requirement || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.previousReportingDate || r.previous_reporting_date || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.nextReportingDate || r.next_reporting_date || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.daysToProvide || r.days_to_provide || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingDueDate || r.reporting_due_date || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.alter || ''}</td>
-                          </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No Reporting Requirements Found</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <Dialog open={showAddReportDialog} onOpenChange={setShowAddReportDialog}>
-                    <DialogContent className="max-w-2xl">
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement</h2>
-                          <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
-                            <input type="text" value={newRequirement.obligor} onChange={(e)=> setNewRequirement({ ...newRequirement, obligor: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                            <select value={newRequirement.role} onChange={(e)=> setNewRequirement({ ...newRequirement, role: e.target.value })} className="w-full px-3 py-2 border rounded-md">
-                              {['Borrower','Guarantor','Sponsor','Other'].map(o=> <option key={o} value={o}>{o}</option>)}
-                            </select>
-                          </div>
-                          <div className="col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
-                            <input type="text" value={newRequirement.reportingRequirement} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Annual statements" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
-                            <input type="date" value={newRequirement.previousReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
-                            <input type="date" value={newRequirement.nextReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
-                            <input type="number" value={newRequirement.daysToProvide} onChange={(e)=> setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-md" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
-                            <input type="date" value={newRequirement.reportingDueDate} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-3 pt-2">
-                          <Button variant="outline" onClick={()=> setShowAddReportDialog(false)}>Cancel</Button>
-                          <Button onClick={handleAddRequirement} disabled={!newRequirement.reportingRequirement}>Add Requirement</Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
+              {/* (Moved) Reporting Tracking now lives under Portfolio Tracking > Reporting sub-tab */}
 
               {/* Covenant Tracking */}
               {activeSidebarItem === 3 && (
@@ -961,7 +954,8 @@ const InvestmentDetailPage = () => {
                     </div>
                   </div>
 
-                  {/* Comment Section */}
+                  {/* Investment Summary Comments - visible only in Summary sub-tab */}
+                  {activePortfolioTab === 'summary' && (
                   <div className="bg-white border rounded-lg">
                     <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
                       <h3 className="font-semibold">Investment Summary Comments</h3>
@@ -1014,6 +1008,7 @@ const InvestmentDetailPage = () => {
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Investment Summary Tab Content */}
                   {activePortfolioTab === 'summary' && (
@@ -1554,7 +1549,7 @@ const InvestmentDetailPage = () => {
                               <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag?</label>
                                     {isEditingInterestTerms ? (
                                       <input 
                                         type="text" 
@@ -1756,6 +1751,100 @@ const InvestmentDetailPage = () => {
                     </div>
                   )}
 
+                  {/* Reporting Tracking Tab Content */}
+                  {activePortfolioTab === 'reporting' && (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-gray-600" />
+                          <h2 className="text-lg font-semibold">Report Tracking</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button onClick={generateReportingSchedule} className="print:hidden">Auto-Generate</Button>
+                          <Button onClick={() => setShowAddReportDialog(true)} className="flex items-center gap-2 print:hidden">
+                            <Plus className="w-4 h-4" /> Add Reporting Requirement
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-blue-600">
+                            <tr>
+                              {['Obligor','Role','Reporting Requirement','Previous reporting Date','Next Reporting date','Days to provide','Reporting Due Date','Alter'].map(h => (
+                                <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {reportingRequirements.length > 0 ? reportingRequirements.map((r:any) => (
+                              <tr key={r.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.obligor || (selectedFacility as any)?.issuerName || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.role || 'Borrower'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingRequirement || r.reporting_requirement || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.previousReportingDate || r.previous_reporting_date || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.nextReportingDate || r.next_reporting_date || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.daysToProvide || r.days_to_provide || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingDueDate || r.reporting_due_date || 'N/A'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.alter || ''}</td>
+                              </tr>
+                            )) : (
+                              <tr>
+                                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No Reporting Requirements Found</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <Dialog open={showAddReportDialog} onOpenChange={setShowAddReportDialog}>
+                        <DialogContent className="max-w-2xl">
+                          <div className="space-y-6">
+                            <div>
+                              <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement hi i am at this</h2>
+                              <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
+                                <input type="text" value={newRequirement.obligor} onChange={(e)=> setNewRequirement({ ...newRequirement, obligor: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select value={newRequirement.role} onChange={(e)=> setNewRequirement({ ...newRequirement, role: e.target.value })} className="w-full px-3 py-2 border rounded-md">
+                                  {['Borrower','Guarantor','Sponsor','Other'].map(o=> <option key={o} value={o}>{o}</option>)}
+                                </select>
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
+                                <input type="text" value={newRequirement.reportingRequirement} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Annual statements" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
+                                <input type="date" value={newRequirement.previousReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
+                                <input type="date" value={newRequirement.nextReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
+                                <input type="number" value={newRequirement.daysToProvide} onChange={(e)=> setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-md" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
+                                <input type="date" value={newRequirement.reportingDueDate} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                              <Button variant="outline" onClick={()=> setShowAddReportDialog(false)}>Cancel</Button>
+                              <Button onClick={handleAddRequirement} disabled={!newRequirement.reportingRequirement}>Add Requirement</Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+
                   {/* Covenant Tracking Tab Content */}
                   {activePortfolioTab === 'covenant' && (
                     <div className="space-y-6">
@@ -1771,6 +1860,19 @@ const InvestmentDetailPage = () => {
                           </div>
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900">Covenant Tracking</h2>
+                      </div>
+
+                      {/* Covenant Graph Section */}
+                      <div className="bg-white border rounded-lg">
+                        <div className="bg-blue-800 text-white px-4 py-3 rounded-t-lg">
+                          <h3 className="font-semibold">Covenant Graph</h3>
+                        </div>
+                        <div className="p-6">
+                          <CovenantChart 
+                            data={covenantData} 
+                            title="Historic Debt Service" 
+                          />
+                        </div>
                       </div>
 
                       {/* Covenant Data Table */}
@@ -1948,21 +2050,7 @@ const InvestmentDetailPage = () => {
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                         </svg>
                                       </div>
-                                      <div>
-                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Reporting Requirements</h3>
-                                        <p className="text-gray-500 mb-2">
-                                          No automated reporting requirements found for <strong>{selectedFacility?.investmentName || 'this facility'}</strong>.
-                                        </p>
-                                        <p className="text-gray-500 mb-4">
-                                          Reporting requirements will be automatically generated from funding date to maturity.
-                                        </p>
-                                        <button 
-                                          onClick={() => setShowAddReportDialog(true)}
-                                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                                        >
-                                          Add Reporting Requirement
-                                        </button>
-                                      </div>
+                                      <h1>there is work here we need to add the reporting chart here from platform update wala excel</h1>
                                     </div>
                                   </td>
                                 </tr>
@@ -1970,126 +2058,13 @@ const InvestmentDetailPage = () => {
                             </tbody>
                           </table>
                         </div>
-                      </div>
-
-                      {/* Add Report Dialog */}
-                      {showAddReportDialog && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement</h2>
-                                <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
-                              </div>
-                              <button
-                                onClick={() => setShowAddReportDialog(false)}
-                                className="text-gray-400 hover:text-gray-600"
-                              >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
-                                <input 
-                                  type="text" 
-                                  value={newRequirement.obligor} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, obligor: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <select 
-                                  value={newRequirement.role} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, role: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  {['Borrower', 'Guarantor', 'Sponsor', 'Other'].map(role => (
-                                    <option key={role} value={role}>{role}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
-                                <input 
-                                  type="text" 
-                                  value={newRequirement.reportingRequirement} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                  placeholder="e.g., Annual statements"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
-                                <input 
-                                  type="date" 
-                                  value={newRequirement.previousReportingDate} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
-                                <input 
-                                  type="date" 
-                                  value={newRequirement.nextReportingDate} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
-                                <input 
-                                  type="number" 
-                                  value={newRequirement.daysToProvide} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
-                                <input 
-                                  type="date" 
-                                  value={newRequirement.reportingDueDate} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-                                <textarea 
-                                  value={newRequirement.alter} 
-                                  onChange={(e) => setNewRequirement({ ...newRequirement, alter: e.target.value })} 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                  rows={3}
-                                  placeholder="Any additional notes or requirements..."
-                                />
-                              </div>
-                            </div>
-                            <div className="flex justify-end space-x-3 mt-6">
-                              <button
-                                onClick={() => setShowAddReportDialog(false)}
-                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={handleAddRequirement}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                Add Requirement
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      </div>                     
                     </div>
                   )}
                 </div>
               )}
+
+              
             </div>
           )}
         </div>
