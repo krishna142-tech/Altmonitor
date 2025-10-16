@@ -34,6 +34,61 @@ def create_app():
         logger.info("Health check endpoint called")
         return jsonify({"status": "ok", "message": "Backend is running"})
 
+    # Simple ingestion endpoint for facility general terms
+    @app.route("/api/reporting", methods=["POST"])
+    def save_general_terms():
+        try:
+            payload = request.get_json(force=True)
+        except Exception:
+            return jsonify({"error": "Invalid JSON"}), 400
+        # Persist as NDJSON for simplicity
+        try:
+            ndjson_path = os.path.join(app.config["UPLOAD_FOLDER"], "general_terms.ndjson")
+            with open(ndjson_path, "a", encoding="utf-8") as f:
+                import json
+                f.write(json.dumps({
+                    "received_at": datetime.utcnow().isoformat(),
+                    **(payload or {})
+                }) + "\n")
+            return jsonify({"status": "ok"}), 201
+        except Exception as ex:
+            return jsonify({"error": f"Failed to persist: {ex}"}), 500
+
+    @app.route("/api/reporting", methods=["GET"])
+    def list_reporting():
+        facility_id = request.args.get("facility_id")
+        investment_name = request.args.get("investment_name")
+        ndjson_path = os.path.join(app.config["UPLOAD_FOLDER"], "general_terms.ndjson")
+        items = []
+        if not os.path.exists(ndjson_path):
+            return jsonify(items)
+        import json
+        try:
+            with open(ndjson_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        items.append(obj)
+                    except Exception:
+                        continue
+        except Exception as ex:
+            return jsonify({"error": f"Failed to read: {ex}"}), 500
+
+        def match(o):
+            if facility_id and str(o.get("facilityId")) != str(facility_id):
+                return False
+            if investment_name and str(o.get("investmentName", "")).strip() != str(investment_name).strip():
+                return False
+            return True
+
+        filtered = [o for o in items if match(o)] if (facility_id or investment_name) else items
+        # return newest first
+        filtered.sort(key=lambda o: o.get("received_at", ""), reverse=True)
+        return jsonify(filtered)
+
     # Docs routes removed
 
     @app.route("/api/covenants", methods=["GET"])

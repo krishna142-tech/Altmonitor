@@ -8,17 +8,20 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
-import { PlusCircle, Building2, Database, Activity, Calendar, FileText, Plus } from 'lucide-react';
+import { PlusCircle, Building2, Database, Activity, Calendar, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
 import { useAuth } from '@/context/AuthContext';
 import CovenantTrackingPage from './CovenantTrackingPage';
+import CovenantTab from '@/components/investment-detail/CovenantTab';
+import ReportingRequirementsTab from '@/components/investment-detail/ReportingRequirementsTab';
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 import { listCovenants } from '@/lib/covenantApi';
 // import { listCovenants } from '@/lib/covenantApi'; // TODO: Implement facility-specific covenant data
-import CovenantChart from './CovenantChart';
 import StaticData from './StaticData';
+// CovenantChart is now used inside CovenantTab
+import CovenantChart from './CovenantChart';
 
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
@@ -78,28 +81,28 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="investmentType">Investment Type</Label>
-              <select id="investmentType" {...register('investmentType')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+              <select id="investmentType" {...register('investmentType')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                 <option value="">Select Type</option>
                 {investmentTypes.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="ranking">Ranking</Label>
-              <select id="ranking" {...register('ranking')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+              <select id="ranking" {...register('ranking')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                 <option value="">Select Ranking</option>
                 {rankings.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
-              <select id="currency" {...register('currency')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+              <select id="currency" {...register('currency')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                 <option value="">Select Currency</option>
                 {currencies.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="hasTranche">Has Tranche?</Label>
-              <select id="hasTranche" {...register('hasTranche')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+              <select id="hasTranche" {...register('hasTranche')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                 <option value="">Select</option>
                 {yesNo.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
@@ -145,7 +148,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="assetClassification">Asset Classification</Label>
-                <select id="assetClassification" {...register('assetClassification')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+                <select id="assetClassification" {...register('assetClassification')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                   <option value="">Select Classification</option>
                   {assetClassifications.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
@@ -164,14 +167,14 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="instrumentType">Instrument Type</Label>
-                <select id="instrumentType" {...register('instrumentType')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+                <select id="instrumentType" {...register('instrumentType')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                   <option value="">Select Instrument</option>
                   {instrumentTypes.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="countryOfRisk">Country of Risk</Label>
-                <select id="countryOfRisk" {...register('countryOfRisk')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+                <select id="countryOfRisk" {...register('countryOfRisk')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                   <option value="">Select Country</option>
                   {allCountries.map(country => <option key={country} value={country}>{country}</option>)}
                 </select>
@@ -186,7 +189,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="facilityStatus">Facility Status</Label>
-                <select id="facilityStatus" {...register('facilityStatus')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground border-border/50 shadow-soft">
+                <select id="facilityStatus" {...register('facilityStatus')} className="w-full px-3 py-2 rounded border bg-background-secondary text-foreground order/50 shadow-soft">
                   <option value="">Select Status</option>
                   {facilityStatuses.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
@@ -223,14 +226,12 @@ const InvestmentDetailPage = () => {
   const [reportingRequirements, setReportingRequirements] = useState<any[]>([]);
   const [showAddReportDialog, setShowAddReportDialog] = useState(false);
   const [newRequirement, setNewRequirement] = useState<any>({ obligor: '', role: 'Borrower', reportingRequirement: '', previousReportingDate: '', nextReportingDate: '', daysToProvide: 20, reportingDueDate: '', alter: '' });
-  const [isEditingInterestTerms, setIsEditingInterestTerms] = useState(false);
-  const [isEditingTransactionSummary, setIsEditingTransactionSummary] = useState(false);
-  const [isEditingProjectSummary, setIsEditingProjectSummary] = useState(false);
   const [investmentSummaryComment, setInvestmentSummaryComment] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
   const [activePortfolioTab, setActivePortfolioTab] = useState<'summary' | 'covenant' | 'reporting'>('summary');
   const [covenantData, setCovenantData] = useState<any[]>([]);
   const [covenantCalcDate, setCovenantCalcDate] = useState<string | null>(null);
+  const [covenantFilter, setCovenantFilter] = useState('dscr');
   
   // Utilities for Reporting Requirements schedule generation
   const parseDate = (d?: string) => d ? new Date(d) : undefined;
@@ -452,8 +453,30 @@ const InvestmentDetailPage = () => {
           // Generate automated reporting requirements
           const automatedRequirements = generateAutomatedReportingRequirements(selectedFacility);
           
-          // Combine manual and automated requirements
-          setReportingRequirements([...manualRequirements, ...automatedRequirements]);
+          // Fetch backend reporting payloads saved via /api/reporting
+          let backendReporting: any[] = [];
+          try {
+            const inv = encodeURIComponent((selectedFacility as any)?.investmentName || '');
+            const resp = await fetch(`/api/reporting?investment_name=${inv}`);
+            if (resp.ok) {
+              const rows = await resp.json();
+              if (Array.isArray(rows)) backendReporting = rows.map((r:any, idx:number)=> ({
+                id: r.id || `rep-${idx}`,
+                obligor: (selectedFacility as any)?.issuerName || (selectedFacility as any)?.investmentName || 'Borrower',
+                role: 'Borrower',
+                reportingRequirement: 'General Terms Submitted',
+                previousReportingDate: r.fundingDate || null,
+                nextReportingDate: r.maturityDate || null,
+                daysToProvide: 0,
+                reportingDueDate: r.agreementDate || null,
+                alter: 'Posted via /api/reporting',
+                status: 'Pending'
+              }));
+            }
+          } catch {}
+          
+          // Combine manual, backend, and automated requirements
+          setReportingRequirements([...manualRequirements, ...backendReporting, ...automatedRequirements]);
           
           // Portfolio: prefer existing schedule, else generate
           let cashflows = (selectedFacility as any).cashflows;
@@ -479,7 +502,7 @@ const InvestmentDetailPage = () => {
   // Load comments when the Investment Summary sub-tab is active and the selected facility changes
   useEffect(() => {
     if (activePortfolioTab === 'summary' && selectedFacility?.id) {
-      loadInvestmentSummaryComments();
+    loadInvestmentSummaryComments();
     }
     // We intentionally avoid including the function reference in deps to prevent re-creating the effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -668,7 +691,7 @@ const InvestmentDetailPage = () => {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
       <motion.header 
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-64"
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap  order/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-64"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -710,7 +733,7 @@ const InvestmentDetailPage = () => {
       <div className="flex flex-1 bg-gray-50">
         {/* Enhanced Sidebar with Icons */}
         <div className="w-64 bg-slate-800 flex flex-col fixed left-0 top-0 h-screen z-40">
-          <div className="p-4 border-b border-slate-700">
+          <div className="p-4  border-slate-700">
             <div className="flex items-center gap-2 text-white">
               <Building2 className="w-5 h-5" />
               <span className="font-medium">Investment Details</span>
@@ -755,7 +778,7 @@ const InvestmentDetailPage = () => {
           
           {/* Loading State */}
           {loading && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="mb-4 p-4 bg-blue-50 border lue-200 rounded-md">
               <p className="text-blue-700">Loading facilities...</p>
             </div>
           )}
@@ -787,7 +810,7 @@ const InvestmentDetailPage = () => {
               <Card className="bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
+                    <thead className="bg-gray-50 ">
                       <tr>
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Investment Name</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-900">Facility Type</th>
@@ -800,7 +823,7 @@ const InvestmentDetailPage = () => {
                     </thead>
                     <tbody>
                       {filteredFacilities.map((f, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
+                        <tr key={idx} className=" hover:bg-gray-50">
                           <td className="py-3 px-4">
                             {editingIndex === idx ? (
                               <input className="w-full border px-2 py-1 rounded" value={editingRow?.investmentName || ''} onChange={e => setEditingRow({ ...editingRow, investmentName: e.target.value })} />
@@ -914,7 +937,7 @@ const InvestmentDetailPage = () => {
                         onClick={() => setActivePortfolioTab('summary')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                           activePortfolioTab === 'summary'
-                            ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                            ? 'bg-white text-blue-600 shadow-sm border lue-200'
                             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                         }`}
                       >
@@ -927,7 +950,7 @@ const InvestmentDetailPage = () => {
                       }}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         activePortfolioTab === 'covenant'
-                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          ? 'bg-white text-blue-600 shadow-sm border lue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
@@ -937,7 +960,7 @@ const InvestmentDetailPage = () => {
                       onClick={() => setActivePortfolioTab('reporting')}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         activePortfolioTab === 'reporting'
-                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                          ? 'bg-white text-blue-600 shadow-sm border lue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
@@ -957,7 +980,7 @@ const InvestmentDetailPage = () => {
                   {/* Investment Summary Comments - visible only in Summary sub-tab */}
                   {activePortfolioTab === 'summary' && (
                   <div className="bg-white border rounded-lg">
-                    <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                    <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                       <h3 className="font-semibold">Investment Summary Comments</h3>
                     </div>
                     <div className="p-6">
@@ -982,7 +1005,7 @@ const InvestmentDetailPage = () => {
                           </div>
                         </div>
                         {investmentSummaryComment && (
-                          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="mt-4 p-4 bg-blue-50 border lue-200 rounded-md">
                             <div className="flex items-start gap-3">
                               <div className="flex-shrink-0">
                                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
@@ -1007,7 +1030,7 @@ const InvestmentDetailPage = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </div> 
                   )}
 
                   {/* Investment Summary Tab Content */}
@@ -1060,99 +1083,40 @@ const InvestmentDetailPage = () => {
                       <div className="grid grid-cols-3 gap-6">
                         {/* Project Summary */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Project Summary</h3>
                           </div>
                           <div className="p-4 space-y-3">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                              {isEditingProjectSummary ? (
-                                <input 
-                                  type="text" 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  defaultValue={(selectedFacility as any)?.projectName || ''}
-                                  placeholder="Enter project name"
-                                />
-                              ) : (
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                  {(selectedFacility as any)?.projectName || 'N/A'}
-                                </div>
-                              )}
+                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                {(selectedFacility as any)?.projectName || 'N/A'}
+                              </div>
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
-                              {isEditingProjectSummary ? (
-                                <input 
-                                  type="text" 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  defaultValue={(selectedFacility as any)?.projectType || ''}
-                                  placeholder="Enter project type"
-                                />
-                              ) : (
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                  {(selectedFacility as any)?.projectType || 'N/A'}
-                                </div>
-                              )}
+                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                {(selectedFacility as any)?.projectType || 'N/A'}
+                              </div>
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Project Location</label>
-                              {isEditingProjectSummary ? (
-                                <input 
-                                  type="text" 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  defaultValue={(selectedFacility as any)?.projectLocation || ''}
-                                  placeholder="Enter project location"
-                                />
-                              ) : (
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                  {(selectedFacility as any)?.projectLocation || 'N/A'}
-                                </div>
-                              )}
+                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                {(selectedFacility as any)?.projectLocation || 'N/A'}
+                              </div>
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
-                              {isEditingProjectSummary ? (
-                                <input 
-                                  type="text" 
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  defaultValue={(selectedFacility as any)?.projectStatus || ''}
-                                  placeholder="Enter project status"
-                                />
-                              ) : (
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                  {(selectedFacility as any)?.projectStatus || 'N/A'}
-                                </div>
-                              )}
-                            </div>
-                            {/* Edit/Save Button */}
-                            <div className="mt-4 flex justify-end">
-                              {isEditingProjectSummary ? (
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => setIsEditingProjectSummary(false)}
-                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    Save Project Summary
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => setIsEditingProjectSummary(true)}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  Edit Project Summary
-                                </button>
-                              )}
+                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                {(selectedFacility as any)?.projectStatus || 'N/A'}
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Transaction Summary */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Transaction Summary</h3>
                           </div>
                           <div className="p-6">
@@ -1160,283 +1124,127 @@ const InvestmentDetailPage = () => {
                               <div className="space-y-4">
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Issuer Name</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t:any)=> t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
-                                      placeholder="Enter issuer name"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t:any)=> t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t:any)=> t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Instrument Type</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.instrumentType || 'Private Placement'}
-                                      placeholder="Enter instrument type"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.instrumentType || 'Private Placement'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.instrumentType || 'Private Placement'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.sector || 'Utilities'}
-                                      placeholder="Enter sector"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.sector || 'Utilities'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.sector || 'Utilities'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Sector</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.subSector || 'Electric'}
-                                      placeholder="Enter sub-sector"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.subSector || 'Electric'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.subSector || 'Electric'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={selectedFacility?.paymentRank || 'Senior Secured'}
-                                      placeholder="Enter rank"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {selectedFacility?.paymentRank || 'Senior Secured'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {selectedFacility?.paymentRank || 'Senior Secured'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Drawdown Type</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue="Scheduled"
-                                      placeholder="Enter drawdown type"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      Scheduled
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    Scheduled
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Repayment Type</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue="Scheduled"
-                                      placeholder="Enter repayment type"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      Scheduled
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    Scheduled
+                                  </div>
                                 </div>
                               </div>
                               
                               <div className="space-y-4">
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Country of Risk</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.countryOfRisk || 'USA'}
-                                      placeholder="Enter country of risk"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.countryOfRisk || 'USA'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.countryOfRisk || 'USA'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Currency Type</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={selectedFacility?.currency || 'GBP'}
-                                      placeholder="Enter currency"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {selectedFacility?.currency || 'GBP'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {selectedFacility?.currency || 'GBP'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Total Commitment</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
-                                      placeholder="Enter total commitment"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Investor Share</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="text" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
-                                      placeholder="Enter investor share"
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Agreement Date</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="date" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={selectedFacility?.fromDate || '2025-02-11'}
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {selectedFacility?.fromDate || '2025-02-11'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {selectedFacility?.fromDate || '2025-02-11'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Funding Date</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="date" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={selectedFacility?.fromDate || '2025-02-11'}
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {selectedFacility?.fromDate || '2025-02-11'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {selectedFacility?.fromDate || '2025-02-11'}
+                                  </div>
                                 </div>
                                 <div>
                                   <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Maturity Date</label>
-                                  {isEditingTransactionSummary ? (
-                                    <input 
-                                      type="date" 
-                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      defaultValue={(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
-                                    />
-                                  ) : (
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                      {(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
-                                    </div>
-                                  )}
+                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    {(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             
-                            {/* Edit/Save Button */}
-                            <div className="mt-6 flex justify-end">
-                              {isEditingTransactionSummary ? (
-                                <div className="flex gap-2">
-                                  <button 
-                                    onClick={() => setIsEditingTransactionSummary(false)}
-                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    Save Transaction Summary
-                                  </button>
-                                </div>
-                              ) : (
-                                <button 
-                                  onClick={() => setIsEditingTransactionSummary(true)}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  Edit Transaction Summary
-                                </button>
-                              )}
-                            </div>
                           </div>
                         </div>
 
-                        {/* Investor Exposure Chart */}
+                        {/* Summary Covenant Graph (Right) */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Investor Exposure</h3>
+                          <div className="bg-white text-black px-4 py-2 rounded-t-lg flex items-center justify-between">
+                            <h3 className="font-semibold">Covenant Graph</h3>
+                            <div className="flex items-center gap-2 text-xs text-white/90">
+                              <span>Filter:</span>
+                              <select
+                                className="px-2 py-1 rounded bg-blue-700 text-white border border-white/20"
+                                value={covenantFilter || 'dscr'}
+                                onChange={(e)=> setCovenantFilter(e.target.value)}
+                              >
+                                <option value="dscr">DSCR</option>
+                                <option value="debt">Debt</option>
+                                <option value="interest">Interest Cover</option>
+                                <option value="">All</option>
+                              </select>
+                            </div>
                           </div>
                           <div className="p-4">
-                            <div className="h-48 flex items-end justify-center space-x-4">
-                              <div className="flex flex-col items-center">
-                                <div className="flex flex-col items-end space-y-1 mb-2">
-                                  <div className="w-8 bg-blue-500" style={{height: '25%'}}></div>
-                                  <div className="w-8 bg-orange-500" style={{height: '70%'}}></div>
+                            <div className="h-64">
+                              <CovenantChart data={covenantData} title="Historic Debt Service" filterName={covenantFilter} />
                                 </div>
-                                <span className="text-xs text-gray-600">1</span>
                               </div>
-                              <div className="flex flex-col items-center">
-                                <div className="flex flex-col items-end space-y-1 mb-2">
-                                  <div className="w-8 bg-blue-500" style={{height: '0%'}}></div>
-                                  <div className="w-8 bg-orange-500" style={{height: '0%'}}></div>
-                                </div>
-                                <span className="text-xs text-gray-600">2</span>
-                              </div>
-                            </div>
-                            <div className="flex justify-center space-x-4 mt-2">
-                              <div className="flex items-center space-x-1">
-                                <div className="w-3 h-3 bg-blue-500"></div>
-                                <span className="text-xs text-gray-600">Series1</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <div className="w-3 h-3 bg-orange-500"></div>
-                                <span className="text-xs text-gray-600">Series2</span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-6">
                         {/* Interest Terms */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Interest Terms</h3>
                           </div>
                           <div className="p-6">
@@ -1446,101 +1254,45 @@ const InvestmentDetailPage = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Coupon Type</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Risk Free Rate</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">All In Rate</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Payment Frequency</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Interest Payment Date</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">First IPD</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -1550,149 +1302,63 @@ const InvestmentDetailPage = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag?</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Numerator Lag</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.inflationRate || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.inflationRate || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.inflationRate || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Day Count</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.dayCount || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.dayCount || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.dayCount || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Business Day</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.businessDay || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.businessDay || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.businessDay || ''}
+                                    </div>
                                   </div>
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Holiday Convention</label>
-                                    {isEditingInterestTerms ? (
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        defaultValue={(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
-                                        placeholder="Enter value"
-                                      />
-                                    ) : (
-                                      <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                        {(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
-                                      </div>
-                                    )}
+                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                      {(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                             
-                            {/* Edit/Save Button */}
-                            <div className="mt-6 flex justify-end">
-                              {isEditingInterestTerms ? (
-                                <div className="flex gap-2">
-                                  <button 
-                                    onClick={() => setIsEditingInterestTerms(false)}
-                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    Save Interest Terms
-                                  </button>
-                                </div>
-                              ) : (
-                                <button 
-                                  onClick={() => setIsEditingInterestTerms(true)}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  Edit Interest Terms
-                                </button>
-                              )}
-                            </div>
                           </div>
                         </div>
 
                         {/* Historic Rating */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Historic Rating</h3>
                           </div>
                           <div className="p-4">
                             <div className="overflow-x-auto">
                               <table className="w-full text-sm">
                                 <thead>
-                                  <tr className="border-b">
+                                  <tr className="">
                                     <th className="text-left py-2">Agency</th>
                                     <th className="text-center py-2">Inception</th>
                                     <th className="text-center py-2">31-Dec-24</th>
@@ -1701,21 +1367,21 @@ const InvestmentDetailPage = () => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  <tr className="border-b">
+                                  <tr className="">
                                     <td className="py-2 font-medium">S&P</td>
                                     <td className="text-center py-2">A</td>
                                     <td className="text-center py-2">Aaa</td>
                                     <td className="text-center py-2">-</td>
                                     <td className="text-center py-2">-</td>
                                   </tr>
-                                  <tr className="border-b">
+                                  <tr className="">
                                     <td className="py-2 font-medium">Moody's</td>
                                     <td className="text-center py-2">Aaa</td>
                                     <td className="text-center py-2">AA</td>
                                     <td className="text-center py-2">-</td>
                                     <td className="text-center py-2">-</td>
                                   </tr>
-                                  <tr className="border-b">
+                                  <tr className="">
                                     <td className="py-2 font-medium">Fitch</td>
                                     <td className="text-center py-2">AA</td>
                                     <td className="text-center py-2">Aaa</td>
@@ -1738,7 +1404,7 @@ const InvestmentDetailPage = () => {
 
                       {/* Key Performance */}
                       <div className="bg-white border rounded-lg">
-                        <div className="bg-blue-800 text-white px-4 py-2 rounded-t-lg">
+                        <div className="bg-white text-black px-4 py-2 rounded-t-lg">
                           <h3 className="font-semibold">Key Performance</h3>
                         </div>
                         <div className="p-4">
@@ -1753,224 +1419,65 @@ const InvestmentDetailPage = () => {
 
                   {/* Reporting Tracking Tab Content */}
                   {activePortfolioTab === 'reporting' && (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-5 h-5 text-gray-600" />
-                          <h2 className="text-lg font-semibold">Report Tracking</h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button onClick={generateReportingSchedule} className="print:hidden">Auto-Generate</Button>
-                          <Button onClick={() => setShowAddReportDialog(true)} className="flex items-center gap-2 print:hidden">
-                            <Plus className="w-4 h-4" /> Add Reporting Requirement
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-blue-600">
-                            <tr>
-                              {['Obligor','Role','Reporting Requirement','Previous reporting Date','Next Reporting date','Days to provide','Reporting Due Date','Alter'].map(h => (
-                                <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {reportingRequirements.length > 0 ? reportingRequirements.map((r:any) => (
-                              <tr key={r.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.obligor || (selectedFacility as any)?.issuerName || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.role || 'Borrower'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingRequirement || r.reporting_requirement || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.previousReportingDate || r.previous_reporting_date || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.nextReportingDate || r.next_reporting_date || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.daysToProvide || r.days_to_provide || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.reportingDueDate || r.reporting_due_date || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.alter || ''}</td>
-                              </tr>
-                            )) : (
-                              <tr>
-                                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No Reporting Requirements Found</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
+                    <>
+                      <ReportingRequirementsTab
+                        selectedFacility={selectedFacility}
+                        reportingRequirements={reportingRequirements}
+                        onAddClick={() => setShowAddReportDialog(true)}
+                        onAutoGenerate={generateReportingSchedule}
+                      />
                       <Dialog open={showAddReportDialog} onOpenChange={setShowAddReportDialog}>
                         <DialogContent className="max-w-2xl">
-                          <div className="space-y-6">
+                    <div className="space-y-6">
                             <div>
                               <h2 className="text-xl font-semibold text-gray-900">Add Reporting Requirement hi i am at this</h2>
                               <p className="text-sm text-gray-600">Add a new reporting requirement for this facility</p>
-                            </div>
+                          </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Obligor</label>
                                 <input type="text" value={newRequirement.obligor} onChange={(e)=> setNewRequirement({ ...newRequirement, obligor: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                              </div>
+                          </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                 <select value={newRequirement.role} onChange={(e)=> setNewRequirement({ ...newRequirement, role: e.target.value })} className="w-full px-3 py-2 border rounded-md">
                                   {['Borrower','Guarantor','Sponsor','Other'].map(o=> <option key={o} value={o}>{o}</option>)}
                                 </select>
-                              </div>
+                        </div>
                               <div className="col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Requirement</label>
                                 <input type="text" value={newRequirement.reportingRequirement} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingRequirement: e.target.value })} className="w-full px-3 py-2 border rounded-md" placeholder="e.g., Annual statements" />
-                              </div>
+                      </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Previous Reporting Date</label>
                                 <input type="date" value={newRequirement.previousReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, previousReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                              </div>
+                        </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Next Reporting Date</label>
                                 <input type="date" value={newRequirement.nextReportingDate} onChange={(e)=> setNewRequirement({ ...newRequirement, nextReportingDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                              </div>
-                              <div>
+                                      </div>
+                                      <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Days to Provide</label>
                                 <input type="number" value={newRequirement.daysToProvide} onChange={(e)=> setNewRequirement({ ...newRequirement, daysToProvide: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border rounded-md" />
-                              </div>
+                                        </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Reporting Due Date</label>
                                 <input type="date" value={newRequirement.reportingDueDate} onChange={(e)=> setNewRequirement({ ...newRequirement, reportingDueDate: e.target.value })} className="w-full px-3 py-2 border rounded-md" />
-                              </div>
-                            </div>
+                                      </div>
+                                    </div>
                             <div className="flex justify-end gap-3 pt-2">
                               <Button variant="outline" onClick={()=> setShowAddReportDialog(false)}>Cancel</Button>
                               <Button onClick={handleAddRequirement} disabled={!newRequirement.reportingRequirement}>Add Requirement</Button>
-                            </div>
-                          </div>
+                        </div>
+                      </div>
                         </DialogContent>
                       </Dialog>
-                    </div>
+                    </>
                   )}
 
                   {/* Covenant Tracking Tab Content */}
                   {activePortfolioTab === 'covenant' && (
-                    <div className="space-y-6">
-                      {/* Header with Date */}
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-600">Calcula:</span>
-                            <span className="text-sm text-gray-900">{covenantCalcDate || new Date().toLocaleDateString()}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            Facility: {selectedFacility?.investmentName || 'Not Selected'}
-                          </div>
-                        </div>
-                        <h2 className="text-xl font-semibold text-gray-900">Covenant Tracking</h2>
-                      </div>
-
-                      {/* Covenant Graph Section */}
-                      <div className="bg-white border rounded-lg">
-                        <div className="bg-blue-800 text-white px-4 py-3 rounded-t-lg">
-                          <h3 className="font-semibold">Covenant Graph</h3>
-                        </div>
-                        <div className="p-6">
-                          <CovenantChart 
-                            data={covenantData} 
-                            title="Historic Debt Service" 
-                          />
-                        </div>
-                      </div>
-
-                      {/* Covenant Data Table */}
-                      <div className="bg-white border rounded-lg overflow-hidden">
-                        <div className="bg-blue-800 text-white px-4 py-3">
-                          <h3 className="font-semibold">Covenant Compliance Table</h3>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-blue-800 text-white">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-sm font-medium">SNO</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Covenant Name</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Threshold</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Consequence</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Borrower Calculation</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Lender Calculation</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Compliance Check</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Comment</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Source File</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium">Reference File</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {covenantData.length > 0 ? (
-                                covenantData.map((covenant, index) => (
-                                  <tr key={covenant.id || index} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.covenant_name || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.threshold || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.consequence || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.borrower_calc || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.lender_calc || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        covenant.compliance_check === 'Non-Compliant' 
-                                          ? 'bg-red-100 text-red-800' 
-                                          : covenant.compliance_check === 'Compliant'
-                                          ? 'bg-green-100 text-green-800'
-                                          : 'bg-gray-100 text-gray-800'
-                                      }`}>
-                                        {covenant.compliance_check || 'N/A'}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.comment || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.source_file || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{covenant.reference_file || '-'}</td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={10} className="px-4 py-12 text-center">
-                                    <div className="flex flex-col items-center space-y-4">
-                                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                      </div>
-                                      <div>
-                                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Covenant Data Available</h3>
-                                        <p className="text-gray-500 mb-2">
-                                          No covenant data found for <strong>{selectedFacility?.investmentName || 'this facility'}</strong>.
-                                        </p>
-                                        <p className="text-gray-500 mb-4">
-                                          Covenant data should be facility-specific. Upload Excel files for this specific facility.
-                                        </p>
-                                        <div className="flex items-center justify-center space-x-4">
-                                          <span className="text-sm text-gray-400">Go to:</span>
-                                          <button 
-                                            onClick={() => setActiveSidebarItem(4)}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                                          >
-                                            Covenant Tracking Page
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Covenant Graph Section */}
-                      <div className="bg-white border rounded-lg">
-                        <div className="bg-blue-800 text-white px-4 py-3 rounded-t-lg">
-                          <h3 className="font-semibold">Covenant Graph</h3>
-                        </div>
-                        <div className="p-6">
-                          <CovenantChart 
-                            data={covenantData} 
-                            title="Historic Debt Service" 
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <CovenantTab />
                   )}
 
                   {/* Reporting Tracking Tab Content */}
@@ -1988,7 +1495,7 @@ const InvestmentDetailPage = () => {
 
                       {/* Automated Report Tracking Table */}
                       <div className="bg-white border rounded-lg overflow-hidden">
-                        <div className="bg-blue-800 text-white px-4 py-3">
+                        <div className="bg-white text-black px-4 py-3 ">
                           <h3 className="font-semibold">Automated Reporting Requirements</h3>
                         </div>
                         <div className="overflow-x-auto">

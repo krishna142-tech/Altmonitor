@@ -232,141 +232,69 @@ const CovenantTrackingPage: React.FC = () => {
       <div className="bg-white rounded-md p-4 border shadow-sm">
         <div className="text-sm font-medium mb-3">Timeline</div>
         <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-  <thead>
-    <tr className="border-b bg-gray-100">
-      <th className="text-left py-2 px-2">IPD Date</th>
-      <th className="text-left py-2 px-2">Display Name</th>
-      <th className="text-left py-2 px-2">Template Status</th>
-      <th className="text-left py-2 px-2">Source</th>
-      <th className="text-left py-2 px-2">Provisional</th>
-      <th className="text-left py-2 px-2">Provisional Start</th>
-      <th className="text-left py-2 px-2">Report</th>
-    </tr>
-  </thead>
-  <tbody>
-    {Array.isArray(periods) &&
-      periods.map((p: any) => (
-        <tr
-          key={p.id}
-          className={`border-b transition-colors ${
-            selectedPeriodId === p.id ? 'bg-blue-50 border-l-4 border-blue-400' : 'hover:bg-gray-50'
-          }`}
-        >
-          <td className="py-2 px-2">
-            <button
-              className="text-blue-600 underline disabled:opacity-50"
-              disabled={uploading === p.id}
-              onClick={async () => {
-                setSelectedPeriodId(p.id);
-                setUploading(p.id);
-                try {
-                  const res: any = await getPortfolioPeriods(portfolioId, p.ipd_date);
-                  if (res && res.entries && Array.isArray(res.entries)) {
-                    const withSno = res.entries.map((r: any, i: number) => ({ ...r, sno: i + 1 }));
-                    setRows(withSno);
-                    setCalcDate(p.ipd_date);
-                  }
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setUploading(null);
-                }
-              }}
-            >
-              {uploading === p.id ? 'Loading…' : p.ipd_date}
-            </button>
-          </td>
-
-          <td className="py-2 px-2">{p.display_name}</td>
-
-          <td className="py-2 px-2">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={p.template_status === 'Approved'}
-                onChange={async (e) => {
-                  const nextStatus = e.target.checked ? 'Approved' : 'Draft';
-                  setSaving(p.id);
-                  try {
-                    const updated = await updatePeriod(portfolioId, p.id, { template_status: nextStatus });
-                    setPeriods((prev: any) => prev.map((x: any) => (x.id === p.id ? updated : x)));
-                  } catch (err) {
-                    console.error(err);
-                  } finally {
-                    setSaving(null);
-                  }
-                }}
-                disabled={saving === p.id}
-              />
-              <span className="text-sm">{p.template_status}</span>
-            </label>
-          </td>
-
-          <td className="py-2 px-2">
-            <span className="text-sm px-2 py-1 inline-block border rounded bg-gray-50">{p.source}</span>
-          </td>
-
-          <td className="py-2 px-2">
-            <input
-              type="checkbox"
-              checked={!!p.is_provisional}
-              onChange={async (e) => {
-                const checked = e.target.checked;
-                setSaving(p.id);
-                try {
-                  const updated = await updatePeriod(portfolioId, p.id, {
-                    is_provisional: checked,
-                    source: checked ? 'Provisional' : 'Actuals',
-                  });
-                  setPeriods((prev: any) => prev.map((x: any) => (x.id === p.id ? updated : x)));
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setSaving(null);
-                }
-              }}
-              disabled={saving === p.id}
-            />
-          </td>
-
-          <td className="py-2 px-2">
-            <input
-              type="date"
-              className="bg-transparent border rounded px-2 py-1"
-              defaultValue={p.provisional_start_date || ''}
-              onChange={async (e) => {
-                setSaving(p.id);
-                try {
-                  const updated = await updatePeriod(portfolioId, p.id, {
-                    provisional_start_date: e.target.value || null,
-                  });
-                  setPeriods((prev: any) => prev.map((x: any) => (x.id === p.id ? updated : x)));
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setSaving(null);
-                }
-              }}
-              disabled={saving === p.id}
-            />
-          </td>
-
-          <td className="py-2 px-2">
-            {p.report_link ? (
-              <a className="text-blue-600 underline" href={p.report_link} target="_blank" rel="noreferrer">
-                Open
-              </a>
-            ) : (
-              '—'
-            )}
-          </td>
-        </tr>
-      ))}
-  </tbody>
-</table>
-
-    
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-2">IPD Date</th>
+                  <th className="text-left py-2 px-2">Display Name</th>
+                  <th className="text-left py-2 px-2">Template Status</th>
+                  <th className="text-left py-2 px-2">Source</th>
+                  <th className="text-left py-2 px-2">Provisional</th>
+                  <th className="text-left py-2 px-2">Provisional Start</th>
+                  <th className="text-left py-2 px-2">Report</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((p:any) => (
+                  <tr key={p.id} className={`border-b hover:bg-gray-50 ${selectedPeriodId===p.id?'bg-gray-50':''}`}>
+                    <td className="py-2 px-2">
+                      <button className="text-blue-600 underline" onClick={async () => {
+                        setSelectedPeriodId(p.id);
+                        try{
+                          const res:any = await getPortfolioPeriods(portfolioId, p.ipd_date);
+                          if (res && (res as any).entries) {
+                            const withSno = (res as any).entries.map((r:any, i:number)=> ({...r, sno: i+1 }));
+                            setRows(withSno);
+                            setCalcDate(p.ipd_date);
+                          }
+                        }catch(e){}
+                      }}>{p.ipd_date}</button>
+                    </td>
+                    <td className="py-2 px-2">{p.display_name}</td>
+                    <td className="py-2 px-2">
+                      <label className="inline-flex items-center gap-2">
+                        <input type="checkbox" checked={p.template_status === 'Approved'} onChange={async (e)=>{
+                          const nextStatus = e.target.checked ? 'Approved' : 'Draft';
+                          const updated = await updatePeriod(portfolioId, p.id, { template_status: nextStatus });
+                          setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
+                        }} />
+                        <span className="text-sm">{p.template_status}</span>
+                      </label>
+                    </td>
+                    <td className="py-2 px-2">
+                      <span className="text-sm px-2 py-1 inline-block border rounded bg-gray-50">{p.source}</span>
+                    </td>
+                    <td className="py-2 px-2">
+                      <input type="checkbox" checked={!!p.is_provisional} onChange={async (e)=>{
+                        const checked = e.target.checked;
+                        const updated = await updatePeriod(portfolioId, p.id, { is_provisional: checked, source: checked ? 'Provisional' : 'Actuals' });
+                        setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
+                      }} />
+                    </td>
+                    <td className="py-2 px-2">
+                      <input type="date" className="bg-transparent border rounded px-2 py-1" defaultValue={p.provisional_start_date || ''}
+                        onBlur={async (e)=>{
+                          const updated = await updatePeriod(portfolioId, p.id, { provisional_start_date: e.target.value||null });
+                          setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
+                        }} />
+                    </td>
+                    <td className="py-2 px-2">
+                      {p.report_link ? <a className="text-blue-600 underline" href={p.report_link} target="_blank" rel="noreferrer">Open</a> : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
         </div>
       </div>
 
@@ -552,8 +480,8 @@ const CovenantTrackingPage: React.FC = () => {
             <div className="space-y-2 mb-3">
               <label className="text-sm">Portfolio ID</label>
               <Input className="w-full" value={portfolioId} onChange={(e)=> setPortfolioId(e.target.value)} placeholder="e.g., DEAL-123" />
-              <label className="text-sm">IPD Date (YYYY-MM-DD)</label>
-              <Input className="w-full" value={ipdDateInput} onChange={(e)=> setIpdDateInput(e.target.value)} placeholder="2025-03-31" />
+              <label className="text-sm">IPD Date</label>
+              <input type="date" className="w-full px-3 py-2 border rounded-md" value={ipdDateInput} onChange={(e)=> setIpdDateInput(e.target.value)} />
               <label className="text-sm">Display Name</label>
               <Input className="w-full" value={displayNameInput} onChange={(e)=> setDisplayNameInput(e.target.value)} placeholder="Mar-2025" />
             </div>
@@ -586,5 +514,4 @@ const CovenantTrackingPage: React.FC = () => {
 };
 
 export default CovenantTrackingPage;
-
 

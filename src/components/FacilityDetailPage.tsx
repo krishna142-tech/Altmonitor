@@ -668,44 +668,65 @@ const FacilityDetailPage = () => {
               <div className="flex justify-end mt-10">
                 <Button
                   type="button"
-                  onClick={() => {
-                    try {
-                      const updatedGeneralData = {
-                        ...generalData,
-                        calculationStartDate: calcStartDateState,
-                        agreementDate: agreementDateState,
-                        maturityDate: maturityDateState,
-                        initialCommitment: initialCommitmentState,
-                        marginRate: marginRateState,
-                        interestType: interestTypeState,
-                        currency: currencyState
-                      };
-                      if (currentFacility) {
-                        updateFacility(currentFacility.id, { ...currentFacility, generalTerms: updatedGeneralData });
-                        alert('General terms saved');
-                      } else {
-                        addFacility({
-                          transactionId: facilityKey || '',
-                          investmentName: facilityKey || '',
-                          facilityType: '',
-                          paymentRank: '',
-                          seniority: '',
-                          currency: currencyState,
-                          fromDate: '',
-                          status: 'Active',
-                          generalTerms: updatedGeneralData
-                        });
-                        alert('General terms saved (new facility created)');
-                      }
-                    } catch (e) {
-                      console.error('Failed to save general terms', e);
-                      alert('Failed to save general terms');
-                    }
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Save
-                </Button>
+                  onClick={async () => {
+                     try {
+                       const updatedGeneralData = {
+                         ...generalData,
+                         calculationStartDate: calcStartDateState,
+                         agreementDate: agreementDateState,
+                         maturityDate: maturityDateState,
+                         initialCommitment: initialCommitmentState,
+                         marginRate: marginRateState,
+                         interestType: interestTypeState,
+                         currency: currencyState
+                       };
+                       if (currentFacility) {
+                         updateFacility(currentFacility.id, { ...currentFacility, generalTerms: updatedGeneralData });
+                         alert('General terms saved');
+                       } else {
+                         addFacility({
+                           transactionId: facilityKey || '',
+                           investmentName: facilityKey || '',
+                           facilityType: '',
+                           paymentRank: '',
+                           seniority: '',
+                           currency: currencyState,
+                           fromDate: '',
+                           status: 'Active',
+                           generalTerms: updatedGeneralData
+                         });
+                         alert('General terms saved (new facility created)');
+                       }
+
+                       // POST to backend reporting endpoint
+                       try {
+                         await fetch('/api/reporting', {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({
+                             facilityId: currentFacility?.id || facilityKey || null,
+                             investmentName: currentFacility?.investmentName || facilityKey || null,
+                             fundingDate: calcStartDateState,
+                             agreementDate: agreementDateState,
+                             maturityDate: maturityDateState,
+                             initialCommitment: initialCommitmentState,
+                             marginRate: marginRateState,
+                             interestType: interestTypeState,
+                             currency: currencyState
+                           })
+                         });
+                       } catch (e) {
+                         console.error('Failed to POST reporting payload', e);
+                       }
+                     } catch (e) {
+                       console.error('Failed to save general terms', e);
+                       alert('Failed to save general terms');
+                     }
+                   }}
+                   className="bg-green-600 hover:bg-green-700 text-white"
+                 >
+                   Save
+                 </Button>
               </div>
             </Card>
           </motion.div>
