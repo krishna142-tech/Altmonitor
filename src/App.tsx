@@ -7,7 +7,6 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AdminHeader } from '@/components/AdminHeader'
 import { AdminDashboard } from '@/components/AdminDashboard'
 import DatabaseSetup from '@/components/DatabaseSetup'
-import HomePage from '@/pages/HomePage'
 
 // Import existing pages
 import LoginPage from '@/components/LoginPage'

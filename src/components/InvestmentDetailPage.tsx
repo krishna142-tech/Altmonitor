@@ -22,6 +22,8 @@ import { listCovenants } from '@/lib/covenantApi';
 import StaticData from './StaticData';
 // CovenantChart is now used inside CovenantTab
 import CovenantChart from './CovenantChart';
+import { Bar } from 'react-chartjs-2';
+import 'chart.js/auto';
 
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
@@ -523,10 +525,18 @@ const InvestmentDetailPage = () => {
 
   // Save investment summary comment to database
   const saveInvestmentSummaryComment = async () => {
-    if (!investmentSummaryComment.trim() || !selectedFacility) return;
+    console.log('Save button clicked');
+    console.log('Comment:', investmentSummaryComment);
+    console.log('Selected facility:', selectedFacility);
+    
+    if (!investmentSummaryComment.trim() || !selectedFacility) {
+      console.log('Validation failed - missing comment or facility');
+      return;
+    }
     
     setIsSavingComment(true);
     try {
+      console.log('Attempting to save comment...');
       const { supabase } = await import('@/lib/supabase');
       
       const { data, error } = await supabase
@@ -549,6 +559,7 @@ const InvestmentDetailPage = () => {
       }
 
       console.log('Comment saved successfully:', data);
+      alert('Comment saved successfully!');
       // Optionally clear the comment after saving
       // setInvestmentSummaryComment('');
       
@@ -1080,43 +1091,49 @@ const InvestmentDetailPage = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-6">
-                        {/* Project Summary */}
+
+                      {/* Project Summary - Full Width */}
+                      <div className="mb-6">
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
+                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Project Summary</h3>
                           </div>
-                          <div className="p-4 space-y-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                {(selectedFacility as any)?.projectName || 'N/A'}
+                          <div className="p-4">
+                            <div className="grid grid-cols-4 gap-6">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectName || 'N/A'}
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
-                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                {(selectedFacility as any)?.projectType || 'N/A'}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectType || 'N/A'}
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Location</label>
-                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                {(selectedFacility as any)?.projectLocation || 'N/A'}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Location</label>
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectLocation || 'N/A'}
+                                </div>
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
-                              <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
-                                {(selectedFacility as any)?.projectStatus || 'N/A'}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
+                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  {(selectedFacility as any)?.projectStatus || 'N/A'}
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
+                      </div>
 
+                      {/* Transaction Summary and Chart - Side by Side */}
+                      <div className="grid grid-cols-2 gap-6 mb-6">
                         {/* Transaction Summary */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
+                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Transaction Summary</h3>
                           </div>
                           <div className="p-6">
@@ -1211,40 +1228,84 @@ const InvestmentDetailPage = () => {
                                 </div>
                               </div>
                             </div>
-                            
                           </div>
                         </div>
 
-                        {/* Summary Covenant Graph (Right) */}
+                        {/* Investor Exposure Chart */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-white text-black px-4 py-2 rounded-t-lg flex items-center justify-between">
-                            <h3 className="font-semibold">Covenant Graph</h3>
-                            <div className="flex items-center gap-2 text-xs text-white/90">
-                              <span>Filter:</span>
-                              <select
-                                className="px-2 py-1 rounded bg-blue-700 text-white border border-white/20"
-                                value={covenantFilter || 'dscr'}
-                                onChange={(e)=> setCovenantFilter(e.target.value)}
-                              >
-                                <option value="dscr">DSCR</option>
-                                <option value="debt">Debt</option>
-                                <option value="interest">Interest Cover</option>
-                                <option value="">All</option>
-                              </select>
-                            </div>
+                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
+                            <h3 className="font-semibold">Investor Exposure</h3>
                           </div>
                           <div className="p-4">
-                            <div className="h-64">
-                              <CovenantChart data={covenantData} title="Historic Debt Service" filterName={covenantFilter} />
-                                </div>
-                              </div>
+                            <div className="h-120 w-full">
+                              <Bar
+                                data={{
+                                  labels: ['1', '2'],
+                                  datasets: [
+                                    {
+                                      label: 'Series1',
+                                      data: [25, 0],
+                                      backgroundColor: '#3b82f6',
+                                      borderColor: '#3b82f6',
+                                      borderWidth: 1,
+                                    },
+                                    {
+                                      label: 'Series2',
+                                      data: [75, 0],
+                                      backgroundColor: '#f97316',
+                                      borderColor: '#f97316',
+                                      borderWidth: 1,
+                                    }
+                                  ]
+                                }}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  layout: {
+                                    padding: {
+                                      bottom: 10
+                                    }
+                                  },
+                                  plugins: {
+                                    legend: {
+                                      display: true,
+                                      position: 'bottom' as const,
+                                      labels: {
+                                        usePointStyle: true,
+                                        padding: 15,
+                                        font: { size: 12 }
+                                      }
+                                    }
+                                  },
+                                  scales: {
+                                    x: {
+                                      grid: { display: false },
+                                      ticks: { font: { size: 12 } }
+                                    },
+                                    y: {
+                                      beginAtZero: true,
+                                      max: 100,
+                                      grid: { color: '#f3f4f6' },
+                                      ticks: { 
+                                        callback: function(value) {
+                                          return value + '%';
+                                        },
+                                        font: { size: 11 }
+                                      }
+                                    }
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6">
+                      {/* Interest Terms - Full Width */}
+                      <div className="mb-6">
                         {/* Interest Terms */}
                         <div className="bg-white border rounded-lg">
-                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
+                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
                             <h3 className="font-semibold">Interest Terms</h3>
                           </div>
                           <div className="p-6">
@@ -1346,71 +1407,6 @@ const InvestmentDetailPage = () => {
                               </div>
                             </div>
                             
-                          </div>
-                        </div>
-
-                        {/* Historic Rating */}
-                        <div className="bg-white border rounded-lg">
-                          <div className="bg-white text-black px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Historic Rating</h3>
-                          </div>
-                          <div className="p-4">
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="">
-                                    <th className="text-left py-2">Agency</th>
-                                    <th className="text-center py-2">Inception</th>
-                                    <th className="text-center py-2">31-Dec-24</th>
-                                    <th className="text-center py-2">30-09-2024</th>
-                                    <th className="text-center py-2">30-06-2024</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr className="">
-                                    <td className="py-2 font-medium">S&P</td>
-                                    <td className="text-center py-2">A</td>
-                                    <td className="text-center py-2">Aaa</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                  </tr>
-                                  <tr className="">
-                                    <td className="py-2 font-medium">Moody's</td>
-                                    <td className="text-center py-2">Aaa</td>
-                                    <td className="text-center py-2">AA</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                  </tr>
-                                  <tr className="">
-                                    <td className="py-2 font-medium">Fitch</td>
-                                    <td className="text-center py-2">AA</td>
-                                    <td className="text-center py-2">Aaa</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                  </tr>
-                                  <tr>
-                                    <td className="py-2 font-medium">Others</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                    <td className="text-center py-2">-</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Key Performance */}
-                      <div className="bg-white border rounded-lg">
-                        <div className="bg-white text-black px-4 py-2 rounded-t-lg">
-                          <h3 className="font-semibold">Key Performance</h3>
-                        </div>
-                        <div className="p-4">
-                          <div className="text-sm">
-                            <div className="font-medium text-gray-600">Covenant Compliance</div>
-                            <div className="text-gray-900 mt-1">N/A</div>
                           </div>
                         </div>
                       </div>

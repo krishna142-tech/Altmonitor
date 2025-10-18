@@ -701,51 +701,16 @@ export class DatabaseService {
     }
   }
 
-  // Activity timeline (RBAC audit)
+  // Activity timeline (RBAC audit) - DISABLED until table is created
   static async createTimelineEvent(event: { user_id?: string; user_name?: string; role?: string; action: string; target_type?: string; target_id?: string; details?: any; timestamp?: string }): Promise<any> {
-    try {
-      const payload = {
-        user_id: event.user_id || null,
-        user_name: event.user_name || null,
-        role: event.role || null,
-        action: event.action,
-        target_type: event.target_type || null,
-        target_id: event.target_id || null,
-        details: event.details || null,
-        timestamp: event.timestamp || new Date().toISOString()
-      }
-      const { data, error } = await supabase
-        .from('activity_timeline')
-        .insert([payload])
-        .select()
-        .single()
-      if (error) throw error
-      return data
-    } catch (err: any) {
-      // If table missing, do not break app
-      if (err && err.message && err.message.includes('activity_timeline')) {
-        console.warn('Timeline table missing, skipping audit event')
-        return null
-      }
-      throw err
-    }
+    // Temporarily disabled to prevent 404 errors
+    console.log('Timeline event disabled:', event.action)
+    return null
   }
 
   static async getTimelineEvents(limit = 50): Promise<any[]> {
-    try {
-      const { data, error } = await supabase
-        .from('activity_timeline')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(limit)
-      if (error) throw error
-      return data || []
-    } catch (err: any) {
-      if (err && err.message && err.message.includes('activity_timeline')) {
-        console.warn('Timeline table missing, returning empty list')
-        return []
-      }
-      throw err
-    }
+    // Temporarily disabled to prevent 404 errors
+    console.log('Timeline events disabled')
+    return []
   }
 }
