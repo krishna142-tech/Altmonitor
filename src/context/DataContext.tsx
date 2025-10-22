@@ -77,6 +77,7 @@ export interface Facility {
   id: string;
   transactionId: string; // Links facility to specific transaction
   investmentName: string;
+  issuerName?: string;
   facilityType: string;
   paymentRank: string;
   seniority: string;

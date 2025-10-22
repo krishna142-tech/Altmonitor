@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Upload, Save, PlusCircle } from 'lucide-react';
 import { uploadCompliancePdf, listCovenants, saveCovenants, type CovenantEntry, getPortfolioPeriods, uploadPortfolioExcel, uploadPortfolioPdf, updatePeriod } from '@/lib/covenantApi';
- 
+
 
 type Row = CovenantEntry & { sno?: number };
 
@@ -56,22 +56,22 @@ const CovenantTrackingPage: React.FC = () => {
         const result = await getPortfolioPeriods(portfolioId);
         if (Array.isArray(result)) {
           // sort desc by ipd_date
-          const sorted = [...result].sort((a:any,b:any)=> (a.ipd_date > b.ipd_date ? -1 : a.ipd_date < b.ipd_date ? 1 : 0));
+          const sorted = [...result].sort((a: any, b: any) => (a.ipd_date > b.ipd_date ? -1 : a.ipd_date < b.ipd_date ? 1 : 0));
           setPeriods(sorted);
           if (sorted.length > 0) {
             const latest = sorted[0];
             setSelectedPeriodId(latest.id);
             setCalcDate(latest.ipd_date);
-            try{
-              const res:any = await getPortfolioPeriods(portfolioId, latest.ipd_date);
+            try {
+              const res: any = await getPortfolioPeriods(portfolioId, latest.ipd_date);
               if (res && (res as any).entries) {
-                const withSno = (res as any).entries.map((r:any, i:number)=> ({...r, sno: i+1 }));
+                const withSno = (res as any).entries.map((r: any, i: number) => ({ ...r, sno: i + 1 }));
                 setRows(withSno);
               }
-            }catch(e){}
+            } catch (e) { }
           }
         }
-      } catch (e:any) {}
+      } catch (e: any) { }
     })();
   }, [portfolioId]);
 
@@ -87,8 +87,8 @@ const CovenantTrackingPage: React.FC = () => {
       // Prefer covenants[] schema if available (ratio, numerator, denominator, threshold, compliance)
       // @ts-ignore
       if ((result as any).covenants && Array.isArray((result as any).covenants) && (result as any).covenants.length > 0) {
-        const covs:any[] = (result as any).covenants;
-        const mapped = covs.map((c:any, i:number) => {
+        const covs: any[] = (result as any).covenants;
+        const mapped = covs.map((c: any, i: number) => {
           const lender = (c.numerator && c.denominator) ? (Number(c.numerator) / Number(c.denominator)).toFixed(2) : (c.ratio != null ? Number(c.ratio).toFixed(2) : '');
           return {
             calc_date: result.calc_date,
@@ -180,7 +180,7 @@ const CovenantTrackingPage: React.FC = () => {
     }
   };
 
-  
+
 
   const addEmptyRow = () => {
     setRows(prev => {
@@ -214,9 +214,9 @@ const CovenantTrackingPage: React.FC = () => {
           <Button variant="outline" onClick={() => setShowUpload(true)} disabled={uploading}>
             <Upload className="w-4 h-4 mr-2" /> Upload PDF
           </Button>
-          <Button variant="outline" onClick={() => setIsEditing(!isEditing)}> 
-  {isEditing ? 'Lock Editing' : 'Edit'}
-</Button>
+          <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
+            {isEditing ? 'Lock Editing' : 'Edit'}
+          </Button>
 
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4 mr-2" /> Save
@@ -229,74 +229,40 @@ const CovenantTrackingPage: React.FC = () => {
       )}
 
       {/* TIMELINE PANEL */}
-      <div className="bg-white rounded-md p-4 border shadow-sm">
-        <div className="text-sm font-medium mb-3">Timeline</div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-2">IPD Date</th>
-                  <th className="text-left py-2 px-2">Display Name</th>
-                  <th className="text-left py-2 px-2">Template Status</th>
-                  <th className="text-left py-2 px-2">Source</th>
-                  <th className="text-left py-2 px-2">Provisional</th>
-                  <th className="text-left py-2 px-2">Provisional Start</th>
-                  <th className="text-left py-2 px-2">Report</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.map((p:any) => (
-                  <tr key={p.id} className={`border-b hover:bg-gray-50 ${selectedPeriodId===p.id?'bg-gray-50':''}`}>
-                    <td className="py-2 px-2">
-                      <button className="text-blue-600 underline" onClick={async () => {
-                        setSelectedPeriodId(p.id);
-                        try{
-                          const res:any = await getPortfolioPeriods(portfolioId, p.ipd_date);
-                          if (res && (res as any).entries) {
-                            const withSno = (res as any).entries.map((r:any, i:number)=> ({...r, sno: i+1 }));
-                            setRows(withSno);
-                            setCalcDate(p.ipd_date);
-                          }
-                        }catch(e){}
-                      }}>{p.ipd_date}</button>
-                    </td>
-                    <td className="py-2 px-2">{p.display_name}</td>
-                    <td className="py-2 px-2">
-                      <label className="inline-flex items-center gap-2">
-                        <input type="checkbox" checked={p.template_status === 'Approved'} onChange={async (e)=>{
-                          const nextStatus = e.target.checked ? 'Approved' : 'Draft';
-                          const updated = await updatePeriod(portfolioId, p.id, { template_status: nextStatus });
-                          setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
-                        }} />
-                        <span className="text-sm">{p.template_status}</span>
-                      </label>
-                    </td>
-                    <td className="py-2 px-2">
-                      <span className="text-sm px-2 py-1 inline-block border rounded bg-gray-50">{p.source}</span>
-                    </td>
-                    <td className="py-2 px-2">
-                      <input type="checkbox" checked={!!p.is_provisional} onChange={async (e)=>{
-                        const checked = e.target.checked;
-                        const updated = await updatePeriod(portfolioId, p.id, { is_provisional: checked, source: checked ? 'Provisional' : 'Actuals' });
-                        setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
-                      }} />
-                    </td>
-                    <td className="py-2 px-2">
-                      <input type="date" className="bg-transparent border rounded px-2 py-1" defaultValue={p.provisional_start_date || ''}
-                        onBlur={async (e)=>{
-                          const updated = await updatePeriod(portfolioId, p.id, { provisional_start_date: e.target.value||null });
-                          setPeriods(prev => prev.map(x => x.id===p.id? updated : x));
-                        }} />
-                    </td>
-                    <td className="py-2 px-2">
-                      {p.report_link ? <a className="text-blue-600 underline" href={p.report_link} target="_blank" rel="noreferrer">Open</a> : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-        </div>
-      </div>
+        <select
+          value={selectedPeriodId || ''}
+          onChange={async (e) => {
+            const selectedId = e.target.value;
+            setSelectedPeriodId(selectedId);
+
+            const selectedPeriod = periods.find(p => p.id.toString() === selectedId);
+            if (!selectedPeriod) return;
+
+            try {
+              const res: any = await getPortfolioPeriods(portfolioId, selectedPeriod.ipd_date);
+              // If API returns { period, entries }
+              if ('entries' in res) {
+                setRows(res.entries.map((r: any, i: number) => ({ ...r, sno: i + 1 })));
+              } else if (Array.isArray(res)) {
+                setRows(res); // fallback if API returns array directly
+              }
+            } catch (err) {
+              console.error(err);
+              setRows([]);
+            }
+          }}
+        >
+          <option value="" disabled>Select period</option>
+          {periods.map((p) => (
+            <option key={p.id} value={p.id.toString()}>
+              {new Date(p.ipd_date).toLocaleString('en-US', { month: 'short', year: 'numeric' })}
+            </option>
+          ))}
+        </select>
+
+      
+
+
 
       {/* COVENANT REPORT PANEL */}
       <div className="bg-white rounded-md p-4 border shadow-sm">
@@ -337,72 +303,72 @@ const CovenantTrackingPage: React.FC = () => {
           </div>
         )}
         <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map(h => (
-                <TableHead key={h} className={h === 'Covenant Name' ? 'min-w-[220px] sm:min-w-[280px]' : ''}>{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={i}>
-                <TableCell>{r.sno || i + 1}</TableCell>
-                <TableCell>
-                  <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="w-full min-w-[220px] sm:min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.threshold || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'threshold', e.target.value)}
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} className="w-full" onChange={e => handleChange(i, 'consequence', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.borrower_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'borrower_calc', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.lender_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'lender_calc', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const v = (r.compliance_check || '').toString();
-                    const isCompliant = /compliant|yes/i.test(v);
-                    const isBreach = /breach|event of default|no/i.test(v);
-                    const base = 'px-2 py-1 rounded-full text-xs font-medium';
-                    const cls = isCompliant ? 'bg-green-100 text-green-800' : (isBreach ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800');
-                    return <span className={`${base} ${cls}`}>{v || 'N/A'}</span>;
-                  })()}
-                </TableCell>
-                <TableCell>
-                  <Input value={r.comment || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'comment', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.source_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'source_file', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input value={r.reference_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'reference_file', e.target.value)} 
-                  disabled={!isEditing}
-                  />
-                </TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {headers.map(h => (
+                  <TableHead key={h} className={h === 'Covenant Name' ? 'min-w-[220px] sm:min-w-[280px]' : ''}>{h}</TableHead>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell>{r.sno || i + 1}</TableCell>
+                  <TableCell>
+                    <Input value={r.covenant_name || ''} placeholder="N/A" title={r.covenant_name || ''} className="w-full min-w-[220px] sm:min-w-[280px]" onChange={e => handleChange(i, 'covenant_name', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.threshold || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'threshold', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.consequence || ''} placeholder="N/A" title={r.consequence || ''} className="w-full" onChange={e => handleChange(i, 'consequence', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.borrower_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'borrower_calc', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.lender_calc || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'lender_calc', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const v = (r.compliance_check || '').toString();
+                      const isCompliant = /compliant|yes/i.test(v);
+                      const isBreach = /breach|event of default|no/i.test(v);
+                      const base = 'px-2 py-1 rounded-full text-xs font-medium';
+                      const cls = isCompliant ? 'bg-green-100 text-green-800' : (isBreach ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800');
+                      return <span className={`${base} ${cls}`}>{v || 'N/A'}</span>;
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.comment || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'comment', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.source_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'source_file', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={r.reference_file || ''} placeholder="N/A" className="w-full" onChange={e => handleChange(i, 'reference_file', e.target.value)}
+                      disabled={!isEditing}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
         <div className="mt-3">
           <Button variant="outline" onClick={addEmptyRow} disabled={!isEditing}>
@@ -415,15 +381,15 @@ const CovenantTrackingPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-background p-6 rounded-md border w-[90vw] max-w-[480px]">
             <h3 className="text-base font-semibold mb-4">Upload Compliance Certificate (PDF)</h3>
-            <input type="file" accept="application/pdf" onChange={async (e)=>{
+            <input type="file" accept="application/pdf" onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
               setUploading(true);
               try {
-                const resp:any = await uploadPortfolioPdf(portfolioId, f);
+                const resp: any = await uploadPortfolioPdf(portfolioId, f);
                 // Prefer covenants[] (contains ratio/numerator/denominator/threshold)
                 if (resp && Array.isArray(resp.covenants) && resp.covenants.length > 0) {
-                  const mapped = resp.covenants.map((c:any, i:number) => {
+                  const mapped = resp.covenants.map((c: any, i: number) => {
                     const lender = (c.numerator && c.denominator) ? (Number(c.numerator) / Number(c.denominator)).toFixed(2) : (c.ratio != null ? Number(c.ratio).toFixed(2) : '');
                     return {
                       calc_date: resp.calc_date || null,
@@ -444,7 +410,7 @@ const CovenantTrackingPage: React.FC = () => {
                 } else if (resp && resp.items) {
                   // Fallback to summary items for display only
                   setNormalizedItems(resp.items);
-                  const mapped = resp.items.map((it:any, i:number) => ({
+                  const mapped = resp.items.map((it: any, i: number) => ({
                     calc_date: resp.calc_date || null,
                     covenant_name: it.name || '',
                     threshold: it.threshold || '',
@@ -462,7 +428,7 @@ const CovenantTrackingPage: React.FC = () => {
                 }
                 const result = await getPortfolioPeriods(portfolioId);
                 if (Array.isArray(result)) setPeriods(result);
-              } catch (e:any) { setError(e.message||'Upload failed'); }
+              } catch (e: any) { setError(e.message || 'Upload failed'); }
               finally { setUploading(false); setShowUpload(false); }
             }} />
             <div className="mt-4 flex justify-end gap-2">
@@ -479,28 +445,28 @@ const CovenantTrackingPage: React.FC = () => {
             <h3 className="text-base font-semibold mb-4">Upload Covenant Data (Excel/CSV)</h3>
             <div className="space-y-2 mb-3">
               <label className="text-sm">Portfolio ID</label>
-              <Input className="w-full" value={portfolioId} onChange={(e)=> setPortfolioId(e.target.value)} placeholder="e.g., DEAL-123" />
+              <Input className="w-full" value={portfolioId} onChange={(e) => setPortfolioId(e.target.value)} placeholder="e.g., DEAL-123" />
               <label className="text-sm">IPD Date</label>
-              <input type="date" className="w-full px-3 py-2 border rounded-md" value={ipdDateInput} onChange={(e)=> setIpdDateInput(e.target.value)} />
+              <input type="date" className="w-full px-3 py-2 border rounded-md" value={ipdDateInput} onChange={(e) => setIpdDateInput(e.target.value)} />
               <label className="text-sm">Display Name</label>
-              <Input className="w-full" value={displayNameInput} onChange={(e)=> setDisplayNameInput(e.target.value)} placeholder="Mar-2025" />
+              <Input className="w-full" value={displayNameInput} onChange={(e) => setDisplayNameInput(e.target.value)} placeholder="Mar-2025" />
             </div>
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={async (e)=>{
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
               setUploading(true);
               try {
-                const res:any = await uploadPortfolioExcel(portfolioId, f, ipdDateInput || undefined, displayNameInput || undefined);
+                const res: any = await uploadPortfolioExcel(portfolioId, f, ipdDateInput || undefined, displayNameInput || undefined);
                 if (res && res.period) {
-                  const updated:any = await getPortfolioPeriods(portfolioId);
+                  const updated: any = await getPortfolioPeriods(portfolioId);
                   if (Array.isArray(updated)) setPeriods(updated);
                   setSelectedPeriodId(res.period.id);
                   setCalcDate(res.period.ipd_date);
-                  const withSno = (res.entries || []).map((r:any, i:number)=> ({...r, sno: i+1 }));
+                  const withSno = (res.entries || []).map((r: any, i: number) => ({ ...r, sno: i + 1 }));
                   setRows(withSno);
                 }
-              } catch (e:any) { setError(e.message||'Upload failed'); }
-              finally { setUploading(false); setShowExcelUpload(false);}            
+              } catch (e: any) { setError(e.message || 'Upload failed'); }
+              finally { setUploading(false); setShowExcelUpload(false); }
             }} />
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowExcelUpload(false)}>Cancel</Button>

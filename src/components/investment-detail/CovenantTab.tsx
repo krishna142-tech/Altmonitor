@@ -66,7 +66,9 @@ const CovenantTrackingView: React.FC = () => {
   return (
     <div className="p-4 space-y-6">
       {/* Covenant Compliance Tab Header */}
-      
+      <div className="bg-blue-600 text-white px-4 py-2 rounded-md inline-block">
+        <h2 className="text-lg font-semibold">Covenant Compliance</h2>
+      </div>
 
       {/* Timeline Section */}
       {periods.length > 0 && (
@@ -84,9 +86,8 @@ const CovenantTrackingView: React.FC = () => {
               {periods.map((p) => (
                 <tr
                   key={p.id}
-                  className={`border-b ${
-                    selectedPeriodId === p.id ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
+                  className={`border-b ${selectedPeriodId === p.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
                 >
                   <td className="py-2 px-2">
                     <button
@@ -134,7 +135,7 @@ const CovenantTrackingView: React.FC = () => {
             {rows.map((row, index) => {
               const threshold = parseThreshold(row.threshold || '');
               const variance = calculateVariance(row.borrower_calc || row.lender_calc, row.lender_calc || row.borrower_calc);
-              
+
               return (
                 <tr key={index} className="bg-gray-50 border-b">
                   <td className="py-3 px-4 font-medium">{row.covenant_name || 'N/A'}</td>
@@ -156,10 +157,19 @@ const CovenantTrackingView: React.FC = () => {
       <div className="flex items-start space-x-6">
         <div className="flex-1">
           <h3 className="text-lg font-medium mb-4">Covenant Graph</h3>
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-md font-medium mb-4">Dscr</h4>
             <div className="h-64">
               <CovenantChart data={rows} title="Dscr" filterName="dscr" />
             </div>
+          </div>
         </div>
+      </div>
+
+      {/* Bottom Notes Section */}
+      <div className="space-y-2">
+        <p className="text-sm text-gray-600">Real-time alerts for covenant breaches.</p>
+        <p className="text-sm text-gray-600">Email notifications for significant changes.</p>
       </div>
     </div>
   );

@@ -81,9 +81,8 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
           label: 'Lender Calculation',
           data: points.map(p => p.y),
           borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
           tension: 0.4,
-          fill: true,
+          fill: false,
           pointRadius: 4,
           pointHoverRadius: 6,
           pointBackgroundColor: '#3b82f6',
@@ -109,23 +108,23 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { 
-        display: true, 
-        position: 'top' as const, 
-        labels: { 
+      legend: {
+        display: true,
+        position: 'top' as const,
+        labels: {
           usePointStyle: true,
           padding: 20,
           font: { size: 12 }
-        } 
+        }
       },
-      title: { 
-        display: true, 
+      title: {
+        display: true,
         text: title,
         font: { size: 16, weight: 'bold' },
         color: '#374151'
       },
-      tooltip: { 
-        mode: 'index' as const, 
+      tooltip: {
+        mode: 'index' as const,
         intersect: false,
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         titleColor: '#ffffff',
@@ -147,13 +146,13 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
     interaction: { mode: 'nearest' as const, axis: 'x' as const, intersect: false },
     scales: {
       x: {
-        grid: { 
+        grid: {
           display: true,
           color: '#f3f4f6',
           drawBorder: false
         },
-        ticks: { 
-          maxRotation: 45, 
+        ticks: {
+          maxRotation: 45,
           autoSkip: true,
           font: { size: 11 },
           color: '#6b7280'
@@ -166,11 +165,11 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
         }
       },
       y: {
-        grid: { 
+        grid: {
           color: '#f3f4f6',
           drawBorder: false
         },
-        ticks: { 
+        ticks: {
           callback: (v: any) => Number(v).toFixed(2),
           font: { size: 11 },
           color: '#6b7280'
@@ -215,7 +214,7 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
             {(series[0]?.covenant_name || '').toString() || 'Covenant Timeline'}
           </h4>
           <div className="text-sm text-gray-500">
-            Data points: {points.length} | 
+            Data points: {points.length} |
             {thresholdValue !== null && ` Threshold: ${thresholdValue.toFixed(2)}`}
           </div>
         </div>
