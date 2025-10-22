@@ -444,7 +444,7 @@ const BauTab: React.FC = () => {
                         </div>
                         </div>
                       )}
-                    </div>
+                    </div> 
 
                     {/* Prepayment Penalty Calculation Section */}
                     <div className="space-y-4 border-t pt-6">
