@@ -1,1 +1,1 @@
-web: waitress-serve --port=$PORT --call "wsgi:create_app"
+web: waitress-serve --port=$PORT wsgi:app

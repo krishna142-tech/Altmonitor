@@ -1,18 +1,23 @@
 build:
   os: ubuntu
   build_command: |
-    # Install Tesseract OCR
+    # Install system dependencies
     apt-get update
-    apt-get install -y tesseract-ocr
-    apt-get install -y tesseract-ocr-eng
+    apt-get install -y tesseract-ocr tesseract-ocr-eng
     # Install Python dependencies
+    pip install --upgrade pip
     pip install -r backend/requirements.txt
+    # Initialize database
+    python -c "from backend.db import init_db; init_db()"
 
 services:
   - type: web
     name: altmonitor
     env: python
-    build_command: pip install -r backend/requirements.txt
+    build_command: |
+      pip install --upgrade pip
+      pip install -r backend/requirements.txt
+      python -c "from backend.db import init_db; init_db()"
     start_command: waitress-serve --port=$PORT wsgi:app
     env_vars:
       - key: PYTHON_VERSION
