@@ -6,9 +6,9 @@ from datetime import datetime
 import logging
  
 
-from .db import init_db, db_session
-from .models import CovenantEntry, CovenantPeriod, CovenantEntryV2, Document
-from .parse_covenant import parse_compliance_certificate, parse_xlsx
+from backend.db import init_db, db_session
+from backend.models import CovenantEntry, CovenantPeriod, CovenantEntryV2, Document
+from backend.parse_covenant import parse_compliance_certificate, parse_xlsx
 
 
 def create_app():
