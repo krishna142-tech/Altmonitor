@@ -1,5 +1,5 @@
 // Real API client for covenant endpoints
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '' : 'https://your-render-app-name.onrender.com');
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? '' : 'https://altmonitor.onrender.com');
 
 export type CovenantEntry = {
   id?: number;
