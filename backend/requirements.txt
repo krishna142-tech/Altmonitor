@@ -7,7 +7,7 @@ werkzeug==3.0.3
 pdf2image==1.17.0
 pytesseract==0.3.10
 openpyxl==3.1.2
-gunicorn_win==23.0.0
+waitress==3.0.0
 # Optional: install a Postgres driver only if you use Postgres in production.
 # On Windows, psycopg2-binary wheels may be unavailable. Install later as needed.
 # psycopg2-binary==2.9.9
