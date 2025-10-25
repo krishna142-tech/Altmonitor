@@ -14,7 +14,7 @@ export default defineConfig({
     port: 3000,
     host: true,
     proxy: {
-      '/api': 'http://localhost:5001'
+      '/api': process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : undefined
     }
   },
   build: {
