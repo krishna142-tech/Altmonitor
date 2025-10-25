@@ -10,6 +10,10 @@ import subprocess
 def main():
     print("🚀 Starting Altmonitor backend...")
     
+    # Add the parent directory to Python path so we can import backend modules
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+    
     # Initialize database
     print("🗄️ Initializing database...")
     try:
