@@ -6,6 +6,7 @@
     }
   ],
   "env": {
-    "VITE_COVENANT_API": "https://your-backend-url.railway.app/api"
+    "VITE_COVENANT_API": "https://altmonitor.onrender.com/api",
+    "VITE_API_BASE": "https://altmonitor.onrender.com"
   }
 }
