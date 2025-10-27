@@ -64,41 +64,41 @@ const CovenantTrackingView: React.FC = () => {
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-3">
       {/* Covenant Compliance Tab Header */}
-      <div className="bg-blue-600 text-white px-4 py-2 rounded-md inline-block">
+      <div className="bg-blue-100 border-2 border-blue-300 text-blue-900 px-4 py-2 rounded-md inline-block shadow-sm">
         <h2 className="text-lg font-semibold">Covenant Compliance</h2>
       </div>
 
       {/* Timeline Section */}
       {periods.length > 0 && (
-        <div className="bg-white rounded-md p-4 border shadow-sm">
-          <h3 className="text-sm font-medium mb-3">Timeline</h3>
+        <div className="bg-gradient-to-b from-blue-50 to-white rounded-lg p-4 border-2 border-blue-200 shadow-sm">
+          <h3 className="text-sm font-semibold text-blue-900 mb-3">Timeline</h3>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-gray-100">
-                <th className="text-left py-2 px-2">IPD Date</th>
-                <th className="text-left py-2 px-2">Display Name</th>
-                <th className="text-left py-2 px-2">Source</th>
+              <tr className="border-b-2 border-blue-200 bg-blue-100">
+                <th className="text-left py-2 px-2 font-semibold text-blue-900">IPD Date</th>
+                <th className="text-left py-2 px-2 font-semibold text-blue-900">Display Name</th>
+                <th className="text-left py-2 px-2 font-semibold text-blue-900">Source</th>
               </tr>
             </thead>
             <tbody>
               {periods.map((p) => (
                 <tr
                   key={p.id}
-                  className={`border-b ${selectedPeriodId === p.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  className={`border-b border-blue-100 ${selectedPeriodId === p.id ? 'bg-blue-50' : 'hover:bg-blue-50/50'
                     }`}
                 >
                   <td className="py-2 px-2">
                     <button
-                      className="text-blue-600 underline"
+                      className="text-blue-600 underline font-medium"
                       onClick={() => handlePeriodClick(p)}
                     >
                       {p.ipd_date}
                     </button>
                   </td>
-                  <td className="py-2 px-2">{p.display_name}</td>
-                  <td className="py-2 px-2">{p.source}</td>
+                  <td className="py-2 px-2 text-gray-700">{p.display_name}</td>
+                  <td className="py-2 px-2 text-gray-700">{p.source}</td>
                 </tr>
               ))}
             </tbody>
@@ -107,28 +107,28 @@ const CovenantTrackingView: React.FC = () => {
       )}
 
       {/* Covenant Data Table */}
-      <div className="bg-white rounded-md border shadow-sm overflow-hidden">
+      <div className="bg-gradient-to-b from-blue-50 to-white rounded-lg border-2 border-blue-200 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-blue-600 text-white">
-              <th className="text-left py-3 px-4 font-medium">Covenant Name</th>
-              <th className="text-center py-3 px-4 font-medium" colSpan={2}>
+            <tr className="bg-blue-100 border-b-2 border-blue-300">
+              <th className="text-left py-3 px-4 font-semibold text-blue-900">Covenant Name</th>
+              <th className="text-center py-3 px-4 font-semibold text-blue-900" colSpan={2}>
                 <div className="flex flex-col">
                   <span className="text-xs">Mar</span>
                   <span className="text-xs">JUN</span>
                   <span className="text-sm">Threshold Values</span>
                 </div>
               </th>
-              <th className="text-left py-3 px-4 font-medium">Consequences</th>
-              <th className="text-center py-3 px-4 font-medium" colSpan={2}>
+              <th className="text-left py-3 px-4 font-semibold text-blue-900">Consequences</th>
+              <th className="text-center py-3 px-4 font-semibold text-blue-900" colSpan={2}>
                 <div className="flex flex-col">
                   <span className="text-xs">Sep</span>
                   <span className="text-xs">Dec</span>
                   <span className="text-sm">Compliance Certificate Value</span>
                 </div>
               </th>
-              <th className="text-left py-3 px-4 font-medium">Our Calculation</th>
-              <th className="text-left py-3 px-4 font-medium">Variance</th>
+              <th className="text-left py-3 px-4 font-semibold text-blue-900">Our Calculation</th>
+              <th className="text-left py-3 px-4 font-semibold text-blue-900">Variance</th>
             </tr>
           </thead>
           <tbody>
@@ -137,15 +137,15 @@ const CovenantTrackingView: React.FC = () => {
               const variance = calculateVariance(row.borrower_calc || row.lender_calc, row.lender_calc || row.borrower_calc);
 
               return (
-                <tr key={index} className="bg-gray-50 border-b">
-                  <td className="py-3 px-4 font-medium">{row.covenant_name || 'N/A'}</td>
-                  <td className="py-3 px-4 text-center">{threshold.operator}</td>
-                  <td className="py-3 px-4 text-center">{threshold.value}</td>
-                  <td className="py-3 px-4">{row.consequence || 'N/A'}</td>
-                  <td className="py-3 px-4 text-center">{row.borrower_calc || 'N/A'}</td>
-                  <td className="py-3 px-4 text-center">{row.lender_calc || 'N/A'}</td>
-                  <td className="py-3 px-4">{row.lender_calc || row.borrower_calc || 'N/A'}</td>
-                  <td className="py-3 px-4">{variance}</td>
+                <tr key={index} className="bg-white border-b border-blue-100 hover:bg-blue-50/30">
+                  <td className="py-3 px-4 font-medium text-gray-900">{row.covenant_name || 'N/A'}</td>
+                  <td className="py-3 px-4 text-center text-gray-700">{threshold.operator}</td>
+                  <td className="py-3 px-4 text-center text-gray-700">{threshold.value}</td>
+                  <td className="py-3 px-4 text-gray-700">{row.consequence || 'N/A'}</td>
+                  <td className="py-3 px-4 text-center text-gray-700">{row.borrower_calc || 'N/A'}</td>
+                  <td className="py-3 px-4 text-center text-gray-700">{row.lender_calc || 'N/A'}</td>
+                  <td className="py-3 px-4 text-gray-700">{row.lender_calc || row.borrower_calc || 'N/A'}</td>
+                  <td className="py-3 px-4 text-gray-900 font-medium">{variance}</td>
                 </tr>
               );
             })}
@@ -154,11 +154,11 @@ const CovenantTrackingView: React.FC = () => {
       </div>
 
       {/* Covenant Graph Section */}
-      <div className="flex items-start space-x-6">
+      <div className="flex items-start gap-3">
         <div className="flex-1">
-          <h3 className="text-lg font-medium mb-4">Covenant Graph</h3>
-          <div className="bg-white border rounded-lg p-6">
-            <h4 className="text-md font-medium mb-4">Dscr</h4>
+          <h3 className="text-lg font-semibold text-blue-900 mb-3">Covenant Graph</h3>
+          <div className="bg-gradient-to-b from-blue-50 to-white border-2 border-blue-200 rounded-lg p-4 shadow-sm">
+            <h4 className="text-md font-semibold text-blue-900 mb-3">Dscr</h4>
             <div className="h-64">
               <CovenantChart data={rows} title="Dscr" filterName="dscr" />
             </div>
@@ -167,9 +167,9 @@ const CovenantTrackingView: React.FC = () => {
       </div>
 
       {/* Bottom Notes Section */}
-      <div className="space-y-2">
-        <p className="text-sm text-gray-600">Real-time alerts for covenant breaches.</p>
-        <p className="text-sm text-gray-600">Email notifications for significant changes.</p>
+      <div className="space-y-1">
+        <p className="text-sm text-blue-700 font-medium">Real-time alerts for covenant breaches.</p>
+        <p className="text-sm text-blue-700 font-medium">Email notifications for significant changes.</p>
       </div>
     </div>
   );

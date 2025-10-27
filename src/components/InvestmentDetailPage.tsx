@@ -948,7 +948,7 @@ const InvestmentDetailPage = () => {
               {activeSidebarItem === 4 && (
                 <div className="p-6 space-y-6 bg-white rounded-lg border">
                   {/* Sub-tabs for Portfolio Tracking */}
-                  <div className="mb-6">
+                  <div className="mb-3">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">Portfolio Tracking</h3>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -988,7 +988,7 @@ const InvestmentDetailPage = () => {
                         Reporting Tracking
                       </button>
                     </div>
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-1 text-xs text-gray-500">
                       {activePortfolioTab === 'summary'
                         ? 'View investment details and summary information'
                         : activePortfolioTab === 'covenant'
@@ -1000,33 +1000,33 @@ const InvestmentDetailPage = () => {
 
                   {/* Investment Summary Comments - visible only in Summary sub-tab */}
                   {activePortfolioTab === 'summary' && (
-                    <div className="bg-white border rounded-lg">
-                      <div className="bg-white text-black px-4 py-2 rounded-t-lg">
+                    <div className="bg-gradient-to-b from-blue-50 to-white border-2 border-blue-200 rounded-lg shadow-sm mb-3">
+                      <div className="bg-blue-100 text-blue-900 px-4 py-2 rounded-t-lg border-b border-blue-200">
                         <h3 className="font-semibold">Investment Summary Comments</h3>
                       </div>
-                      <div className="p-6">
-                        <div className="space-y-4">
+                      <div className="p-4">
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Add Comment</label>
+                            <label className="block text-xs font-semibold text-blue-900 mb-1">Add Comment</label>
                             <textarea
                               value={investmentSummaryComment}
                               onChange={(e) => setInvestmentSummaryComment(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               rows={3}
                               placeholder="Enter your comments about this investment summary..."
                             />
-                            <div className="mt-3 flex justify-end">
+                            <div className="mt-2 flex justify-end">
                               <button
                                 onClick={saveInvestmentSummaryComment}
                                 disabled={!investmentSummaryComment.trim() || isSavingComment}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
                               >
                                 {isSavingComment ? 'Saving...' : 'Save Comment'}
                               </button>
                             </div>
                           </div>
                           {investmentSummaryComment && (
-                            <div className="mt-4 p-4 bg-blue-50 border lue-200 rounded-md">
+                            <div className="mt-3 p-3 bg-white border border-blue-200 rounded-md">
                               <div className="flex items-start gap-3">
                                 <div className="flex-shrink-0">
                                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
@@ -1056,9 +1056,9 @@ const InvestmentDetailPage = () => {
 
                   {/* Investment Summary Tab Content */}
                   {activePortfolioTab === 'summary' && (
-                    <div className="space-y-6">
+                    <div className="space-y-3">
                       {/* Header with As on Date and Export */}
-                      <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-600">As on Date:</span>
@@ -1074,63 +1074,63 @@ const InvestmentDetailPage = () => {
                       </div>
 
                       {/* Identifiers Row */}
-                      <div className="grid grid-cols-6 gap-4 mb-6 p-3 bg-gray-50 rounded">
+                      <div className="grid grid-cols-6 gap-3 mb-3 p-3 bg-blue-50 rounded-md border border-blue-100">
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">SEDOL</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.sedol || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">SEDOL</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.sedol || 'N/A'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">CUSIP</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.cusip || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">CUSIP</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.cusip || 'N/A'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">PPN</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.ppn || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">PPN</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.ppn || 'N/A'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">Bloomberg Reference</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.bbgId || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">Bloomberg Reference</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.bbgId || 'N/A'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">Internal DealId</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.internalDealId || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">Internal DealId</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.internalDealId || 'N/A'}</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs font-medium text-gray-500">Other Data</div>
-                          <div className="text-sm text-gray-700">{(selectedFacility as any)?.fisn || 'N/A'}</div>
+                          <div className="text-xs font-semibold text-blue-900 mb-1">Other Data</div>
+                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.fisn || 'N/A'}</div>
                         </div>
                       </div>
 
 
                       {/* Project Summary - Full Width */}
-                      <div className="mb-6">
-                        <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Project Summary</h3>
+                      <div className="mb-3">
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
+                          <div className="bg-blue-100 px-4 py-2 rounded-t-lg border-b border-blue-200">
+                            <h3 className="font-semibold text-blue-900">Project Summary</h3>
                           </div>
                           <div className="p-4">
-                            <div className="grid grid-cols-4 gap-6">
+                            <div className="grid grid-cols-4 gap-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Name</label>
+                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                   {(selectedFacility as any)?.projectName || 'N/A'}
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Type</label>
+                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                   {(selectedFacility as any)?.projectType || 'N/A'}
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Location</label>
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Location</label>
+                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                   {(selectedFacility as any)?.projectLocation || 'N/A'}
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Status</label>
-                                <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Status</label>
+                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                   {(selectedFacility as any)?.projectStatus || 'N/A'}
                                 </div>
                               </div>
@@ -1140,99 +1140,99 @@ const InvestmentDetailPage = () => {
                       </div>
 
                       {/* Transaction Summary and Chart - Side by Side */}
-                      <div className="grid grid-cols-2 gap-6 mb-6">
+                      <div className="grid grid-cols-2 gap-3 mb-3">
                         {/* Transaction Summary */}
-                        <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Transaction Summary</h3>
+                        <div className="bg-gradient-to-b from-blue-50 to-white border-2 border-blue-200 rounded-lg shadow-sm">
+                          <div className="bg-blue-100 px-4 py-2 rounded-t-lg border-b border-blue-200">
+                            <h3 className="font-semibold text-blue-900">Transaction Summary</h3>
                           </div>
-                          <div className="p-6">
-                            <div className="grid grid-cols-2 gap-6">
-                              <div className="space-y-4">
+                          <div className="p-4">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Issuer Name</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Issuer Name</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t: any) => t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Instrument Type</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Instrument Type</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.instrumentType || 'Private Placement'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sector</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Sector</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.sector || 'Utilities'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub-Sector</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Sub-Sector</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.subSector || 'Electric'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Rank</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Rank</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {selectedFacility?.paymentRank || 'Senior Secured'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Drawdown Type</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Drawdown Type</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     Scheduled
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Repayment Type</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Repayment Type</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     Scheduled
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="space-y-4">
+                              <div className="space-y-3">
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Country of Risk</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Country of Risk</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.countryOfRisk || 'USA'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Currency Type</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Currency Type</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {selectedFacility?.currency || 'GBP'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Commitment</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Total Commitment</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Investor Share</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Investor Share</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Agreement Date</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Agreement Date</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {selectedFacility?.fromDate || '2025-02-11'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Funding Date</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Funding Date</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {selectedFacility?.fromDate || '2025-02-11'}
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Maturity Date</label>
-                                  <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Maturity Date</label>
+                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
                                     {(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
                                   </div>
                                 </div>
@@ -1242,12 +1242,12 @@ const InvestmentDetailPage = () => {
                         </div>
 
                         {/* Investor Exposure Chart */}
-                        <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Investor Exposure</h3>
+                        <div className="bg-gradient-to-b from-orange-50 to-white border-2 border-orange-200 rounded-lg shadow-sm">
+                          <div className="bg-orange-100 px-4 py-2 rounded-t-lg border-b border-orange-200">
+                            <h3 className="font-semibold text-orange-900">Investor Exposure</h3>
                           </div>
                           <div className="p-4">
-                            <div className="h-120 w-full flex items-center justify-center text-gray-400">
+                            <div className="h-96 w-full flex items-center justify-center text-gray-400">
                               <svg width="360" height="160" viewBox="0 0 360 160" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="20" y="40" width="80" height="80" fill="#3b82f6" rx="6" />
                                 <rect x="120" y="20" width="80" height="100" fill="#f97316" rx="6" />
@@ -1259,56 +1259,56 @@ const InvestmentDetailPage = () => {
                       </div>
 
                       {/* Interest Terms - Full Width */}
-                      <div className="mb-6">
+                      <div className="mb-3">
                         {/* Interest Terms */}
-                        <div className="bg-white border rounded-lg">
-                          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg">
-                            <h3 className="font-semibold">Interest Terms</h3>
+                        <div className="bg-gradient-to-b from-indigo-50 to-white border-2 border-indigo-200 rounded-lg shadow-sm">
+                          <div className="bg-indigo-100 px-4 py-2 rounded-t-lg border-b border-indigo-200">
+                            <h3 className="font-semibold text-indigo-900">Interest Terms</h3>
                           </div>
-                          <div className="p-6">
-                            <div className="grid grid-cols-2 gap-8">
+                          <div className="p-4">
+                            <div className="grid grid-cols-2 gap-6">
                               {/* Left Column */}
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Coupon Type</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Coupon Type</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Risk Free Rate</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Risk Free Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Base Rate</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Base Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">All In Rate</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">All In Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Frequency</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Payment Frequency</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Interest Payment Date</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Interest Payment Date</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">First IPD</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">First IPD</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
                                     </div>
                                   </div>
@@ -1316,47 +1316,47 @@ const InvestmentDetailPage = () => {
                               </div>
 
                               {/* Right Column */}
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag?</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Denominator Lag?</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Numerator Lag</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Numerator Lag</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Inflation Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.inflationRate || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Denominator Lag</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Denominator Lag</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Day Count</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Day Count</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.dayCount || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Day</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Business Day</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.businessDay || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Holiday Convention</label>
-                                    <div className="w-full px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Holiday Convention</label>
+                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
                                     </div>
                                   </div>
