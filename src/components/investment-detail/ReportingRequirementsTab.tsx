@@ -10,20 +10,17 @@ interface ReportingRequirement {
   nextReportingDate?: string;
   daysToProvide?: string | number;
   reportingDueDate?: string;
-  alter?: string;
 }
 
 interface ReportingRequirementsTabProps {
   selectedFacility: Facility | { issuerName?: string } | null;
   reportingRequirements: ReportingRequirement[];
-  onAddClick: () => void;
   onAutoGenerate: () => void;
 }
 
 const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
   selectedFacility,
   reportingRequirements,
-  onAddClick,
   onAutoGenerate,
 }) => {
   return (
@@ -41,12 +38,6 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
           >
             Auto-Generate
           </button>
-          <button
-            onClick={onAddClick}
-            className="px-3 py-2 border rounded hover:bg-gray-50 print:hidden"
-          >
-            Add Reporting Requirement
-          </button>
         </div>
       </div>
 
@@ -63,7 +54,6 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
                 "Next Reporting Date",
                 "Days to Provide",
                 "Reporting Due Date",
-                "Alter",
               ].map((header) => (
                 <th
                   key={header}
@@ -101,15 +91,12 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {r.reportingDueDate || "N/A"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {r.alter || ""}
-                  </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-6 py-8 text-center text-gray-500"
                 >
                   No Reporting Requirements Found
