@@ -9,6 +9,7 @@ import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { PlusCircle, Building2, Database, Activity, Calendar, FileText } from 'lucide-react';
+import ExcelIcon from '@/components/ui/ExcelIcon';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
@@ -24,6 +25,8 @@ import ReportingRequirementsInput from './investment-detail/Reportinginput';
 // CovenantChart is now used inside CovenantTab
 // CovenantChart is used in CovenantTab; no direct import needed here
 import 'chart.js/auto';
+import IdentifierStrip from '@/components/ui/IdentifierStrip';
+import DonutChart from '@/components/ui/DonutChart';
 
 // Debug panel removed for production
 // import FacilityDebug from './FacilityDebug';
@@ -258,6 +261,65 @@ const InvestmentDetailPage = () => {
   };
   const diffInMonths = (a: Date, b: Date) => {
     return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) || 1;
+  };
+
+  // Utilities: CSV export + print for sub-tabs
+  const downloadCsv = (filename: string, rows: Array<Record<string, any>>) => {
+    if (!rows || rows.length === 0) return;
+    const headers = Object.keys(rows[0]);
+    const escapeValue = (v: any) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      const needsQuote = s.includes(',') || s.includes('"') || s.includes('\n');
+      return needsQuote ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => escapeValue(r[h])).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportSummaryCsv = () => {
+    if (!selectedFacility) return;
+    const idRow = {
+      SEDOL: (selectedFacility as any)?.sedol || 'N/A',
+      CUSIP: (selectedFacility as any)?.cusip || 'N/A',
+      CADIS_ID: (selectedFacility as any)?.cadisId || 'N/A',
+      PPN: (selectedFacility as any)?.ppn || 'N/A',
+      ISIN: (selectedFacility as any)?.isin || 'N/A',
+      BloombergRef: (selectedFacility as any)?.bbgId || 'N/A',
+    };
+    const trancheRow = {
+      Sponsor: (selectedFacility as any)?.issuerName || 'N/A',
+      InstrumentType: (selectedFacility as any)?.instrumentType || 'Private Placement Note',
+      Sector: (selectedFacility as any)?.sector || 'Utilities',
+      SubSector: (selectedFacility as any)?.subSector || 'Electric-Distribution',
+      Rank: selectedFacility?.paymentRank || 'Senior Secured',
+      CountryOfRisk: (selectedFacility as any)?.countryOfRisk || 'USA',
+      Currency: selectedFacility?.currency || 'USD',
+      TotalIssueSize: Number((selectedFacility as any)?.generalTerms?.initialCommitment || 25000000),
+      MaturityDate: (selectedFacility as any)?.generalTerms?.maturityDate || 'N/A',
+    };
+    downloadCsv('investment_summary.csv', [idRow, trancheRow]);
+  };
+
+  const exportReportingCsv = () => {
+    const rows = (reportingRequirements || []).map(r => ({
+      Obligor: r.obligor,
+      Role: r.role,
+      Requirement: r.reportingRequirement,
+      PreviousDate: r.previousReportingDate,
+      NextDate: r.nextReportingDate,
+      DaysToProvide: r.daysToProvide,
+      DueDate: r.reportingDueDate,
+      Status: (r as any).status,
+    }));
+    if (rows.length > 0) downloadCsv('reporting_requirements.csv', rows);
   };
 
   const generateReportingSchedule = () => {
@@ -716,8 +778,8 @@ const InvestmentDetailPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
-      <motion.header
-        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap  order/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-64"
+  <motion.header
+        className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3 ml-64"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -767,6 +829,22 @@ const InvestmentDetailPage = () => {
             <p className="text-slate-300 text-xs mt-1">{currentInvestmentName}</p>
           </div>
 
+          {/* Moved Facility Selector into Sidebar */}
+          {filteredFacilities.length > 0 && (
+            <div className="px-4 pb-2">
+              <label className="block text-[10px] uppercase tracking-wide text-slate-400 mb-1">Select Facility</label>
+              <select
+                className="w-full px-3 py-2 rounded-md bg-slate-700 text-white border border-slate-600"
+                value={selectedFacility?.id || ''}
+                onChange={e => setSelectedFacilityId(e.target.value)}
+              >
+                {filteredFacilities.map(f => (
+                  <option key={f.id} value={f.id}>{f.investmentName} — {f.facilityType}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <nav className="flex-1 p-4 space-y-2">
             {sidebarItems.map((item, idx) => {
               const Icon = item.icon;
@@ -803,7 +881,7 @@ const InvestmentDetailPage = () => {
 
           {/* Loading State */}
           {loading && (
-            <div className="mb-4 p-4 bg-blue-50 border lue-200 rounded-md">
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-blue-700">Loading facilities...</p>
             </div>
           )}
@@ -921,19 +999,7 @@ const InvestmentDetailPage = () => {
 
           {(activeSidebarItem === 3 || activeSidebarItem === 4 || activeSidebarItem === 5) && (
             <div className="mt-8 space-y-6">
-              {/* Facility selector */}
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-medium text-gray-700">Select Facility</label>
-                <select
-                  className="px-3 py-2 border rounded-md bg-white"
-                  value={selectedFacility?.id || ''}
-                  onChange={e => setSelectedFacilityId(e.target.value)}
-                >
-                  {filteredFacilities.map(f => (
-                    <option key={f.id} value={f.id}>{f.investmentName} — {f.facilityType}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Facility selector moved to sidebar */}
 
               {/* (Moved) Reporting Tracking now lives under Portfolio Tracking > Reporting sub-tab */}
 
@@ -948,19 +1014,36 @@ const InvestmentDetailPage = () => {
               {activeSidebarItem === 4 && (
                 <div className="p-6 space-y-6 bg-white rounded-lg border">
                   {/* Sub-tabs for Portfolio Tracking */}
-                  <div className="mb-3">
+                    <div className="mb-3">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">Portfolio Tracking</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                        <span>3 tabs available</span>
+                      <div className="flex items-center gap-2">
+                        {activePortfolioTab === 'summary' && (
+                          <>
+                            <Button variant="outline" size="icon" onClick={exportSummaryCsv} title="Export CSV">
+                              <ExcelIcon size={16} />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+                          </>
+                        )}
+                        {activePortfolioTab === 'reporting' && (
+                          <>
+                            <Button variant="outline" size="icon" onClick={exportReportingCsv} title="Export CSV">
+                              <ExcelIcon size={16} />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+                          </>
+                        )}
+                        {activePortfolioTab === 'covenant' && (
+                          <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
                       <button
                         onClick={() => setActivePortfolioTab('summary')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activePortfolioTab === 'summary'
-                          ? 'bg-white text-blue-600 shadow-sm border lue-200'
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                           }`}
                       >
@@ -972,7 +1055,7 @@ const InvestmentDetailPage = () => {
                           loadCovenantData();
                         }}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activePortfolioTab === 'covenant'
-                          ? 'bg-white text-blue-600 shadow-sm border lue-200'
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                           }`}
                       >
@@ -981,7 +1064,7 @@ const InvestmentDetailPage = () => {
                       <button
                         onClick={() => setActivePortfolioTab('reporting')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activePortfolioTab === 'reporting'
-                          ? 'bg-white text-blue-600 shadow-sm border lue-200'
+                          ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                           }`}
                       >
@@ -1000,55 +1083,57 @@ const InvestmentDetailPage = () => {
 
                   {/* Investment Summary Comments - visible only in Summary sub-tab */}
                   {activePortfolioTab === 'summary' && (
-                    <div className="bg-gradient-to-b from-blue-50 to-white border-2 border-blue-200 rounded-lg shadow-sm mb-3">
-                      <div className="bg-blue-100 text-blue-900 px-4 py-2 rounded-t-lg border-b border-blue-200">
-                        <h3 className="font-semibold">Investment Summary Comments</h3>
-                      </div>
-                      <div className="p-4">
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-blue-900 mb-1">Add Comment</label>
-                            <textarea
-                              value={investmentSummaryComment}
-                              onChange={(e) => setInvestmentSummaryComment(e.target.value)}
-                              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                              rows={3}
-                              placeholder="Enter your comments about this investment summary..."
-                            />
-                            <div className="mt-2 flex justify-end">
-                              <button
-                                onClick={saveInvestmentSummaryComment}
-                                disabled={!investmentSummaryComment.trim() || isSavingComment}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
-                              >
-                                {isSavingComment ? 'Saving...' : 'Save Comment'}
-                              </button>
-                            </div>
-                          </div>
-                          {investmentSummaryComment && (
-                            <div className="mt-3 p-3 bg-white border border-blue-200 rounded-md">
-                              <div className="flex items-start gap-3">
-                                <div className="flex-shrink-0">
-                                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-sm font-medium">
-                                      {(user?.email || 'U').charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {user?.email || 'User'}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date().toLocaleString()}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{investmentSummaryComment}</p>
-                                </div>
+                    <div className="mb-3">
+                      <div className="bg-white border rounded-lg shadow-sm">
+                        <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
+                          <h3 className="font-semibold text-gray-900 text-sm">Investment Summary Comments</h3>
+                        </div>
+                        <div className="p-4">
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Add Comment</label>
+                              <textarea
+                                value={investmentSummaryComment}
+                                onChange={(e) => setInvestmentSummaryComment(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white"
+                                rows={3}
+                                placeholder="Enter your comments about this investment summary..."
+                              />
+                              <div className="mt-2 flex justify-end">
+                                <button
+                                  onClick={saveInvestmentSummaryComment}
+                                  disabled={!investmentSummaryComment.trim() || isSavingComment}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
+                                >
+                                  {isSavingComment ? 'Saving...' : 'Save Comment'}
+                                </button>
                               </div>
                             </div>
-                          )}
+                            {investmentSummaryComment && (
+                              <div className="mt-3 p-3 bg-white border rounded-md">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0">
+                                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-sm font-medium">
+                                        {(user?.email || 'U').charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {user?.email || 'User'}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date().toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{investmentSummaryComment}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1057,202 +1142,126 @@ const InvestmentDetailPage = () => {
                   {/* Investment Summary Tab Content */}
                   {activePortfolioTab === 'summary' && (
                     <div className="space-y-3">
-                      {/* Header with As on Date and Export */}
+                      {/* Header with As on Date */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-600">As on Date:</span>
                             <span className="text-sm text-gray-900">{new Date().toLocaleDateString()}</span>
-                            <button className="p-1 hover:bg-gray-100 rounded">
-                              <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            </button>
                           </div>
                         </div>
                         <h2 className="text-xl font-semibold text-gray-900">{selectedFacility?.investmentName || 'Investment Details'}</h2>
                       </div>
 
                       {/* Identifiers Row */}
-                      <div className="grid grid-cols-6 gap-3 mb-3 p-3 bg-blue-50 rounded-md border border-blue-100">
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">SEDOL</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.sedol || 'N/A'}</div>
+                      <IdentifierStrip
+                        className="mb-3"
+                        items={[
+                          { label: 'SEDOL', value: (selectedFacility as any)?.sedol },
+                          { label: 'CUSIP', value: (selectedFacility as any)?.cusip },
+                          { label: 'CADIS ID', value: (selectedFacility as any)?.cadisId },
+                          { label: 'PPN Identifier', value: (selectedFacility as any)?.ppn },
+                          { label: 'ISIN', value: (selectedFacility as any)?.isin },
+                          { label: 'Bloomberg Reference', value: (selectedFacility as any)?.bbgId },
+                        ]}
+                      />
+
+                      {/* Transaction Overview paragraph */}
+                      <div className="bg-white border rounded-lg shadow-sm mb-3">
+                        <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
+                          <h3 className="font-semibold text-gray-900 text-sm">Transaction Overview</h3>
                         </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">CUSIP</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.cusip || 'N/A'}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">PPN</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.ppn || 'N/A'}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">Bloomberg Reference</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.bbgId || 'N/A'}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">Internal DealId</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.internalDealId || 'N/A'}</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-blue-900 mb-1">Other Data</div>
-                          <div className="text-sm text-gray-700 font-medium">{(selectedFacility as any)?.fisn || 'N/A'}</div>
+                        <div className="p-4 text-sm text-gray-700 leading-6">
+                          {(selectedFacility as any)?.overviewText ||
+                            `${(selectedFacility as any)?.issuerName || 'Issuer'} is engaged in ${(selectedFacility as any)?.sector || 'the sector'}. ` +
+                            `The notes bear a fixed interest rate of ${(selectedFacility as any)?.interestTerms?.allInRate || '5.5%'} and will mature on ${(selectedFacility as any)?.generalTerms?.maturityDate || 'N/A'}.`}
                         </div>
                       </div>
 
-
-                      {/* Project Summary - Full Width */}
-                      <div className="mb-3">
-                        <div className="bg-gradient-to-r from-blue-50 to-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
-                          <div className="bg-blue-100 px-4 py-2 rounded-t-lg border-b border-blue-200">
-                            <h3 className="font-semibold text-blue-900">Project Summary</h3>
-                          </div>
-                          <div className="p-4">
-                            <div className="grid grid-cols-4 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Name</label>
-                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                  {(selectedFacility as any)?.projectName || 'N/A'}
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Type</label>
-                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                  {(selectedFacility as any)?.projectType || 'N/A'}
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Location</label>
-                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                  {(selectedFacility as any)?.projectLocation || 'N/A'}
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-blue-900 mb-1">Project Status</label>
-                                <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                  {(selectedFacility as any)?.projectStatus || 'N/A'}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Transaction Summary and Chart - Side by Side */}
+                      {/* Tranche Summary + Client Exposure Summary */}
                       <div className="grid grid-cols-2 gap-3 mb-3">
-                        {/* Transaction Summary */}
-                        <div className="bg-gradient-to-b from-blue-50 to-white border-2 border-blue-200 rounded-lg shadow-sm">
-                          <div className="bg-blue-100 px-4 py-2 rounded-t-lg border-b border-blue-200">
-                            <h3 className="font-semibold text-blue-900">Transaction Summary</h3>
+                        {/* Tranche Summary (left) */}
+                        <div className="bg-white border rounded-lg shadow-sm">
+                          <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
+                            <h3 className="font-semibold text-gray-900 text-sm">Tranche Summary</h3>
                           </div>
-                          <div className="p-4">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Issuer Name</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.issuerName || ((transactions as any[])?.find((t: any) => t.id === (selectedFacility as any)?.transactionId)?.issuer) || ''}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Instrument Type</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.instrumentType || 'Private Placement'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Sector</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.sector || 'Utilities'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Sub-Sector</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.subSector || 'Electric'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Rank</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {selectedFacility?.paymentRank || 'Senior Secured'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Drawdown Type</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    Scheduled
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Repayment Type</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    Scheduled
-                                  </div>
-                                </div>
+                          <div className="p-4 grid grid-cols-2 gap-3 text-sm">
+                            <div className="space-y-2">
+                              <div>
+                                <div className="text-gray-500">Sponsor</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.issuerName || 'N/A'}</div>
                               </div>
-
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Country of Risk</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.countryOfRisk || 'USA'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Currency Type</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {selectedFacility?.currency || 'GBP'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Total Commitment</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 10000000).toLocaleString()}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Investor Share</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {Number((selectedFacility as any)?.generalTerms?.initialCommitment || 2500000).toLocaleString()}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Agreement Date</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {selectedFacility?.fromDate || '2025-02-11'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Funding Date</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {selectedFacility?.fromDate || '2025-02-11'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold text-blue-900 mb-1">Transaction Maturity Date</label>
-                                  <div className="w-full px-3 py-2 bg-white border border-blue-200 rounded-md text-gray-900 font-medium shadow-sm">
-                                    {(selectedFacility as any)?.generalTerms?.maturityDate || '2029-12-31'}
-                                  </div>
-                                </div>
+                              <div>
+                                <div className="text-gray-500">Instrument Type</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.instrumentType || 'Private Placement Note'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Sector</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.sector || 'Utilities'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Sub-Sector</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.subSector || 'Electric-Distribution'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Rank</div>
+                                <div className="font-medium text-gray-900">{selectedFacility?.paymentRank || 'Senior Secured'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Repayment Type</div>
+                                <div className="font-medium text-gray-900">Scheduled</div>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <div className="text-gray-500">Country of Risk</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.countryOfRisk || 'USA'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Currency</div>
+                                <div className="font-medium text-gray-900">{selectedFacility?.currency || 'USD'}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Total Issue Size</div>
+                                <div className="font-medium text-gray-900">{Number((selectedFacility as any)?.generalTerms?.initialCommitment || 25000000).toLocaleString()}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">DBM Share</div>
+                                <div className="font-medium text-gray-900">100.00%</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Drawdown Type</div>
+                                <div className="font-medium text-gray-900">Upfront</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500">Maturity Date</div>
+                                <div className="font-medium text-gray-900">{(selectedFacility as any)?.generalTerms?.maturityDate || 'N/A'}</div>
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        {/* Investor Exposure Chart */}
-                        <div className="bg-gradient-to-b from-orange-50 to-white border-2 border-orange-200 rounded-lg shadow-sm">
-                          <div className="bg-orange-100 px-4 py-2 rounded-t-lg border-b border-orange-200">
-                            <h3 className="font-semibold text-orange-900">Investor Exposure</h3>
+                        {/* Client Exposure Summary (right) */}
+                        <div className="bg-white border rounded-lg shadow-sm">
+                          <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
+                            <h3 className="font-semibold text-gray-900 text-sm">Client Exposure Summary</h3>
                           </div>
                           <div className="p-4">
-                            <div className="h-96 w-full flex items-center justify-center text-gray-400">
-                              <svg width="360" height="160" viewBox="0 0 360 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="20" y="40" width="80" height="80" fill="#3b82f6" rx="6" />
-                                <rect x="120" y="20" width="80" height="100" fill="#f97316" rx="6" />
-                                <text x="20" y="140" fontSize="12" fill="#6b7280">Investor Exposure (placeholder)</text>
-                              </svg>
+                            <div className="flex items-center justify-center h-56">
+                              <DonutChart
+                                segments={[
+                                  { percent: 68, color: '#3b82f6' },
+                                  { percent: 8, color: '#93c5fd' },
+                                  { percent: 24, color: '#065f46' },
+                                ]}
+                                className="w-48 h-48"
+                                centerLabel={<div className="text-sm text-gray-700">Exposure</div>}
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#3b82f6' }}></span><span>68.00%</span></div>
+                              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#93c5fd' }}></span><span>8.00%</span></div>
+                              <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: '#065f46' }}></span><span>24.00%</span></div>
                             </div>
                           </div>
                         </div>
@@ -1260,10 +1269,9 @@ const InvestmentDetailPage = () => {
 
                       {/* Interest Terms - Full Width */}
                       <div className="mb-3">
-                        {/* Interest Terms */}
-                        <div className="bg-gradient-to-b from-indigo-50 to-white border-2 border-indigo-200 rounded-lg shadow-sm">
-                          <div className="bg-indigo-100 px-4 py-2 rounded-t-lg border-b border-indigo-200">
-                            <h3 className="font-semibold text-indigo-900">Interest Terms</h3>
+                        <div className="bg-white border rounded-lg shadow-sm">
+                          <div className="px-4 py-2 rounded-t-lg border-b bg-gray-50">
+                            <h3 className="font-semibold text-gray-900 text-sm">Interest Terms</h3>
                           </div>
                           <div className="p-4">
                             <div className="grid grid-cols-2 gap-6">
@@ -1271,44 +1279,44 @@ const InvestmentDetailPage = () => {
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Coupon Type</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Coupon Type</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.couponType || 'Floating PIK'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Risk Free Rate</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Risk Free Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.riskFreeRate || 'PIK Coupon'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Base Rate</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Base Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.baseRate || 'Inflation Linked'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">All In Rate</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">All In Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.allInRate || 'Inflation Index'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Payment Frequency</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Frequency</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.paymentFrequency || 'emi-Annulla Base Index Types'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Interest Payment Date</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Interest Payment Date</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.interestPaymentDate || ')-Jun, 31-De Base Inde Value'}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">First IPD</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">First IPD</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.firstIPD || '31/06/2025 Spens'}
                                     </div>
                                   </div>
@@ -1319,44 +1327,44 @@ const InvestmentDetailPage = () => {
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Denominator Lag?</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Denominator Lag?</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.denominatorLag || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Numerator Lag</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Numerator Lag</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.numeratorLag || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Inflation Rate</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Inflation Rate</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.inflationRate || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Denominator Lag</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Denominator Lag</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.denominatorLag2 || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Day Count</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Day Count</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.dayCount || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Business Day</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Business Day</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.businessDay || ''}
                                     </div>
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-semibold text-indigo-900 mb-1">Holiday Convention</label>
-                                    <div className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-md text-gray-900 font-medium shadow-sm">
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Holiday Convention</label>
+                                    <div className="w-full px-3 py-2 bg-white border rounded-md text-gray-900 font-medium shadow-sm">
                                       {(selectedFacility as any)?.interestTerms?.holidayConvention || ''}
                                     </div>
                                   </div>
@@ -1376,7 +1384,6 @@ const InvestmentDetailPage = () => {
                       <ReportingRequirementsTab
                         selectedFacility={selectedFacility}
                         reportingRequirements={reportingRequirements}
-                        onAddClick={() => setShowAddReportDialog(true)}
                         onAutoGenerate={generateReportingSchedule}
                       />
                       <Dialog open={showAddReportDialog} onOpenChange={setShowAddReportDialog}>
@@ -1527,11 +1534,13 @@ const InvestmentDetailPage = () => {
           {(activeSidebarItem as number) === 5 && (
             <ReportingRequirementsInput
               selectedFacility={selectedFacility}
-              newRequirement={newRequirement}
-              setNewRequirement={setNewRequirement}
-              onSave={handleAddRequirement}
-              onAutoGenerate={generateReportingSchedule}
               reportingRequirements={reportingRequirements}
+              onSaved={async () => {
+                if (selectedFacility?.id) {
+                  const updated = await getReportingRequirements(selectedFacility.id);
+                  setReportingRequirements(updated || []);
+                }
+              }}
             />
           )}
 

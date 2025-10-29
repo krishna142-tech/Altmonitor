@@ -24,22 +24,22 @@ export default function StaticData({ reportingRequirements, generateReportingSch
           <h2 className="text-lg font-semibold">Reporting Requirements</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={generateReportingSchedule} className="print:hidden">Auto-Generate</Button>
+          <Button variant="outline" onClick={generateReportingSchedule} className="print:hidden">Auto-Generate</Button>
           <Button onClick={() => setShowAddReportDialog(true)} className="flex items-center gap-2 print:hidden">
             <Plus className="w-4 h-4" /> Add Reporting Requirement
           </Button>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-blue-600">
+        <table className="min-w-full">
+          <thead className="bg-gray-50 border-b">
             <tr>
               {['Obligor','Role','Reporting Requirement','Previous reporting Date','Next Reporting date','Days to provide','Reporting Due Date','Alter'].map(h => (
-                <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">{h}</th>
+                <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {reportingRequirements.length > 0 ? reportingRequirements.map((r:any) => (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{r.obligor || (selectedFacility as any)?.issuerName || 'N/A'}</td>

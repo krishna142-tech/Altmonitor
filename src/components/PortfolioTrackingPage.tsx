@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3, Menu, Calendar } from 'lucide-react';
+import { ArrowLeft, Download, Filter, Search, Eye, TrendingUp, BarChart3, Menu, Calendar, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
 import { useSupabaseData } from '@/context/SupabaseDataContext';
@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import Sidebar from '@/components/Sidebar';
+import Section from '@/components/ui/Section';
+import DonutChart from '@/components/ui/DonutChart';
+import ExcelIcon from '@/components/ui/ExcelIcon';
 
 // Bloomberg-style Portfolio Summary Component
 const PortfolioSummary = ({ deal, transaction, facilities }) => {
@@ -507,6 +510,44 @@ const PortfolioTrackingPage = () => {
     return Object.entries(map).map(([label, value]) => ({ label, value }));
   }, [facilities, transactions]);
 
+  // Utilities: CSV export and print
+  const downloadCsv = (filename: string, rows: Array<Record<string, any>>) => {
+    if (!rows || rows.length === 0) return;
+    const headers = Object.keys(rows[0]);
+    const escapeValue = (v: any) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      const needsQuote = s.includes(',') || s.includes('"') || s.includes('\n');
+      return needsQuote ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => escapeValue(r[h])).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportDealsCsv = () => {
+    const rows = filteredDeals.map(deal => {
+      const dealFacilities = facilities.filter(f => f.transactionId === deal.deal || f.investmentName === deal.deal);
+      const totalCommitment = dealFacilities.reduce((sum, f) => sum + getFacilityCommitment(f), 0);
+      return {
+        Deal: deal.deal,
+        Issuer: deal.issuer,
+        Amount: deal.amount,
+        Currency: deal.currency,
+        Status: deal.status,
+        Country: deal.countryOfRisk,
+        TotalCommitment: totalCommitment,
+      };
+    });
+    downloadCsv('portfolio_deals.csv', rows);
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Consistent Header */}
@@ -569,6 +610,12 @@ const PortfolioTrackingPage = () => {
                   <h1 className="text-xl font-semibold text-gray-900">All Deals</h1>
                   <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">{filteredDeals.length}</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={exportDealsCsv} title="Export CSV">
+                    <ExcelIcon size={16} />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => window.print()}>Print</Button>
+                </div>
               </div>
 
               {/* Search Bar */}
@@ -585,52 +632,36 @@ const PortfolioTrackingPage = () => {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-4 gap-4 mb-6">
-                <Card className="p-4 bg-white shadow-sm">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Total Commitment</h3>
-                    <p className="text-xl font-semibold text-gray-900">
-                      ${portfolioStats.totalCommitment.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">Portfolio commitment</p>
+                <Section title="Total Commitment">
+                  <div className="space-y-1">
+                    <div className="text-xl font-semibold text-gray-900">${portfolioStats.totalCommitment.toLocaleString()}</div>
+                    <div className="text-sm text-gray-500">Portfolio commitment</div>
                   </div>
-                </Card>
-                <Card className="p-4 bg-white shadow-sm">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Total Funded</h3>
-                    <p className="text-xl font-semibold text-gray-900">
-                      ${portfolioStats.totalFunded.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">Disbursed amount</p>
+                </Section>
+                <Section title="Total Funded">
+                  <div className="space-y-1">
+                    <div className="text-xl font-semibold text-gray-900">${portfolioStats.totalFunded.toLocaleString()}</div>
+                    <div className="text-sm text-gray-500">Disbursed amount</div>
                   </div>
-                </Card>
-                <Card className="p-4 bg-white shadow-sm">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Available</h3>
-                    <p className="text-xl font-semibold text-gray-900">
-                      ${portfolioStats.available.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">Remaining capacity</p>
+                </Section>
+                <Section title="Available">
+                  <div className="space-y-1">
+                    <div className="text-xl font-semibold text-gray-900">${portfolioStats.available.toLocaleString()}</div>
+                    <div className="text-sm text-gray-500">Remaining capacity</div>
                   </div>
-                </Card>
-                <Card className="p-4 bg-white shadow-sm">
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Active Deals</h3>
-                    <p className="text-xl font-semibold text-gray-900">
-                      {portfolioStats.activeDeals}
-                    </p>
-                    <p className="text-sm text-gray-500">Current investments</p>
+                </Section>
+                <Section title="Active Deals">
+                  <div className="space-y-1">
+                    <div className="text-xl font-semibold text-gray-900">{portfolioStats.activeDeals}</div>
+                    <div className="text-sm text-gray-500">Current investments</div>
                   </div>
-                </Card>
+                </Section>
               </div>
 
               {/* Charts Section */}
               <div className="grid grid-cols-3 gap-6 mb-6">
                 {/* Bar Chart */}
-                <Card className="col-span-2 p-4 bg-white shadow-sm">
-                  <div className="mb-4">
-                    <h3 className="font-medium text-gray-900 mb-2">Aconuecxista Redord</h3>
-                    <div className="text-sm text-gray-600">0 1 6 5</div>
-                  </div>
+                <Section title="Outstanding by Deal" className="col-span-2">
                   <div className="h-40 flex items-end justify-center space-x-2">
                     {barSeries.length === 0 ? (
                       <div className="text-sm text-gray-500">No data</div>
@@ -648,41 +679,23 @@ const PortfolioTrackingPage = () => {
                       })
                     )}
                   </div>
-                </Card>
+                </Section>
 
                 {/* Pie Chart */}
-                <Card className="p-4 bg-white shadow-sm">
-                  <div className="mb-4">
-                    <h3 className="font-medium text-gray-900">Split By Consort</h3>
-                  </div>
+                <Section title="Split by Country">
                   <div className="flex items-center justify-center h-32">
                     {pieSeries.length === 0 ? (
                       <div className="text-sm text-gray-500">No data</div>
                     ) : (
-                      <div className="relative w-40 h-40">
-                        {/* Simple donut via stacked arcs */}
-                        <svg viewBox="0 0 120 120" className="transform -rotate-90">
-                          <circle cx="60" cy="60" r="45" fill="none" stroke="#e5e7eb" strokeWidth="18" />
-                          {(() => {
-                            const total = pieSeries.reduce((s, p) => s + p.value, 0) || 1;
-                            let offset = 0;
-                            const colors = ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'];
-                            return pieSeries.slice(0, 6).map((p, i) => {
-                              const frac = p.value / total;
-                              const dash = 2 * Math.PI * 45 * frac;
-                              const gap = 2 * Math.PI * 45 - dash;
-                              const el = (
-                                <circle key={i} cx="60" cy="60" r="45" fill="none" stroke={colors[i % colors.length]} strokeWidth="18" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={-offset} />
-                              );
-                              offset += dash;
-                              return el;
-                            });
-                          })()}
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-xs text-gray-700">{pieSeries.length} groups</div>
-                        </div>
-                      </div>
+                      <DonutChart
+                        segments={(() => {
+                          const total = pieSeries.reduce((s, p) => s + p.value, 0) || 1;
+                          const colors = ['#14b8a6','#0ea5e9','#f59e0b','#ef4444','#8b5cf6','#22c55e'];
+                          return pieSeries.slice(0,6).map((p, i) => ({ percent: (p.value / total) * 100, color: colors[i % colors.length] }));
+                        })()}
+                        className="w-40 h-40"
+                        centerLabel={<span className="text-xs text-gray-700">{pieSeries.length} groups</span>}
+                      />
                     )}
                   </div>
                   {pieSeries.length > 0 && (
@@ -696,7 +709,7 @@ const PortfolioTrackingPage = () => {
                       ))}
                     </div>
                   )}
-                </Card>
+                </Section>
               </div>
 
               {/* Search Input */}
@@ -710,7 +723,7 @@ const PortfolioTrackingPage = () => {
               </div>
 
               {/* Data Table */}
-              <Card className="bg-white shadow-sm">
+              <Section title="Deals" className="bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b">
@@ -773,7 +786,7 @@ const PortfolioTrackingPage = () => {
                     </tbody>
                   </table>
                 </div>
-              </Card>
+              </Section>
             </>
         </div>
       </div>

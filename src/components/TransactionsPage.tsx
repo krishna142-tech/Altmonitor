@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Plus, Filter, Search, X, ArrowLeft, Menu, Receipt } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import Section from '@/components/ui/Section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useSupabaseData } from '@/context/SupabaseDataContext'
@@ -788,7 +789,8 @@ const TransactionsPage = () => {
             <div className="flex items-center gap-3">
               <Button
                 onClick={() => setModalOpen(true)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                variant="default"
+                className="flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Transaction
@@ -817,7 +819,7 @@ const TransactionsPage = () => {
           </div>
 
           {/* Transactions Table */}
-          <Card className="bg-white shadow-sm">
+          <Section title="Transactions" className="bg-white">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
@@ -889,7 +891,7 @@ const TransactionsPage = () => {
                         ) : (
                           <div className="pr-20">
                             <span className="block truncate">{t.assetManagerName}</span>
-                            <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-blue-600 text-white rounded text-xs" onClick={() => startEdit(idx, t)}>Edit</button>
+                            <button className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-800 text-white rounded text-xs" onClick={() => startEdit(idx, t)}>Edit</button>
                           </div>
                         )}
                       </td>
@@ -905,7 +907,7 @@ const TransactionsPage = () => {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </Section>
       </div>
         
       <AddTransactionModal

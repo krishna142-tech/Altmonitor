@@ -1,8 +1,8 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Receipt, Calendar, BarChart3, Users, Settings, TrendingUp, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home, User } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Receipt, Calendar, Users, Settings, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
 
@@ -14,92 +14,60 @@ const MainPage = () => {
       title: 'Transactions',
       icon: Receipt,
       path: '/transactions',
-      description: 'View and manage all transactions',
-      gradient: 'from-primaryGreen to-primaryGreen-light',
-      iconColor: 'text-primaryGreen',
-      bgColor: 'bg-primaryGreen/10'
+      description: 'View and manage all transactions'
     },
     {
       title: 'Portfolio Tracking',
       icon: PieChart,
       path: '/portfolio-tracking',
-      description: 'Bloomberg-style portfolio summaries',
-      gradient: 'from-purple-500 to-purple-300',
-      iconColor: 'text-purple-500',
-      bgColor: 'bg-purple-500/10'
+      description: 'Bloomberg-style portfolio summaries'
     },
     {
       title: 'User Portfolio',
       icon: Briefcase,
       path: '/portfolio',
-      description: 'Manage your investment portfolio',
-      gradient: 'from-accentGold to-accentGold-light',
-      iconColor: 'text-accentGold',
-      bgColor: 'bg-accentGold/10'
+      description: 'Manage your investment portfolio'
     },
     {
       title: 'Calendar',
       icon: Calendar,
       path: '/calendar',
-      description: 'Schedule deals and events',
-      gradient: 'from-primaryBlue to-primaryBlue-light',
-      iconColor: 'text-primaryBlue',
-      bgColor: 'bg-primaryBlue/10'
+      description: 'Schedule deals and events'
     },
     {
       title: 'User Management',
       icon: Users,
       path: '/users',
-      description: 'Manage user permissions',
-      gradient: 'from-accentTeal to-accentTeal-light',
-      iconColor: 'text-accentTeal',
-      bgColor: 'bg-accentTeal/10'
+      description: 'Manage user permissions'
     },
     {
       title: 'Settings',
       icon: Settings,
       path: '/settings',
-      description: 'System configuration',
-      gradient: 'from-foreground-secondary to-foreground',
-      iconColor: 'text-foreground-secondary',
-      bgColor: 'bg-foreground-secondary/10'
+      description: 'System configuration'
     },
     {
       title: 'Data feed',
       icon: Database,
       path: '/data-feed',
-      description: 'Real-time market data feeds',
-      gradient: 'from-blue-500 to-blue-300',
-      iconColor: 'text-blue-500',
-      bgColor: 'bg-blue-500/10'
+      description: 'Real-time market data feeds'
     },
     {
       title: 'Currency conversion',
       icon: DollarSign,
       path: '/currency-conversion',
-      description: 'Convert between currencies',
-      gradient: 'from-green-500 to-green-300',
-      iconColor: 'text-green-500',
-      bgColor: 'bg-green-500/10'
+      description: 'Convert between currencies'
     },
     {
       title: 'Holiday',
       icon: CalendarDays,
       path: '/holiday',
-      description: 'Market holidays and events',
-      gradient: 'from-red-500 to-red-300',
-      iconColor: 'text-red-500',
-      bgColor: 'bg-red-500/10'
+      description: 'Market holidays and events'
     }
   ]
 
   // Filter navigation cards based on user permissions
-  const navigationCards = allNavigationCards.filter(card => {
-    if (card.requiresPermission) {
-      return hasPermission(card.requiresPermission)
-    }
-    return true
-  })
+  const navigationCards = allNavigationCards
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -202,15 +170,15 @@ const MainPage = () => {
                   whileHover={{ y: -4 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Card className="bg-white shadow-sm hover:shadow-lg transition-all duration-300 group">
+                  <Card className="bg-white border shadow-sm hover:shadow-md transition-all duration-200 group">
                     <Link to={card.path} className="block">
                       <CardContent className="p-6 text-center">
                         <motion.div 
-                          className={`w-12 h-12 ${card.bgColor} rounded-lg flex items-center justify-center mx-auto mb-4`}
-                          whileHover={{ scale: 1.1 }}
-                          transition={{ duration: 0.2 }}
+                          className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4"
+                          whileHover={{ scale: 1.05 }}
+                          transition={{ duration: 0.15 }}
                         >
-                          <Icon className={`w-6 h-6 ${card.iconColor}`} />
+                          <Icon className="w-6 h-6 text-gray-700" />
                         </motion.div>
                         <CardTitle className="text-base font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
                           {card.title}

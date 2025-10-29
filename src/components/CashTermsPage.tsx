@@ -46,158 +46,49 @@ const mockAdditional = {
 const CashTermsPage = () => {
   useParams();
   
+  const renderGrid = (data: Record<string, string>) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Object.entries(data).map(([label, value]) => (
+        <div key={label} className="bg-white rounded-lg p-4 shadow-sm border">
+          <div className="text-gray-500 text-sm font-medium mb-1">{label}</div>
+          <div className="text-gray-900 font-semibold">{value || 'N/A'}</div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-<Card className="min-h-screen bg-[#121516] p-6" style={{ fontFamily: 'Inter, "Noto Sans", sans-serif' }}>
-<CardContent className="max-w-7xl mx-auto">
-<CardContent className="bg-[#1e2124] border border-[#40484f] rounded-xl shadow-xl p-10 pb-16">
-<CardHeader><CardTitle className="text-3xl font-bold text-white mb-10 tracking-tight border-b border-[#2c3135] pb-4">Cash Terms</CardTitle></CardHeader>
-          
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight border-b border-[#2c3135] pb-3">General Terms</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(mockGeneral).map(([label, value]) => (
-                <div key={label} className="bg-[#2c3135] rounded-xl p-6 shadow-sm border border-[#40484f] hover:border-[#c5daeb]/50 transition-all duration-300">
-                  <div className="text-[#a2acb3] text-sm font-medium mb-2">{label}</div>
-                  <div className={`text-lg font-semibold ${
-                    label.includes('Date') ? 'text-amber-400' :
-                    label.includes('Rating') ? 'text-blue-400' :
-                    label.includes('Commitment') || label.includes('Price') ? 'text-green-400' :
-                    label.includes('Interest') ? 'text-green-400' :
-                    label.includes('Rate') ? 'text-red-400' :
-                    label.includes('Convention') ? 'text-amber-400' :
-                    label.includes('Fee') ? 'text-red-400' :
-                    label.includes('Margin') ? 'text-red-400' :
-                    label.includes('Tenor') ? 'text-blue-400' :
-                    label.includes('Adjustment') ? 'text-amber-400' :
-                    value === 'Yes' ? 'text-green-400' :
-                    value === 'No' ? 'text-red-400' :
-                    value === 'Floating' ? 'text-green-400' :
-                    value === 'Fixed' ? 'text-blue-400' :
-                    'text-white'
-                  }`}>{value || 'N/A'}</div>
-                </div>
-              ))}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-900">Cash Terms</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-2">General Terms</h2>
+              {renderGrid(mockGeneral as Record<string, string>)}
             </div>
-          </div>
-          
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight border-b border-[#2c3135] pb-3">Configuration</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(mockConfig).map(([label, value]) => (
-                <div key={label} className="bg-[#2c3135] rounded-xl p-6 shadow-sm border border-[#40484f] hover:border-[#c5daeb]/50 transition-all duration-300">
-                  <div className="text-[#a2acb3] text-sm font-medium mb-2">{label}</div>
-                  <div className={`text-lg font-semibold ${
-                    label.includes('Date') ? 'text-amber-400' :
-                    label.includes('Rating') ? 'text-blue-400' :
-                    label.includes('Commitment') || label.includes('Price') ? 'text-green-400' :
-                    label.includes('Interest') ? 'text-green-400' :
-                    label.includes('Rate') ? 'text-red-400' :
-                    label.includes('Convention') ? 'text-amber-400' :
-                    label.includes('Fee') ? 'text-red-400' :
-                    label.includes('Margin') ? 'text-red-400' :
-                    label.includes('Tenor') ? 'text-blue-400' :
-                    label.includes('Adjustment') ? 'text-amber-400' :
-                    value === 'Yes' ? 'text-green-400' :
-                    value === 'No' ? 'text-red-400' :
-                    value === 'Floating' ? 'text-green-400' :
-                    value === 'Fixed' ? 'text-blue-400' :
-                    'text-white'
-                  }`}>{value || 'N/A'}</div>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-2">Configuration</h2>
+              {renderGrid(mockConfig as Record<string, string>)}
             </div>
-          </div>
-          
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight border-b border-[#2c3135] pb-3">Day One Funding Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(mockDayOne).map(([label, value]) => (
-                <div key={label} className="bg-[#2c3135] rounded-xl p-6 shadow-sm border border-[#40484f] hover:border-[#c5daeb]/50 transition-all duration-300">
-                  <div className="text-[#a2acb3] text-sm font-medium mb-2">{label}</div>
-                  <div className={`text-lg font-semibold ${
-                    label.includes('Date') ? 'text-amber-400' :
-                    label.includes('Rating') ? 'text-blue-400' :
-                    label.includes('Commitment') || label.includes('Price') ? 'text-green-400' :
-                    label.includes('Interest') ? 'text-green-400' :
-                    label.includes('Rate') ? 'text-red-400' :
-                    label.includes('Convention') ? 'text-amber-400' :
-                    label.includes('Fee') ? 'text-red-400' :
-                    label.includes('Margin') ? 'text-red-400' :
-                    label.includes('Tenor') ? 'text-blue-400' :
-                    label.includes('Adjustment') ? 'text-amber-400' :
-                    value === 'Yes' ? 'text-green-400' :
-                    value === 'No' ? 'text-red-400' :
-                    value === 'Floating' ? 'text-green-400' :
-                    value === 'Fixed' ? 'text-blue-400' :
-                    'text-white'
-                  }`}>{value || 'N/A'}</div>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-2">Day One Funding Details</h2>
+              {renderGrid(mockDayOne as Record<string, string>)}
             </div>
-          </div>
-          
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight border-b border-[#2c3135] pb-3">Default Option</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(mockDefault).map(([label, value]) => (
-                <div key={label} className="bg-[#2c3135] rounded-xl p-6 shadow-sm border border-[#40484f] hover:border-[#c5daeb]/50 transition-all duration-300">
-                  <div className="text-[#a2acb3] text-sm font-medium mb-2">{label}</div>
-                  <div className={`text-lg font-semibold ${
-                    label.includes('Date') ? 'text-amber-400' :
-                    label.includes('Rating') ? 'text-blue-400' :
-                    label.includes('Commitment') || label.includes('Price') ? 'text-green-400' :
-                    label.includes('Interest') ? 'text-green-400' :
-                    label.includes('Rate') ? 'text-red-400' :
-                    label.includes('Convention') ? 'text-amber-400' :
-                    label.includes('Fee') ? 'text-red-400' :
-                    label.includes('Margin') ? 'text-red-400' :
-                    label.includes('Tenor') ? 'text-blue-400' :
-                    label.includes('Adjustment') ? 'text-amber-400' :
-                    value === 'Yes' ? 'text-green-400' :
-                    value === 'No' ? 'text-red-400' :
-                    value === 'Floating' ? 'text-green-400' :
-                    value === 'Fixed' ? 'text-blue-400' :
-                    'text-white'
-                  }`}>{value || 'N/A'}</div>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-2">Default Option</h2>
+              {renderGrid(mockDefault as Record<string, string>)}
             </div>
-          </div>
-          
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-white mb-6 tracking-tight border-b border-[#2c3135] pb-3">Additional Option</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(mockAdditional).map(([label, value]) => (
-                <div key={label} className="bg-[#2c3135] rounded-xl p-6 shadow-sm border border-[#40484f] hover:border-[#c5daeb]/50 transition-all duration-300">
-                  <div className="text-[#a2acb3] text-sm font-medium mb-2">{label}</div>
-                  <div className={`text-lg font-semibold ${
-                    label.includes('Date') ? 'text-amber-400' :
-                    label.includes('Rating') ? 'text-blue-400' :
-                    label.includes('Commitment') || label.includes('Price') ? 'text-green-400' :
-                    label.includes('Interest') ? 'text-green-400' :
-                    label.includes('Rate') ? 'text-red-400' :
-                    label.includes('Convention') ? 'text-amber-400' :
-                    label.includes('Fee') ? 'text-red-400' :
-                    label.includes('Margin') ? 'text-red-400' :
-                    label.includes('Tenor') ? 'text-blue-400' :
-                    label.includes('Adjustment') ? 'text-amber-400' :
-                    value === 'Yes' ? 'text-green-400' :
-                    value === 'No' ? 'text-red-400' :
-                    value === 'Floating' ? 'text-green-400' :
-                    value === 'Fixed' ? 'text-blue-400' :
-                    'text-white'
-                  }`}>{value || 'N/A'}</div>
-                </div>
-              ))}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900 mb-2">Additional Option</h2>
+              {renderGrid(mockAdditional as Record<string, string>)}
             </div>
-          </div>
-          
-          <div className="flex justify-end mt-8 mb-4">
-            {/* Cashflow schedule feature removed */}
-          </div>
-        </CardContent>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 };
 
