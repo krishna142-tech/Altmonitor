@@ -1,0 +1,92 @@
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   1) import React from 'react'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   2) import { Link } from 'react-router-dom'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   3) import { motion } from 'framer-motion'
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530   4) import { Receipt, Calendar, Users, Settings, LogOut, Briefcase, PieChart, Database, DollarSign, CalendarDays, Home } from 'lucide-react'
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530   5) import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/Card'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   6) import { Button } from '@/components/ui/button'
+c3dc64a7 (krishna142-tech 2025-09-07 15:10:12 +0530   7) import { useAuth } from '@/context/AuthContext'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   8) 
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530   9) const MainPage = () => {
+c3dc64a7 (krishna142-tech 2025-09-07 15:10:12 +0530  10)   const { user, logout, hasPermission } = useAuth()
+c3dc64a7 (krishna142-tech 2025-09-07 15:10:12 +0530  11)   
+c3dc64a7 (krishna142-tech 2025-09-07 15:10:12 +0530  12)   const allNavigationCards = [
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  13)     {
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  14)       title: 'Transactions',
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  15)       icon: Receipt,
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  16)       path: '/transactions',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  17)       description: 'View and manage all transactions'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  18)     },
+38c5187c (Akhil Barman    2025-08-15 15:51:11 +0530  19)     {
+7dcf57d0 (krishna142-tech 2025-08-18 22:50:01 +0530  20)       title: 'Portfolio Tracking',
+38c5187c (Akhil Barman    2025-08-15 15:51:11 +0530  21)       icon: PieChart,
+7dcf57d0 (krishna142-tech 2025-08-18 22:50:01 +0530  22)       path: '/portfolio-tracking',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  23)       description: 'Bloomberg-style portfolio summaries'
+38c5187c (Akhil Barman    2025-08-15 15:51:11 +0530  24)     },
+1c082abc (Akhil Barman    2025-08-06 19:31:54 +0530  25)     {
+1c082abc (Akhil Barman    2025-08-06 19:31:54 +0530  26)       title: 'User Portfolio',
+1c082abc (Akhil Barman    2025-08-06 19:31:54 +0530  27)       icon: Briefcase,
+1c082abc (Akhil Barman    2025-08-06 19:31:54 +0530  28)       path: '/portfolio',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  29)       description: 'Manage your investment portfolio'
+1c082abc (Akhil Barman    2025-08-06 19:31:54 +0530  30)     },
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  31)     {
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  32)       title: 'Calendar',
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  33)       icon: Calendar,
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  34)       path: '/calendar',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  35)       description: 'Schedule deals and events'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  36)     },
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  37)     {
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  38)       title: 'User Management',
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  39)       icon: Users,
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  40)       path: '/users',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  41)       description: 'Manage user permissions'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  42)     },
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  43)     {
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  44)       title: 'Settings',
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  45)       icon: Settings,
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  46)       path: '/settings',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  47)       description: 'System configuration'
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  48)     },
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  49)     {
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  50)       title: 'Data feed',
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  51)       icon: Database,
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  52)       path: '/data-feed',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  53)       description: 'Real-time market data feeds'
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  54)     },
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  55)     {
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  56)       title: 'Currency conversion',
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  57)       icon: DollarSign,
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  58)       path: '/currency-conversion',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  59)       description: 'Convert between currencies'
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  60)     },
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  61)     {
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  62)       title: 'Holiday',
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  63)       icon: CalendarDays,
+a2fbcec8 (krishna142-tech 2025-08-26 12:25:58 +0530  64)       path: '/holiday',
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  65)       description: 'Market holidays and events'
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  66)     }
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  67)   ]
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  68) 
+ead6780d (krishna142-tech 2025-11-02 15:20:48 +0530  69)   // Filter navigation cards based on user's permissions 
+583f1ea3 (krishna142-tech 2025-10-29 23:23:34 +0530  70)   const navigationCards = allNavigationCards
+c3dc64a7 (krishna142-tech 2025-09-07 15:10:12 +0530  71) 
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  72)   return (
+10c7c8a8 (krishna142-tech 2025-08-26 16:32:21 +0530  73)     <div className="min-h-screen bg-background text-foreground flex flex-col">
+10c7c8a8 (krishna142-tech 2025-08-26 16:32:21 +0530  74)       {/* Consistent Header */}
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  75)       <motion.header 
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  76)         className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 py-3"
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  77)         initial={{ y: -100 }}
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  78)         animate={{ y: 0 }}
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  79)         transition={{ duration: 0.3 }}
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  80)       >
+10c7c8a8 (krishna142-tech 2025-08-26 16:32:21 +0530  81)         <Link to="/main" className="flex items-center gap-3 hover:opacity-80 transition-opacity duration-200">
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  82)           <div className="size-6">
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  83)             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  84)               <g clipPath="url(#clip0_6_535)">
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  85)                 <path
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  86)                   fillRule="evenodd"
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  87)                   clipRule="evenodd"
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  88)                   d="M47.2426 24L24 47.2426L0.757355 24L24 0.757355L47.2426 24ZM12.2426 21H35.7574L24 9.24264L12.2426 21Z"
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  89)                   fill="currentColor"
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  90)                 />
+02b1be0d (krishna142-tech 2025-08-01 14:49:09 +0530  91)               </g>
+02b1be0d (krishna

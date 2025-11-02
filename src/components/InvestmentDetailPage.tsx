@@ -1392,81 +1392,10 @@ const InvestmentDetailPage = () => {
                             Facility: {selectedFacility?.investmentName || 'Not Selected'}
                           </div>
                         </div>
-                        <h2 className="text-xl font-semibold text-gray-900">Reporting Tracking</h2>
                       </div>
 
                       {/* Automated Report Tracking Table */}
-                      <div className="bg-white border rounded-lg overflow-hidden">
-                        <div className="bg-white text-black px-4 py-3 ">
-                          <h3 className="font-semibold">Automated Reporting Requirements</h3>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Obligor</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Role</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Reporting Requirement</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Previous Reporting Date</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Next Reporting Date</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Days to Provide</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Reporting Due Date</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {reportingRequirements.length > 0 ? (
-                                reportingRequirements.map((requirement, index) => (
-                                  <tr key={index} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.obligor || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.role || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.reportingRequirement || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">
-                                      {requirement.previousReportingDate ? new Date(requirement.previousReportingDate).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">
-                                      {requirement.nextReportingDate ? new Date(requirement.nextReportingDate).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{requirement.daysToProvide || 'N/A'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">
-                                      {requirement.reportingDueDate ? new Date(requirement.reportingDueDate).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${requirement.status === 'Completed'
-                                        ? 'bg-green-100 text-green-800'
-                                        : requirement.status === 'Overdue'
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                        {requirement.status || 'Pending'}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm">
-                                      <button className="text-blue-600 hover:text-blue-800 text-xs">
-                                        View Details
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={9} className="px-4 py-12 text-center">
-                                    <div className="flex flex-col items-center space-y-4">
-                                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                      </div>
-                                      <h1>there is work here we need to add the reporting chart here from platform update wala excel</h1>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                      
                     </div>
                   )}
                 </div>

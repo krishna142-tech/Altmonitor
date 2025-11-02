@@ -229,36 +229,7 @@ const CovenantTrackingPage: React.FC = () => {
       )}
 
       {/* TIMELINE PANEL */}
-        <select
-          value={selectedPeriodId || ''}
-          onChange={async (e) => {
-            const selectedId = e.target.value;
-            setSelectedPeriodId(selectedId);
-
-            const selectedPeriod = periods.find(p => p.id.toString() === selectedId);
-            if (!selectedPeriod) return;
-
-            try {
-              const res: any = await getPortfolioPeriods(portfolioId, selectedPeriod.ipd_date);
-              // If API returns { period, entries }
-              if ('entries' in res) {
-                setRows(res.entries.map((r: any, i: number) => ({ ...r, sno: i + 1 })));
-              } else if (Array.isArray(res)) {
-                setRows(res); // fallback if API returns array directly
-              }
-            } catch (err) {
-              console.error(err);
-              setRows([]);
-            }
-          }}
-        >
-          <option value="" disabled>Select period</option>
-          {periods.map((p) => (
-            <option key={p.id} value={p.id.toString()}>
-              {new Date(p.ipd_date).toLocaleString('en-US', { month: 'short', year: 'numeric' })}
-            </option>
-          ))}
-        </select>
+        
 
       
 

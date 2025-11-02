@@ -14,7 +14,9 @@ export default defineConfig({
     port: 3000,
     host: true,
     proxy: {
-      '/api': process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : undefined
+      '/api': process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:5001' 
+        : 'https://altmonitor.onrender.com'
     }
   },
   build: {
