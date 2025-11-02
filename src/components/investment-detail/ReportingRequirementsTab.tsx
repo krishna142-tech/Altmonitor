@@ -24,20 +24,27 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
   onAutoGenerate,
 }) => {
   return (
-    <div className="p-4 space-y-3">
-      <div className="bg-white border rounded-lg shadow-sm">
-        <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Reporting Requirements</h2>
+    <div className="p-6 space-y-6 bg-white rounded-lg border">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded bg-blue-600" />
+          <h2 className="text-lg font-semibold">Reporting Requirements</h2>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={onAutoGenerate}
-            className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-medium"
+            className="px-3 py-2 border rounded hover:bg-gray-50 print:hidden"
           >
             Auto-Generate
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50 border-b">
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-blue-600">
             <tr>
               {[
                 "Obligor",
@@ -51,59 +58,53 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
                 <th
                   key={header}
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
                 >
                   {header}
                 </th>
               ))}
             </tr>
           </thead>
-            <tbody>
-              {reportingRequirements.length > 0 ? (
-                reportingRequirements.map((r, index) => (
-                  <tr key={r.id ?? index} className="border-b hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {r.obligor || selectedFacility?.issuerName || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.role || "Borrower"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.reportingRequirement || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.previousReportingDate || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.nextReportingDate || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {r.daysToProvide || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
-                      {r.reportingDueDate || "N/A"}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-12 text-center text-gray-500"
-                  >
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <p className="font-medium text-gray-700">No Reporting Requirements Found</p>
-                      <p className="text-xs text-gray-500">Use "Auto-Generate" to create requirements</p>
-                    </div>
+
+          <tbody className="bg-white divide-y divide-gray-200">
+            {reportingRequirements.length > 0 ? (
+              reportingRequirements.map((r, index) => (
+                <tr key={r.id ?? index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {r.obligor || selectedFacility?.issuerName || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.role || "Borrower"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.reportingRequirement || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.previousReportingDate || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.nextReportingDate || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.daysToProvide || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {r.reportingDueDate || "N/A"}
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-6 py-8 text-center text-gray-500"
+                >
+                  No Reporting Requirements Found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

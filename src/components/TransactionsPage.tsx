@@ -2,52 +2,15 @@ import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, Filter, Search, X, ArrowLeft, Menu, Receipt } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Plus, Filter, X, ArrowLeft, Receipt } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Transaction } from '@/context/DataContext';
 import Section from '@/components/ui/Section'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useSupabaseData } from '@/context/SupabaseDataContext'
 
-// Mocked data for table and dropdowns
-const mockTransactions = [
-  {
-    deal: 'Coyote Infra Project Private Limited',
-    issuer: 'Coyote Infra Project Private Limited',
-    currency: 'USD',
-    countryOfRisk: 'USA',
-    collateralDescription: 'Infrastructure development',
-    contractDate: '2023-09-15',
-    assetManager: 'Global Equity',
-    assetManagerName: 'John Doe',
-    amount: '$2,500,000',
-    status: 'Active'
-  },
-  {
-    deal: 'Angetes S.A.',
-    issuer: 'Angetes S.A.',
-    currency: 'EUR',
-    countryOfRisk: 'Spain',
-    collateralDescription: 'Renewable energy project',
-    contractDate: '2023-08-20',
-    assetManager: 'Renewables Fund',
-    assetManagerName: 'Jane Smith',
-    amount: '€1,800,000',
-    status: 'Pending'
-  },
-  {
-    deal: 'Angeles I',
-    issuer: 'Angeles I',
-    currency: 'GBP',
-    countryOfRisk: 'UK',
-    collateralDescription: 'Real estate investment',
-    contractDate: '2023-07-10',
-    assetManager: 'Property Fund',
-    assetManagerName: 'Michael Johnson',
-    amount: '£1,200,000',
-    status: 'Completed'
-  }
-];
+// (Removed unused mocked data)
 
 const dealNames = ['Coyote Infra Project Private Limited', 'Angetes S.A.', 'Angeles I'];
 const issuers = ['Coyote Infra Project Private Limited', 'Angetes S.A.', 'Angeles I'];
@@ -57,11 +20,51 @@ const countries = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo (Congo-Brazzaville)", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia (Czech Republic)", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini (fmr. 'Swaziland')", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar (formerly Burma)", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
 ];
 
-function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issuerOptions, addIssuer, sponsorOptions, addSponsor, dealOwner3Options, addDealOwner3, dealTypeOptions, addDealType }) {
-  const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm();
+type NewTransactionForm = {
+  dealName?: string;
+  newDealName?: string;
+  issuer?: string;
+  newIssuerName?: string;
+  currency?: string;
+  countryOfRisk?: string;
+  collateralDescription?: string;
+  contractDate?: string;
+  dealOwner1?: string;
+  sponsor?: string;
+  newSponsorName?: string;
+  dealOwner3?: string;
+  newOwner3Name?: string;
+  dealType?: string;
+  newDealTypeName?: string;
+  onboardingDate?: string;
+  realisationDate?: string;
+  status?: string;
+  boardedFlag?: string;
+  amount?: string;
+}
+
+interface AddTransactionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: NewTransactionForm) => void;
+  dealNames: string[];
+  addDeal: (name: string) => void;
+  issuerOptions?: string[];
+  addIssuer: (name: string) => void;
+  sponsorOptions?: string[];
+  addSponsor: (name: string) => void;
+  dealOwner3Options?: string[];
+  addDealOwner3: (name: string) => void;
+  dealTypeOptions?: string[];
+  addDealType: (name: string) => void;
+}
+
+function AddTransactionModal(props: AddTransactionModalProps) {
+  const { isOpen, onClose, onSave, dealNames, addDeal, issuerOptions, addIssuer, sponsorOptions, addSponsor, dealOwner3Options, addDealOwner3, dealTypeOptions, addDealType } = props;
+  const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<NewTransactionForm>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: NewTransactionForm) => {
     setIsSubmitting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -138,7 +141,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
                     className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   >
                     <option value="">Select Issuer</option>
-                    {(issuerOptions || issuers).map((i: any) => <option key={i} value={i}>{i}</option>)}
+                    {(issuerOptions || issuers).map((i: string) => <option key={i} value={i}>{i}</option>)}
                     <option value="__add_new_issuer">+ Add new issuer</option>
                   </select>
                   {errors.issuer && <p className="text-red-400 text-sm mt-1">{String(errors.issuer?.message)}</p>}
@@ -224,7 +227,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
                     id="sponsor"
                     className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   >
-                    {(sponsorOptions || ['LGIM','Other']).map((s: any) => <option key={s} value={s}>{s}</option>)}
+                    {(sponsorOptions || ['LGIM','Other']).map((s: string) => <option key={s} value={s}>{s}</option>)}
                     <option value="__add_new_sponsor">+ Add new sponsor</option>
                   </select>
                   {watch('sponsor') === '__add_new_sponsor' && (
@@ -255,7 +258,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
                     className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   >
                     <option value="">Select</option>
-                    {(dealOwner3Options || ['OwnerA','OwnerB']).map((o: any) => <option key={o} value={o}>{o}</option>)}
+                    {(dealOwner3Options || ['OwnerA','OwnerB']).map((o: string) => <option key={o} value={o}>{o}</option>)}
                     <option value="__add_new_owner3">+ Add new owner</option>
                   </select>
                   {watch('dealOwner3') === '__add_new_owner3' && (
@@ -320,7 +323,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
                       className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                     >
                       <option value="">Select Deal Type</option>
-                      {(dealTypeOptions || ['type1','type2']).map((dt: any) => <option key={dt} value={dt}>{dt}</option>)}
+                      {(dealTypeOptions || ['type1','type2']).map((dt: string) => <option key={dt} value={dt}>{dt}</option>)}
                       <option value="__add_new_dealtype">+ Add new deal type</option>
                     </select>
                     {watch('dealType') === '__add_new_dealtype' && (
@@ -369,8 +372,8 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
                 <Button type="button" variant="outline" onClick={() => { reset(); onClose(); }}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-                  SAVE
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'SAVE'}
                 </Button>
               </div>
             </form>
@@ -381,171 +384,7 @@ function AddTransactionModal({ isOpen, onClose, onSave, dealNames, addDeal, issu
   );
 }
 
-function ManageTransactionModal({ isOpen, onClose }) {
-  if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <motion.div 
-  className="bg-background-secondary border border-border rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-      >
-        <Card className="bg-transparent border-0">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-2xl">Manage Transaction</CardTitle>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full overflow-x-auto">
-              <form className="space-y-6 min-w-[58.333rem]">
-              {/* First Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="dealName" className="text-sm font-medium text-foreground">Deal Name</label>
-                  <select
-                    id="dealName"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  >
-                    <option value="">Select Deal Name</option>
-                    {dealNames.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="issuer" className="text-sm font-medium text-foreground">Issuer</label>
-                  <select 
-                    id="issuer"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  >
-                    <option value="">Select Issuer</option>
-                    {issuers.map(i => <option key={i} value={i}>{i}</option>)}
-                  </select>
-                </div>
-              </div>
-              
-              {/* Second Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="currency" className="text-sm font-medium text-foreground">Currency</label>
-                  <select
-                    id="currency"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  >
-                    <option value="">Select Currency</option>
-                    {currencies.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="countryOfRisk" className="text-sm font-medium text-foreground">Country Of Risk</label>
-                  <select 
-                    id="countryOfRisk"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  >
-                    <option value="">Select Country</option>
-                    {countries.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              
-              {/* Third Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="collateralDescription" className="text-sm font-medium text-foreground">Collateral Description</label>
-                  <input
-                    id="collateralDescription"
-                    type="text"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                    placeholder="Enter collateral description"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="contractDate" className="text-sm font-medium text-foreground">Contract Date</label>
-                  <input
-                    id="contractDate"
-                    type="date"
-                    className="w-full p-3 rounded-xl bg-background border border-border text-foreground"
-                  />
-                </div>
-              </div>
-              
-              {/* Additional Details Section */}
-              <div className="border-t border-border pt-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Additional Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Status</label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center">
-                        <input type="radio" name="status" value="on-bordered" className="mr-2" defaultChecked />
-                        <span className="text-foreground-secondary">On Bordered</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input type="radio" name="status" value="und" className="mr-2" />
-                        <span className="text-foreground-secondary">UND</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="dealType" className="text-sm font-medium text-foreground">Deal Type</label>
-                    <select 
-                      id="dealType"
-                      className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                    >
-                      <option value="">Select Deal Type</option>
-                      <option value="type1">Type 1</option>
-                      <option value="type2">Type 2</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="amount" className="text-sm font-medium text-foreground">Amount</label>
-                    <input
-                      id="amount"
-                      type="number"
-                      className="w-full p-3 rounded-xl bg-background border border-border text-foreground placeholder:text-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                      placeholder="Enter amount"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <div className="space-y-2">
-                    <label htmlFor="onboardingDate" className="text-sm font-medium text-foreground">Onboarding Date</label>
-                    <select 
-                      id="onboardingDate"
-                      className="w-full p-3 rounded-xl bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                    >
-                      <option value="">Select Date</option>
-                      <option value="2024-01-01">2024-01-01</option>
-                      <option value="2024-02-01">2024-02-01</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="realisationDate" className="text-sm font-medium text-foreground">Realisation Date</label>
-                    <input
-                      id="realisationDate"
-                      type="date"
-                      className="w-full p-3 rounded-xl bg-background border border-border text-foreground"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Buttons */}
-              <div className="flex justify-end gap-3 pt-6">
-                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                <Button type="submit">Save</Button>
-              </div>
-              </form>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
-}
+  // ManageTransactionModal removed: not used in current UI
 
 const TransactionsPage = () => {
   const { transactions, addTransaction, updateTransaction } = useSupabaseData();
@@ -554,7 +393,7 @@ const TransactionsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ deal: '', issuer: '', currency: '', countryOfRisk: '' });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingRow, setEditingRow] = useState<any | null>(null);
+  const [editingRow, setEditingRow] = useState<Partial<Transaction> | null>(null);
   // local, stateful deal names so user can add new deals from the modal
   const [localDealNames, setLocalDealNames] = useState(dealNames);
   const [localIssuers, setLocalIssuers] = useState(issuers);
@@ -563,7 +402,7 @@ const TransactionsPage = () => {
   const [localDealTypes, setLocalDealTypes] = useState(['type1','type2']);
   const navigate = useNavigate();
   
-  const startEdit = (idx: number, t: any) => {
+  const startEdit = (idx: number, t: Transaction) => {
     setEditingIndex(idx);
     setEditingRow({ ...t });
   };
@@ -573,7 +412,7 @@ const TransactionsPage = () => {
     setEditingRow(null);
   };
 
-  const saveEdit = async (original: any) => {
+  const saveEdit = async (original: Transaction) => {
     if (!editingRow) return;
     try {
       await updateTransaction(original.id, {
@@ -590,8 +429,25 @@ const TransactionsPage = () => {
       });
       setEditingIndex(null);
       setEditingRow(null);
-    } catch (e) {
-      // no-op, context handles error state
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Define deleteTransactionFromDatabase as a placeholder
+  const deleteTransactionFromDatabase = async (id: string) => {
+    // Replace this with the actual API call or database logic
+    console.log(`Deleting transaction with id: ${id}`);
+  };
+
+  // Move deleteTransaction inside TransactionsPage component
+  const deleteTransaction = async (id: string) => {
+    try {
+      await deleteTransactionFromDatabase(id);
+      // Trigger a re-fetch or update logic here
+      console.log('Transaction deleted, re-fetch transactions if needed.');
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
     }
   };
 
@@ -613,10 +469,10 @@ const TransactionsPage = () => {
     return matchesSearch && matchesFilters;
   });
 
-  const handleAddTransaction = (data) => {
+  const handleAddTransaction = (data: NewTransactionForm) => {
     // Validate and format dates
-    const contractDate = data.contractDate && data.contractDate.trim() !== '' 
-      ? data.contractDate 
+    const contractDate = data.contractDate && data.contractDate.trim() !== ''
+      ? data.contractDate
       : new Date().toISOString().split('T')[0]; // Default to today if empty
     
     addTransaction({
@@ -636,12 +492,15 @@ const TransactionsPage = () => {
   // ...existing code... (status color helper removed since status column is no longer rendered)
 
   // Filter modal component
-  const FilterModal: React.FC<{ isOpen: boolean; onClose: () => void; filters: any; setFilters: React.Dispatch<any>; }> = ({ isOpen, onClose, filters, setFilters }) => {
+  type FilterShape = { deal: string; issuer: string; currency: string; countryOfRisk: string };
+
+  const FilterModal: React.FC<{ isOpen: boolean; onClose: () => void; filters: FilterShape; setFilters: React.Dispatch<React.SetStateAction<FilterShape>>; }> = ({ isOpen, onClose, filters, setFilters }) => {
     if (!isOpen) return null;
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       const { name, value } = e.target;
-      setFilters((prev: any) => ({ ...prev, [name]: value }));
+      const key = name as keyof FilterShape;
+      setFilters(prev => ({ ...prev, [key]: value }));
     };
 
     const clearAll = () => {
@@ -832,11 +691,12 @@ const TransactionsPage = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Contract Date</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Asset Manager</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Asset Manager Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTransactions.map((t, idx) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
+                    <tr key={t.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         {editingIndex === idx ? (
                           <input className="w-full border px-2 py-1 rounded" value={editingRow?.deal || ''} onChange={e => setEditingRow({ ...editingRow, deal: e.target.value })} />
@@ -895,11 +755,19 @@ const TransactionsPage = () => {
                           </div>
                         )}
                       </td>
+                      <td className="py-3 px-4">
+                        <button
+                          className="px-2 py-1 bg-red-600 text-white rounded"
+                          onClick={() => deleteTransaction(t.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {filteredTransactions.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-6 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-6 text-center text-gray-500">
                         No transactions found. Try adjusting your search or filters.
                       </td>
                     </tr>

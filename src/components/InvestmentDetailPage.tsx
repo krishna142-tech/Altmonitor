@@ -1081,64 +1081,6 @@ const InvestmentDetailPage = () => {
                     </div>
                   </div>
 
-                  {/* Investment Summary Comments - visible only in Summary sub-tab */}
-                  {activePortfolioTab === 'summary' && (
-                    <div className="mb-3">
-                      <div className="bg-white border rounded-lg shadow-sm">
-                        <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
-                          <h3 className="font-semibold text-gray-900 text-sm">Investment Summary Comments</h3>
-                        </div>
-                        <div className="p-4">
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-semibold text-gray-700 mb-1">Add Comment</label>
-                              <textarea
-                                value={investmentSummaryComment}
-                                onChange={(e) => setInvestmentSummaryComment(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white"
-                                rows={3}
-                                placeholder="Enter your comments about this investment summary..."
-                              />
-                              <div className="mt-2 flex justify-end">
-                                <button
-                                  onClick={saveInvestmentSummaryComment}
-                                  disabled={!investmentSummaryComment.trim() || isSavingComment}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium"
-                                >
-                                  {isSavingComment ? 'Saving...' : 'Save Comment'}
-                                </button>
-                              </div>
-                            </div>
-                            {investmentSummaryComment && (
-                              <div className="mt-3 p-3 bg-white border rounded-md">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0">
-                                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                      <span className="text-white text-sm font-medium">
-                                        {(user?.email || 'U').charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {user?.email || 'User'}
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        {new Date().toLocaleString()}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{investmentSummaryComment}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Investment Summary Tab Content */}
                   {activePortfolioTab === 'summary' && (
                     <div className="space-y-3">

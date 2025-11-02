@@ -4,7 +4,7 @@ import { testSupabaseConnection, testFacilityCreation, testDatabaseSchema } from
 import { migrateDatabase, testFacilityCreationWithoutTransaction } from '@/lib/migrateDatabase';
 
 const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: string }) => {
-  const { facilities, addFacility, addTransaction, transactions, loading, error } = useSupabaseData();
+  const { facilities, addFacility, addTransaction, transactions, loading, error, deleteFacility } = useSupabaseData();
   const [testResult, setTestResult] = useState('');
   
   // Filter facilities for current investment
@@ -23,7 +23,7 @@ const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: strin
       setTestResult('Creating test facility...');
       
       // First, create or find a transaction
-      let existingTransaction = transactions.find(t => 
+      const existingTransaction = transactions.find(t => 
         t.deal === currentInvestmentName || 
         t.issuer === currentInvestmentName
       );
@@ -97,7 +97,7 @@ const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: strin
       setTestResult(`Creating test facility for: ${currentInvestmentName}`);
       
       // First, create or find a transaction
-      let existingTransaction = transactions.find(t => 
+      const existingTransaction = transactions.find(t => 
         t.deal === currentInvestmentName || 
         t.issuer === currentInvestmentName
       );
@@ -210,6 +210,17 @@ const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: strin
     }
   };
 
+  const handleDeleteFacility = async (facilityId: string) => {
+    try {
+      setTestResult(`Deleting facility with ID: ${facilityId}`);
+      await deleteFacility(facilityId);
+      setTestResult('✅ Facility deleted successfully!');
+    } catch (err) {
+      setTestResult(`❌ Error deleting facility: ${err}`);
+      console.error('Error deleting facility:', err);
+    }
+  };
+
   return (
     <div className="p-6 bg-gray-100 rounded-lg">
       <h3 className="text-lg font-semibold mb-4">Facility Debug Panel</h3>
@@ -290,6 +301,23 @@ const FacilityDebug = ({ currentInvestmentName }: { currentInvestmentName: strin
           <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-40">
             {JSON.stringify(filteredFacilities, null, 2)}
           </pre>
+        </div>
+
+        <div>
+          <h4 className="font-semibold">Facilities:</h4>
+          <ul className="list-disc list-inside">
+            {filteredFacilities.map(facility => (
+              <li key={facility.id} className="flex justify-between items-center">
+                <span>{facility.investmentName} - {facility.status}</span>
+                <button
+                  onClick={() => handleDeleteFacility(facility.id)}
+                  className="ml-4 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

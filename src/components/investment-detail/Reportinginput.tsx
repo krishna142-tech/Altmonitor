@@ -20,9 +20,9 @@ import {
 import { Facility } from "@/context/DataContext";
 
 type ScheduleEntry = {
-  reportingDate: string; // ISO yyyy-mm-dd
+  reportingDate: string;
   daysToProvide: number;
-  dueDate: string; // ISO yyyy-mm-dd
+  dueDate: string;
 };
 
 type ModalForm = {
@@ -43,14 +43,11 @@ type ModalForm = {
 type ReportingRequirementRecord = ModalForm & {
   schedule?: ScheduleEntry[];
   received_at?: string;
-  // backend allows arbitrary fields; we don't include any here
 };
 
 type Props = {
   selectedFacility?: Facility | null;
-  // parent can still pass initial list; component will re-fetch on mount
   reportingRequirements?: ReportingRequirementRecord[];
-  // optional callback after save
   onSaved?: () => void;
 };
 
@@ -89,7 +86,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
   reportingRequirements: reportingRequirementsProp,
   onSaved,
 }) => {
-  // fetched list from backend
   const [requirements, setRequirements] = useState<ReportingRequirementRecord[]>(
     reportingRequirementsProp || []
   );
@@ -156,7 +152,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
     const daysToProvide = form.daysToProvide || 0;
     const freq = (form.frequency || "Monthly").toLowerCase();
 
-    // guard for safety
     let guard = 0;
     while (current <= maturity && guard < 1000) {
       guard++;
@@ -174,7 +169,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
         dueDate: isoDate(due),
       });
 
-      // increment current based on frequency (create a new Date to avoid mutation problems)
       if (freq.startsWith("annual")) {
         current = new Date(current.getFullYear() + 1, current.getMonth(), current.getDate());
       } else if (freq.startsWith("semi")) {
@@ -182,7 +176,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
       } else if (freq.startsWith("quarter")) {
         current = new Date(current.getFullYear(), current.getMonth() + 3, current.getDate());
       } else {
-        // monthly
         current = new Date(current.getFullYear(), current.getMonth() + 1, current.getDate());
       }
     }
@@ -191,7 +184,9 @@ const ReportingRequirementsInput: React.FC<Props> = ({
   };
 
   const updateScheduleRow = (index: number, key: keyof ScheduleEntry, value: string | number) => {
-    setGeneratedSchedule((prev) => prev.map((r, i) => (i === index ? { ...r, [key]: value as any } : r)));
+    setGeneratedSchedule((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, [key]: value as any } : r))
+    );
   };
 
   const handleSave = async () => {
@@ -205,7 +200,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
         ...form,
         schedule: generatedSchedule,
       };
-      // backend appends received_at and stores anything
       const res = await fetch("/api/reporting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,7 +209,6 @@ const ReportingRequirementsInput: React.FC<Props> = ({
         const txt = await res.text();
         throw new Error(`Save failed: ${res.status} ${txt}`);
       }
-      // success - refresh list
       showMessage("success", "Saved successfully");
       await fetchRequirements();
       setLoadingSave(false);
@@ -233,196 +226,279 @@ const ReportingRequirementsInput: React.FC<Props> = ({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Reporting Requirements</h2>
-          <p className="text-sm text-gray-600">Manage reporting obligations for this facility.</p>
+          <p className="text-sm text-gray-600">
+            Manage reporting obligations for this facility.
+          </p>
         </div>
 
-        <div>
-          <Dialog open={modalOpen} onOpenChange={(v) => setModalOpen(v)}>
-            <DialogTrigger asChild>
-              <Button onClick={openModal}>+ Add Requirement</Button>
-            </DialogTrigger>
+        <Dialog open={modalOpen} onOpenChange={(v) => setModalOpen(v)}>
+          <DialogTrigger asChild>
+            <Button onClick={openModal}>+ Add Requirement</Button>
+          </DialogTrigger>
 
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Add Reporting Requirement</DialogTitle>
-              </DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add Reporting Requirement</DialogTitle>
+            </DialogHeader>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Requirement Type</Label>
-                  <Select value={form.type} onValueChange={(v) => setForm((s) => ({ ...s, type: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Compliance Certificate">Compliance Certificate</SelectItem>
-                      <SelectItem value="Annual Certificate">Annual Certificate</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Obligor</Label>
-                  <Input value={form.obligor} onChange={(e) => setForm((s) => ({ ...s, obligor: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>Role</Label>
-                  <Select value={form.role} onValueChange={(v) => setForm((s) => ({ ...s, role: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Borrower">Borrower</SelectItem>
-                      <SelectItem value="Guarantor">Guarantor</SelectItem>
-                      <SelectItem value="Sponsor">Sponsor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Display Name</Label>
-                  <Input value={form.displayName} onChange={(e) => setForm((s) => ({ ...s, displayName: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>Next Reporting Date</Label>
-                  <Input type="date" value={form.nextReportingDate} onChange={(e) => setForm((s) => ({ ...s, nextReportingDate: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>Maturity Date</Label>
-                  <Input type="date" value={form.maturityDate} onChange={(e) => setForm((s) => ({ ...s, maturityDate: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>Days to Provide</Label>
-                  <Input type="number" value={form.daysToProvide ?? 0} onChange={(e) => setForm((s) => ({ ...s, daysToProvide: Number(e.target.value) }))} />
-                </div>
-
-                <div>
-                  <Label>Frequency</Label>
-                  <Select value={form.frequency} onValueChange={(v) => setForm((s) => ({ ...s, frequency: v as ModalForm["frequency"] }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Quarterly">Quarterly</SelectItem>
-                      <SelectItem value="Semi-Annual">Semi-Annual</SelectItem>
-                      <SelectItem value="Annual">Annual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Business Day Adjustment</Label>
-                  <Select value={form.businessDay} onValueChange={(v) => setForm((s) => ({ ...s, businessDay: v as ModalForm["businessDay"] }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Yes">Yes</SelectItem>
-                      <SelectItem value="No">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Email Id</Label>
-                  <Input type="email" value={form.emailId} onChange={(e) => setForm((s) => ({ ...s, emailId: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>Reporting Requirement (description)</Label>
-                  <Input value={form.reportingRequirement} onChange={(e) => setForm((s) => ({ ...s, reportingRequirement: e.target.value }))} />
-                </div>
+            {/* Main form area */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Requirement Type</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm((s) => ({ ...s, type: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Compliance Certificate">Compliance Certificate</SelectItem>
+                    <SelectItem value="Annual Certificate">Annual Certificate</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="mt-4 flex gap-3">
-                <Button variant="outline" onClick={generateSchedule}>
-                  Generate
-                </Button>
-                <div className="text-sm text-gray-500 self-center">
-                  {generatedSchedule.length > 0 ? `${generatedSchedule.length} entries` : ""}
-                </div>
+              <div>
+                <Label>Obligor</Label>
+                <Input
+                  value={form.obligor}
+                  onChange={(e) => setForm((s) => ({ ...s, obligor: e.target.value }))}
+                />
               </div>
 
-              {generatedSchedule.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-md font-semibold">Generated Schedule</h3>
-                  <div className="border rounded overflow-hidden">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="text-left px-4 py-2">#</th>
-                          <th className="text-left px-4 py-2">Reporting Date</th>
-                          <th className="text-left px-4 py-2">Days to Provide</th>
-                          <th className="text-left px-4 py-2">Due Date</th>
+              <div>
+                <Label>Role</Label>
+                <Select
+                  value={form.role}
+                  onValueChange={(v) => setForm((s) => ({ ...s, role: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Borrower">Borrower</SelectItem>
+                    <SelectItem value="Guarantor">Guarantor</SelectItem>
+                    <SelectItem value="Sponsor">Sponsor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Display Name</Label>
+                <Input
+                  value={form.displayName}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, displayName: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Next Reporting Date</Label>
+                <Input
+                  type="date"
+                  value={form.nextReportingDate}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, nextReportingDate: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Maturity Date</Label>
+                <Input
+                  type="date"
+                  value={form.maturityDate}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, maturityDate: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Days to Provide</Label>
+                <Input
+                  type="number"
+                  value={form.daysToProvide ?? 0}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, daysToProvide: Number(e.target.value) }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Frequency</Label>
+                <Select
+                  value={form.frequency}
+                  onValueChange={(v) =>
+                    setForm((s) => ({ ...s, frequency: v as ModalForm["frequency"] }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Semi-Annual">Semi-Annual</SelectItem>
+                    <SelectItem value="Annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Business Day Adjustment</Label>
+                <Select
+                  value={form.businessDay}
+                  onValueChange={(v) =>
+                    setForm((s) => ({ ...s, businessDay: v as ModalForm["businessDay"] }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Yes">Yes</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Email Id</Label>
+                <Input
+                  type="email"
+                  value={form.emailId}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, emailId: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>Reporting Requirement (description)</Label>
+                <Input
+                  value={form.reportingRequirement}
+                  onChange={(e) =>
+                    setForm((s) => ({
+                      ...s,
+                      reportingRequirement: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <Button variant="outline" onClick={generateSchedule}>
+                Generate
+              </Button>
+              <div className="text-sm text-gray-500 self-center">
+                {generatedSchedule.length > 0
+                  ? `${generatedSchedule.length} entries`
+                  : ""}
+              </div>
+            </div>
+
+            {generatedSchedule.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-md font-semibold">Generated Schedule</h3>
+                <div className="border rounded overflow-hidden">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="text-left px-4 py-2">#</th>
+                        <th className="text-left px-4 py-2">Reporting Date</th>
+                        <th className="text-left px-4 py-2">Days to Provide</th>
+                        <th className="text-left px-4 py-2">Due Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {generatedSchedule.map((row, idx) => (
+                        <tr key={idx} className="border-t">
+                          <td className="px-4 py-2">{idx + 1}</td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="date"
+                              value={row.reportingDate}
+                              onChange={(e) =>
+                                updateScheduleRow(idx, "reportingDate", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="number"
+                              value={row.daysToProvide}
+                              onChange={(e) =>
+                                updateScheduleRow(
+                                  idx,
+                                  "daysToProvide",
+                                  Number(e.target.value)
+                                )
+                              }
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <Input
+                              type="date"
+                              value={row.dueDate}
+                              onChange={(e) =>
+                                updateScheduleRow(idx, "dueDate", e.target.value)
+                              }
+                            />
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {generatedSchedule.map((row, idx) => (
-                          <tr key={idx} className="border-t">
-                            <td className="px-4 py-2">{idx + 1}</td>
-                            <td className="px-4 py-2">
-                              <Input
-                                type="date"
-                                value={row.reportingDate}
-                                onChange={(e) => updateScheduleRow(idx, "reportingDate", e.target.value)}
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <Input
-                                type="number"
-                                value={row.daysToProvide}
-                                onChange={(e) => updateScheduleRow(idx, "daysToProvide", Number(e.target.value))}
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <Input
-                                type="date"
-                                value={row.dueDate}
-                                onChange={(e) => updateScheduleRow(idx, "dueDate", e.target.value)}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-                  <div className="mt-3 flex items-center gap-3">
-                    <Button onClick={handleSave} disabled={loadingSave}>
-                      {loadingSave ? "Saving..." : "Save"}
-                    </Button>
-                    <Button variant="ghost" onClick={() => { /* Keep editing */ }}>
-                      Keep Editing
-                    </Button>
-                    <div className="text-sm text-gray-500">{loadingFetch ? "Refreshing..." : ""}</div>
+                <div className="mt-3 flex items-center gap-3 sticky bottom-0 bg-white py-2">
+                  <Button onClick={handleSave} disabled={loadingSave}>
+                    {loadingSave ? "Saving..." : "Save"}
+                  </Button>
+                  <Button variant="ghost">Keep Editing</Button>
+                  <div className="text-sm text-gray-500">
+                    {loadingFetch ? "Refreshing..." : ""}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              <DialogFooter>
-                <Button variant="destructive" onClick={() => { resetModal(); closeModal(); }}>
-                  Cancel
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+            <DialogFooter className="mt-6 sticky bottom-0 bg-white pt-4 border-t">
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  resetModal();
+                  closeModal();
+                }}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {message && (
-        <div className={`p-2 rounded ${message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+        <div
+          className={`p-2 rounded ${
+            message.type === "success"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
           {message.text}
         </div>
       )}
 
       <div>
-        <h3 className="text-md font-semibold text-gray-800 mb-2">Existing Requirements</h3>
+        <h3 className="text-md font-semibold text-gray-800 mb-2">
+          Existing Requirements
+        </h3>
         <div className="border rounded overflow-hidden">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-100">
@@ -444,9 +520,19 @@ const ReportingRequirementsInput: React.FC<Props> = ({
               {requirements.map((r, i) => (
                 <tr key={i} className="border-t">
                   <td className="px-4 py-2">{i + 1}</td>
-                  <td className="px-4 py-2">{r.displayName || r.reportingRequirement || r.type}</td>
-                  <td className="px-4 py-2">{r.nextReportingDate || (r.schedule && r.schedule[0]?.reportingDate) || ""}</td>
-                  <td className="px-4 py-2">{r.reportingDueDate || (r.schedule && r.schedule[0]?.dueDate) || ""}</td>
+                  <td className="px-4 py-2">
+                    {r.displayName || r.reportingRequirement || r.type}
+                  </td>
+                  <td className="px-4 py-2">
+                    {r.nextReportingDate ||
+                      (r.schedule && r.schedule[0]?.reportingDate) ||
+                      ""}
+                  </td>
+                  <td className="px-4 py-2">
+                    {r.reportingDueDate ||
+                      (r.schedule && r.schedule[0]?.dueDate) ||
+                      ""}
+                  </td>
                 </tr>
               ))}
             </tbody>
