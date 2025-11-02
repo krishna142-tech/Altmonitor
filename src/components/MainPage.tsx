@@ -66,7 +66,7 @@ const MainPage = () => {
     }
   ]
 
-  // Filter navigation cards based on user permissions
+  // Filter navigation cards based on user's permissions
   const navigationCards = allNavigationCards
 
   return (
