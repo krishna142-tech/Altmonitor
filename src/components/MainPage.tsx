@@ -63,7 +63,7 @@ const MainPage = () => {
       icon: CalendarDays,
       path: '/holiday',
       description: 'Market holidays and events'
-    }
+    } 
   ]
 
   // Filter navigation cards based on user's permissions 
