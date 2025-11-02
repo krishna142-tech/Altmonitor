@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Facility } from "@/context/DataContext";
 import {
   Chart as ChartJS,
@@ -40,27 +40,42 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchReportingData = async () => {
+  // Update fetchReportingData to handle non-JSON responses
+  const fetchReportingData = useCallback(async () => {
     if (!selectedFacility) return;
+
+    const facilityId =
+      typeof (selectedFacility as Facility).id !== "undefined"
+        ? (selectedFacility as Facility).id
+        : "";
 
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/reporting?facilityId=${selectedFacility.id ?? ""}`);
-      if (!res.ok) throw new Error(`Fetch failed with status ${res.status}`);
-      const result = await res.json();
-      setData(result || []);
-    } catch (err: any) {
+      const res = await fetch(`/api/reporting?facilityId=${facilityId}`);
+
+      if (!res.ok) {
+        throw new Error(`Fetch failed with status ${res.status}`);
+      }
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format: Expected JSON");
+      }
+
+      const result: ReportingRequirement[] = await res.json();
+      setData(Array.isArray(result) ? result : []);
+    } catch (err) {
       console.error("Error fetching reporting requirements:", err);
-      setError(err.message || "Failed to load reporting data.");
+      setError(err instanceof Error ? err.message : "Failed to load reporting data.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedFacility]);
 
   useEffect(() => {
     fetchReportingData();
-  }, [selectedFacility]);
+  }, [selectedFacility, fetchReportingData]);
 
   const handleAutoGenerate = async () => {
     await onAutoGenerate();
@@ -111,18 +126,28 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
       },
       tooltip: {
         callbacks: {
-          label: (ctx: any) =>
-            new Date(ctx.raw).toLocaleDateString("en-GB", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            }),
+          title: (ctx: { parsed: { x: number } }[]) =>
+            ctx[0].parsed.x
+              ? new Date(ctx[0].parsed.x).toLocaleDateString("en-GB", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "",
         },
       },
     },
     scales: {
       x: {
-        ticks: { color: "#374151" },
+        type: "time",
+        time: {
+          unit: "month",
+          tooltipFormat: "dd MMM yyyy",
+        },
+        title: {
+          display: true,
+          text: "Reporting Date",
+        },
       },
       y: {
         display: false,
@@ -227,6 +252,16 @@ const ReportingRequirementsTab: React.FC<ReportingRequirementsTabProps> = ({
             </table>
           )}
         </div>
+
+        {/* --- Chart Rendering --- */}
+        {validLabels.length > 0 && (
+          <div className="bg-white border rounded-lg shadow-sm p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+              Reporting Timeline Overview
+            </h3>
+            <Line data={chartData} options={chartOptions} height={120} />
+          </div>
+        )}
       </div>
     </div>
   );
