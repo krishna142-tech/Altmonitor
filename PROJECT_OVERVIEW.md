@@ -214,7 +214,7 @@ Altmonitor/
 #### 9. **Cash Terms Page** (`/facilities/:facilityId/cash-terms`)
 **File**: `src/components/CashTermsPage.tsx`
 - **Description**: Display cash terms configuration
-- **Sections**:
+- **Sections**: 
   - General Terms
   - Configuration
   - Day One Funding
