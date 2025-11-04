@@ -387,7 +387,7 @@ function AddTransactionModal(props: AddTransactionModalProps) {
   // ManageTransactionModal removed: not used in current UI
 
 const TransactionsPage = () => {
-  const { transactions, addTransaction, updateTransaction } = useSupabaseData();
+  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useSupabaseData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -431,23 +431,6 @@ const TransactionsPage = () => {
       setEditingRow(null);
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  // Define deleteTransactionFromDatabase as a placeholder
-  const deleteTransactionFromDatabase = async (id: string) => {
-    // Replace this with the actual API call or database logic
-    console.log(`Deleting transaction with id: ${id}`);
-  };
-
-  // Move deleteTransaction inside TransactionsPage component
-  const deleteTransaction = async (id: string) => {
-    try {
-      await deleteTransactionFromDatabase(id);
-      // Trigger a re-fetch or update logic here
-      console.log('Transaction deleted, re-fetch transactions if needed.');
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
     }
   };
 
