@@ -1,6 +1,28 @@
 import React, { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
-import 'chart.js/auto';
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend,
+  CategoryScale
+} from 'chart.js';
+import 'chartjs-adapter-luxon';
+
+ChartJS.register(
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend,
+  CategoryScale
+);
 
 interface CovenantEntryLike {
   covenant_name?: string;
@@ -17,28 +39,32 @@ interface CovenantChartProps {
   filterName?: string;
 }
 
-const parseNumeric = (val: any): number | null => {
+type Comparator = '<' | '>' | '<=' | '>=' | null;
+
+const parseNumeric = (val: unknown): number | null => {
   if (val === null || val === undefined) return null;
   if (typeof val === 'number' && isFinite(val)) return val;
   const s = String(val).trim();
-  const cleaned = s.replace(/[\,\s]/g, '').replace(/x$/i, '').replace(/%$/, '');
+  const cleaned = s.replace(/[,\\s]/g, '').replace(/x$/i, '').replace(/%$/, '');
   const num = parseFloat(cleaned);
   return isFinite(num) ? num : null;
 };
 
-const parseThreshold = (val: any): { value: number | null; comparator: '<' | '>' | '<=' | '>=' | null } => {
+const parseThreshold = (
+  val: string | number | null | undefined
+): { value: number | null; comparator: Comparator } => {
   if (val === null || val === undefined) return { value: null, comparator: null };
   const s = String(val).trim();
   const match = s.match(/^(<=|>=|<|>)\s*(.+)$/);
   if (match) {
-    const comp = match[1] as '<' | '>' | '<=' | '>=';
+    const comp = match[1] as Comparator;
     const num = parseNumeric(match[2]);
     return { value: num, comparator: comp };
   }
   return { value: parseNumeric(s), comparator: null };
 };
 
-const byDateAsc = (a: any, b: any) => {
+const byDateAsc = (a: CovenantEntryLike, b: CovenantEntryLike): number => {
   const da = a?.calc_date ? new Date(a.calc_date).getTime() : 0;
   const db = b?.calc_date ? new Date(b.calc_date).getTime() : 0;
   return da - db;
@@ -58,18 +84,25 @@ const pickSeries = (rows: CovenantEntryLike[], filterName?: string): CovenantEnt
   return [...series].sort(byDateAsc);
 };
 
-const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant Graph", filterName }) => {
-
+const CovenantChart: React.FC<CovenantChartProps> = ({
+  data,
+  title = 'Covenant Graph',
+  filterName
+}) => {
   const series = useMemo(() => pickSeries(data || [], filterName), [data, filterName]);
-  const points = useMemo(() => (series.map(r => ({
-    label: r.calc_date ? new Date(r.calc_date).toLocaleDateString() : '',
-    y: parseNumeric(r.lender_calc ?? r.borrower_calc),
-  })).filter(p => p.y !== null) as { label: string; y: number }[]), [series]);
+  const points = useMemo(() => {
+    return series
+      .map(r => ({
+        label: r.calc_date ? new Date(r.calc_date).toLocaleDateString() : '',
+        y: parseNumeric(r.lender_calc ?? r.borrower_calc)
+      }))
+      .filter((p): p is { label: string; y: number } => p.y !== null);
+  }, [series]);
 
   const thresholdValue = useMemo(() => {
     const thresholds = series
       .map(r => parseThreshold(r.threshold))
-      .filter(t => t.value !== null) as { value: number; comparator: any }[];
+      .filter((t): t is { value: number; comparator: Comparator } => t.value !== null);
     return thresholds.length > 0 ? thresholds[0].value : null;
   }, [series]);
 
@@ -87,121 +120,128 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
           pointHoverRadius: 6,
           pointBackgroundColor: '#3b82f6',
           pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
+          pointBorderWidth: 2
         },
-        ...(thresholdValue !== null ? [{
-          label: 'Threshold',
-          data: points.map(() => thresholdValue as number),
-          borderColor: '#ef4444',
-          borderDash: [8, 4],
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0,
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          fill: false,
-        }] : []),
-      ],
+        ...(thresholdValue !== null
+          ? [
+              {
+                label: 'Threshold',
+                data: points.map(() => thresholdValue as number),
+                borderColor: '#ef4444',
+                borderDash: [8, 4],
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0,
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: false
+              }
+            ]
+          : [])
+      ]
     };
   }, [points, thresholdValue]);
 
-  const options = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top' as const,
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: { size: 12 }
-        }
-      },
-      title: {
-        display: true,
-        text: title,
-        font: { size: 16, weight: 'bold' },
-        color: '#374151'
-      },
-      tooltip: {
-        mode: 'index' as const,
-        intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#3b82f6',
-        borderWidth: 1,
-        callbacks: {
-          title: (context: any) => {
-            return `Date: ${context[0].label}`;
-          },
-          label: (context: any) => {
-            const label = context.dataset.label || '';
-            const value = context.parsed.y;
-            return `${label}: ${value.toFixed(2)}`;
+  const options = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top' as const,
+          labels: {
+            usePointStyle: true,
+            padding: 20,
+            font: { size: 12 }
+          }
+        },
+        title: {
+          display: true,
+          text: title,
+          font: { size: 16, weight: 'bold' },
+          color: '#374151'
+        },
+        tooltip: {
+          mode: 'index' as const,
+          intersect: false,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          borderColor: '#3b82f6',
+          borderWidth: 1,
+          callbacks: {
+            title: (context: any) => `Date: ${context[0].label}`,
+            label: (context: any) => {
+              const label = context.dataset.label || '';
+              const value = context.parsed.y;
+              return `${label}: ${value.toFixed(2)}`;
+            }
           }
         }
       },
-    },
-    interaction: { mode: 'nearest' as const, axis: 'x' as const, intersect: false },
-    scales: {
-      x: {
-        grid: {
-          display: true,
-          color: '#f3f4f6',
-          drawBorder: false
+      interaction: { mode: 'nearest' as const, axis: 'x' as const, intersect: false },
+      scales: {
+        x: {
+          grid: { display: true, color: '#f3f4f6', drawBorder: false },
+          ticks: { maxRotation: 45, autoSkip: true, font: { size: 11 }, color: '#6b7280' },
+          title: {
+            display: true,
+            text: 'Timeline',
+            font: { size: 12, weight: 'bold' },
+            color: '#374151'
+          }
         },
-        ticks: {
-          maxRotation: 45,
-          autoSkip: true,
-          font: { size: 11 },
-          color: '#6b7280'
-        },
-        title: {
-          display: true,
-          text: 'Timeline',
-          font: { size: 12, weight: 'bold' },
-          color: '#374151'
+        y: {
+          grid: { color: '#f3f4f6', drawBorder: false },
+          ticks: {
+            callback: (v: string | number) => Number(v).toFixed(2),
+            font: { size: 11 },
+            color: '#6b7280'
+          },
+          title: {
+            display: true,
+            text: 'Value',
+            font: { size: 12, weight: 'bold' },
+            color: '#374151'
+          }
         }
       },
-      y: {
-        grid: {
-          color: '#f3f4f6',
-          drawBorder: false
-        },
-        ticks: {
-          callback: (v: any) => Number(v).toFixed(2),
-          font: { size: 11 },
-          color: '#6b7280'
-        },
-        title: {
-          display: true,
-          text: 'Value',
-          font: { size: 12, weight: 'bold' },
-          color: '#374151'
+      elements: {
+        point: {
+          hoverBackgroundColor: '#ffffff',
+          hoverBorderColor: '#3b82f6',
+          hoverBorderWidth: 3
         }
-      },
-    },
-    elements: {
-      point: {
-        hoverBackgroundColor: '#ffffff',
-        hoverBorderColor: '#3b82f6',
-        hoverBorderWidth: 3
       }
-    }
-  }), [title]);
+    }),
+    [title]
+  );
 
   if (!data || data.length === 0 || points.length === 0) {
     return (
       <div className="text-center text-gray-500 py-12">
         <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <svg
+            className="w-8 h-8 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
           </svg>
         </div>
         <div className="text-lg font-medium mb-2">{title}</div>
-        <div className="text-sm text-gray-400">No timeline data available for chart visualization</div>
-        <div className="text-xs text-gray-400 mt-2">Upload covenant data to see timeline charts</div>
+        <div className="text-sm text-gray-400">
+          No timeline data available for chart visualization
+        </div>
+        <div className="text-xs text-gray-400 mt-2">
+          Upload covenant data to see timeline charts
+        </div>
       </div>
     );
   }
@@ -224,6 +264,6 @@ const CovenantChart: React.FC<CovenantChartProps> = ({ data, title = "Covenant G
       </div>
     </div>
   );
-}
+};
 
 export default CovenantChart;
