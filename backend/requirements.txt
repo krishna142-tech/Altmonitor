@@ -13,3 +13,4 @@ waitress==3.0.0
 # psycopg2-binary==2.9.9
 # Alternatively for psycopg3:
 # psycopg[binary]==3.2.1
+ 
