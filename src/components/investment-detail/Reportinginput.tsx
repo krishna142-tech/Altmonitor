@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Facility } from "@/context/DataContext";
+import { API_BASE } from "@/lib/covenantApi";
 
 type ScheduleEntry = {
   reportingDate: string;
@@ -113,7 +114,7 @@ const ReportingRequirementsInput: React.FC<Props> = ({
   const fetchRequirements = async () => {
     setLoadingFetch(true);
     try {
-      const res = await fetch("/api/reporting");
+      const res = await fetch(`${API_BASE}/api/reporting`);
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const data = await res.json();
       if (Array.isArray(data)) setRequirements(data);
@@ -200,7 +201,7 @@ const ReportingRequirementsInput: React.FC<Props> = ({
         ...form,
         schedule: generatedSchedule,
       };
-      const res = await fetch("/api/reporting", {
+      const res = await fetch(`${API_BASE}/api/reporting`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
