@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Card } from './ui/Card';
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,6 @@ import ReportingRequirementsTab from '@/components/investment-detail/ReportingRe
 import { generateAdvancedSchedule } from '../lib/advanced-cashflow-engine';
 import { listCovenants } from '@/lib/covenantApi';
 // import { listCovenants } from '@/lib/covenantApi'; // TODO: Implement facility-specific covenant data
-import StaticData from './StaticData';
 import ReportingRequirementsInput from './investment-detail/Reportinginput';
 // CovenantChart is now used inside CovenantTab
 // CovenantChart is used in CovenantTab; no direct import needed here
@@ -219,6 +218,7 @@ function AddFacilityModal({ isOpen, onClose, onSave }: AddFacilityModalProps) {
 const InvestmentDetailPage = () => {
 
   const { investmentId } = useParams();
+  const location = useLocation();
   const [isModalOpen, setModalOpen] = useState(false);
   const { facilities, addFacility, addTransaction, updateFacility, transactions, loading, error, getReportingRequirements, addReportingRequirement, getCashflowSchedulesForFacility } = useSupabaseData();
   const { user, isSuperAdmin, isAdmin } = useAuth();
@@ -851,7 +851,18 @@ const InvestmentDetailPage = () => {
               return (
                 <motion.button
                   key={item.name}
-                  onClick={() => setActiveSidebarItem(idx)}
+                  onClick={() => {
+                    if (idx === 1) {
+                      navigate('/bau', {
+                        state: {
+                          investmentId: currentInvestmentName,
+                          returnPath: location.pathname,
+                        },
+                      });
+                      return;
+                    }
+                    setActiveSidebarItem(idx);
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-300 ${idx === activeSidebarItem
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -984,18 +995,7 @@ const InvestmentDetailPage = () => {
           )}
 
           {/* Tracking Sections */}
-          {activeSidebarItem === 1 && (
-            <StaticData
-              reportingRequirements={reportingRequirements}
-              generateReportingSchedule={generateReportingSchedule}
-              showAddReportDialog={showAddReportDialog}
-              setShowAddReportDialog={setShowAddReportDialog}
-              newRequirement={newRequirement}
-              setNewRequirement={setNewRequirement}
-              handleAddRequirement={handleAddRequirement}
-              selectedFacility={selectedFacility}
-            />
-          )}
+          {activeSidebarItem === 1 && null}
 
           {(activeSidebarItem === 3 || activeSidebarItem === 4 || activeSidebarItem === 5) && (
             <div className="mt-8 space-y-6">
