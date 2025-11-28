@@ -1,23 +1,186 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Activity, TrendingUp, TrendingDown, DollarSign, Globe, Menu } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { ArrowLeft, Activity, TrendingUp, TrendingDown, DollarSign, Globe } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/button';
+import { useSupabaseData } from '@/context/SupabaseDataContext';
+
+type YesNo = 'Yes' | 'No';
+
+type InvestorTransfer = {
+  id: string;
+  transferType: string;
+  oldInvestorName: string;
+  newInvestorName: string;
+  transferDate: string;
+  allocationPercent: string;
+  amount: string;
+};
+
+type PortfolioPrepayment = {
+  date: string;
+  amount: string;
+  penalties: string;
+  includePenalties: YesNo;
+  includeWithAmount: YesNo;
+  interestAdjustment: YesNo;
+};
+
+type InvestorPrepayment = PortfolioPrepayment & {
+  showPenaltiesOnReport: YesNo;
+  details: string;
+};
+
+type BauData = {
+  prepayment: {
+    happened: YesNo;
+    portfolioLevelEnabled: YesNo;
+    investorLevelEnabled: YesNo;
+    portfolio: PortfolioPrepayment;
+    investor: InvestorPrepayment;
+  };
+  investorTransfers: InvestorTransfer[];
+  commitmentDownsize: { amount: string; date: string };
+  commitmentUpsize: { amount: string; date: string };
+  multiCurrency: { currencyType: string; exchangeRate: string };
+};
+
+const createPortfolioPrepayment = (): PortfolioPrepayment => ({
+  date: '',
+  amount: '',
+  penalties: '',
+  includePenalties: 'No',
+  includeWithAmount: 'No',
+  interestAdjustment: 'No',
+});
+
+const createInvestorPrepayment = (): InvestorPrepayment => ({
+  ...createPortfolioPrepayment(),
+  showPenaltiesOnReport: 'No',
+  details: '',
+});
+
+const createDefaultBauData = (): BauData => ({
+  prepayment: {
+    happened: 'No',
+    portfolioLevelEnabled: 'No',
+    investorLevelEnabled: 'No',
+    portfolio: createPortfolioPrepayment(),
+    investor: createInvestorPrepayment(),
+  },
+  investorTransfers: [],
+  commitmentDownsize: { amount: '', date: '' },
+  commitmentUpsize: { amount: '', date: '' },
+  multiCurrency: { currencyType: '', exchangeRate: '' },
+});
+
+const hydrateBauData = (value?: Partial<BauData>): BauData => {
+  const base = createDefaultBauData();
+  if (!value) return base;
+
+  return {
+    prepayment: {
+      happened: value.prepayment?.happened || base.prepayment.happened,
+      portfolioLevelEnabled: value.prepayment?.portfolioLevelEnabled || base.prepayment.portfolioLevelEnabled,
+      investorLevelEnabled: value.prepayment?.investorLevelEnabled || base.prepayment.investorLevelEnabled,
+      portfolio: { ...base.prepayment.portfolio, ...(value.prepayment?.portfolio || {}) },
+      investor: { ...base.prepayment.investor, ...(value.prepayment?.investor || {}) },
+    },
+    investorTransfers: Array.isArray(value.investorTransfers) ? value.investorTransfers : base.investorTransfers,
+    commitmentDownsize: { ...base.commitmentDownsize, ...(value.commitmentDownsize || {}) },
+    commitmentUpsize: { ...base.commitmentUpsize, ...(value.commitmentUpsize || {}) },
+    multiCurrency: { ...base.multiCurrency, ...(value.multiCurrency || {}) },
+  };
+};
+
+type NavigationState = {
+  investmentId?: string;
+  facilityId?: string;
+  transactionId?: string;
+  returnPath?: string;
+} | null;
+
+const normalize = (value?: string | null) => (value || '').trim().toLowerCase();
 
 const BauTab: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('prepayment');
-  
-  // Get navigation state passed from InvestmentDetailPage
-  const navigationState = location.state as { investmentId?: string; returnPath?: string } | null;
+  const { facilities, updateFacility } = useSupabaseData();
+  const navigationState = location.state as NavigationState;
+  const facilityIdFromNav = navigationState?.facilityId || null;
+  const facilityFromNav = useMemo(
+    () => (facilities || []).find(f => f.id === facilityIdFromNav) || null,
+    [facilities, facilityIdFromNav]
+  );
+  const scopedTransactionId = navigationState?.transactionId || facilityFromNav?.transactionId || null;
+  const scopedInvestmentName = navigationState?.investmentId || facilityFromNav?.investmentName || null;
+  const normalizedScopedInvestment = normalize(scopedInvestmentName);
+  const facilityOptions = useMemo(() => {
+    const list = facilities || [];
+    if (scopedTransactionId) {
+      return list.filter(f => f.transactionId === scopedTransactionId);
+    }
+    if (normalizedScopedInvestment) {
+      return list.filter(f => normalize(f.investmentName) === normalizedScopedInvestment);
+    }
+    return list;
+  }, [facilities, scopedTransactionId, normalizedScopedInvestment]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
+  const [bauData, setBauData] = useState<BauData>(() => createDefaultBauData());
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const investmentId = navigationState?.investmentId;
-  const [prepaymentHappened, setPrepaymentHappened] = useState('No');
-  const [portfolioLevelEnabled, setPortfolioLevelEnabled] = useState('No');
-  const [investorLevelEnabled, setInvestorLevelEnabled] = useState('No');
   
-  // Change of Investor form state
+  useEffect(() => {
+    if (!facilityOptions || facilityOptions.length === 0) {
+      setSelectedFacilityId(null);
+      return;
+    }
+
+    if (selectedFacilityId && facilityOptions.some(f => f.id === selectedFacilityId)) {
+      return;
+    }
+
+    if (facilityFromNav) {
+      setSelectedFacilityId(facilityFromNav.id);
+      return;
+    }
+
+    if (scopedTransactionId) {
+      const match = facilityOptions.find(f => f.transactionId === scopedTransactionId);
+      if (match) {
+        setSelectedFacilityId(match.id);
+        return;
+      }
+    }
+
+    if (normalizedScopedInvestment) {
+      const match = facilityOptions.find(f => normalize(f.investmentName) === normalizedScopedInvestment);
+      if (match) {
+        setSelectedFacilityId(match.id);
+        return;
+      }
+    }
+
+    setSelectedFacilityId(facilityOptions[0].id);
+  }, [facilityOptions, facilityFromNav, scopedTransactionId, normalizedScopedInvestment, selectedFacilityId]);
+
+  const selectedFacility = useMemo(
+    () => facilityOptions.find(f => f.id === selectedFacilityId) || null,
+    [facilityOptions, selectedFacilityId]
+  );
+
+  useEffect(() => {
+    if (!selectedFacility) {
+      setBauData(createDefaultBauData());
+      return;
+    }
+    const saved = (selectedFacility.generalTerms as any)?.bau;
+    setBauData(hydrateBauData(saved));
+  }, [selectedFacility]);
+
   const [investorChangeForm, setInvestorChangeForm] = useState({
     transferType: '',
     oldInvestorName: '',
@@ -26,7 +189,119 @@ const BauTab: React.FC = () => {
     allocationPercent: '',
     amount: ''
   });
-  const [investorTransfers, setInvestorTransfers] = useState([]);
+  const investorTransfers = bauData.investorTransfers;
+
+  const formsDisabled = !selectedFacility;
+
+  const persistBauState = async (nextState: BauData, successText?: string) => {
+    if (!selectedFacility) return;
+    setIsSaving(true);
+    setStatusMessage(null);
+    try {
+      const existingTerms = selectedFacility.generalTerms || {};
+      await updateFacility(selectedFacility.id, {
+        generalTerms: { ...existingTerms, bau: nextState },
+      });
+      setStatusMessage({ type: 'success', text: successText || 'Changes saved' });
+    } catch (error) {
+      console.error('Failed to save BAU data', error);
+      setStatusMessage({ type: 'error', text: 'Unable to save changes. Please try again.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const setPrepaymentToggle = (key: 'happened' | 'portfolioLevelEnabled' | 'investorLevelEnabled', value: YesNo) => {
+    setBauData(prev => ({
+      ...prev,
+      prepayment: {
+        ...prev.prepayment,
+        [key]: value,
+      },
+    }));
+  };
+
+  const setPortfolioField = (key: keyof PortfolioPrepayment, value: string) => {
+    setBauData(prev => ({
+      ...prev,
+      prepayment: {
+        ...prev.prepayment,
+        portfolio: {
+          ...prev.prepayment.portfolio,
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const setInvestorPrepaymentField = (key: keyof InvestorPrepayment, value: string) => {
+    setBauData(prev => ({
+      ...prev,
+      prepayment: {
+        ...prev.prepayment,
+        investor: {
+          ...prev.prepayment.investor,
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const updateCommitment = (type: 'commitmentDownsize' | 'commitmentUpsize', key: 'amount' | 'date', value: string) => {
+    setBauData(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [key]: value,
+      },
+    }));
+  };
+
+  const updateMultiCurrency = (key: 'currencyType' | 'exchangeRate', value: string) => {
+    setBauData(prev => ({
+      ...prev,
+      multiCurrency: {
+        ...prev.multiCurrency,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleAddTransfer = async () => {
+    if (!selectedFacility) return;
+    if (!investorChangeForm.oldInvestorName || !investorChangeForm.newInvestorName || !investorChangeForm.transferDate) {
+      alert('Old Investor Name, New Investor Name, and Transfer Date are required.');
+      return;
+    }
+
+    const newTransfer: InvestorTransfer = {
+      ...investorChangeForm,
+      id: Date.now().toString(),
+    };
+    const nextState = {
+      ...bauData,
+      investorTransfers: [...bauData.investorTransfers, newTransfer],
+    };
+    setBauData(nextState);
+    setInvestorChangeForm({
+      transferType: '',
+      oldInvestorName: '',
+      newInvestorName: '',
+      transferDate: '',
+      allocationPercent: '',
+      amount: '',
+    });
+    await persistBauState(nextState, 'Investor transfer added');
+  };
+
+  const handleRemoveTransfer = async (id: string) => {
+    const nextState = {
+      ...bauData,
+      investorTransfers: bauData.investorTransfers.filter(t => t.id !== id),
+    };
+    setBauData(nextState);
+    await persistBauState(nextState, 'Investor transfer removed');
+  };
 
   const navItems = [
     { id: 'prepayment', label: 'Prepayment', icon: DollarSign },
@@ -70,10 +345,16 @@ const BauTab: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate(-1)}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (navigationState?.returnPath) {
+                navigate(navigationState.returnPath);
+              } else {
+                navigate(-1);
+              }
+            }}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -128,6 +409,53 @@ const BauTab: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <div className="space-y-6">
+            {facilityOptions.length > 0 && (
+              <div className="bg-white border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-500">Editing BAU data for</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {selectedFacility ? selectedFacility.investmentName : 'Select facility'}
+                  </p>
+                </div>
+                <select
+                  className="w-full md:w-64 px-3 py-2 border rounded-md"
+                  value={selectedFacilityId || ''}
+                  onChange={e => setSelectedFacilityId(e.target.value || null)}
+                >
+                  <option value="" disabled>
+                    Select facility
+                  </option>
+                  {facilityOptions.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.investmentName} — {f.facilityType}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {statusMessage && (
+              <div
+                className={`p-3 rounded text-sm ${
+                  statusMessage.type === 'success'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {statusMessage.text}
+              </div>
+            )}
+
+            {!selectedFacility && (
+              <Card className="bg-white shadow-sm p-6">
+                <h2 className="text-lg font-semibold mb-2">No facility selected</h2>
+                <p className="text-sm text-gray-600">
+                  BAU updates are stored against a facility. Please create an investment facility first or open
+                  this page from the Static Data tab of an existing investment.
+                </p>
+              </Card>
+            )}
+
             {activeTab === 'general' && (
               <Card className="bg-white shadow-sm p-6">
                 <div className="space-y-6">
@@ -285,10 +613,11 @@ const BauTab: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                       <label className="block text-sm font-medium mb-2 text-gray-700">Prepayment Happened</label>
-                      <select 
+                      <select
                         className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={prepaymentHappened}
-                        onChange={(e) => setPrepaymentHappened(e.target.value)}
+                        value={bauData.prepayment.happened}
+                        onChange={(e) => setPrepaymentToggle('happened', e.target.value as YesNo)}
+                        disabled={formsDisabled}
                       >
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
@@ -298,7 +627,7 @@ const BauTab: React.FC = () => {
                 </div>
 
                 {/* Prepayment Profile Section - Only shown when "Yes" is selected */}
-                {prepaymentHappened === 'Yes' && (
+                {bauData.prepayment.happened === 'Yes' && (
                   <div className="space-y-8">
                     <div className="border-t pt-6">
                       <h3 className="text-lg font-semibold text-foreground mb-6">Prepayment Profile</h3>
@@ -306,10 +635,11 @@ const BauTab: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div>
                           <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment portfolio Level</label>
-                          <select 
+                          <select
                             className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                            value={portfolioLevelEnabled}
-                            onChange={(e) => setPortfolioLevelEnabled(e.target.value)}
+                            value={bauData.prepayment.portfolioLevelEnabled}
+                            onChange={(e) => setPrepaymentToggle('portfolioLevelEnabled', e.target.value as YesNo)}
+                            disabled={formsDisabled}
                           >
                             <option value="No">No</option>
                             <option value="Yes">Yes</option>
@@ -317,10 +647,11 @@ const BauTab: React.FC = () => {
                         </div>
                         <div>
                           <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Investor Level</label>
-                          <select 
+                          <select
                             className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                            value={investorLevelEnabled}
-                            onChange={(e) => setInvestorLevelEnabled(e.target.value)}
+                            value={bauData.prepayment.investorLevelEnabled}
+                            onChange={(e) => setPrepaymentToggle('investorLevelEnabled', e.target.value as YesNo)}
+                            disabled={formsDisabled}
                           >
                             <option value="No">No</option>
                             <option value="Yes">Yes</option>
@@ -331,12 +662,12 @@ const BauTab: React.FC = () => {
 
                     {/* Dynamic Layout for Prepayment Details */}
                     <div className={`grid gap-8 ${
-                      portfolioLevelEnabled === 'Yes' && investorLevelEnabled === 'Yes' 
+                      bauData.prepayment.portfolioLevelEnabled === 'Yes' && bauData.prepayment.investorLevelEnabled === 'Yes' 
                         ? 'grid-cols-1 lg:grid-cols-2' 
                         : 'grid-cols-1'
                     }`}>
                       {/* Prepayment portfolio Level - Only show if enabled */}
-                      {portfolioLevelEnabled === 'Yes' && (
+                      {bauData.prepayment.portfolioLevelEnabled === 'Yes' && (
                         <div className="space-y-4">
                           <h4 className="text-md font-medium text-foreground bg-gray-100 px-4 py-3 rounded-lg">Prepayment portfolio Level</h4>
                         
@@ -344,7 +675,13 @@ const BauTab: React.FC = () => {
                           <div>
                             <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Date</label>
                             <div className="relative">
-                              <input type="text" placeholder="dd-mm-yyyy" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                              <input
+                                type="date"
+                                className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                                value={bauData.prepayment.portfolio.date}
+                                onChange={e => setPortfolioField('date', e.target.value)}
+                                disabled={formsDisabled}
+                              />
                               <div className="absolute right-3 top-3">
                                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -355,37 +692,64 @@ const BauTab: React.FC = () => {
                           
                           <div>
                             <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Amount</label>
-                            <input type="text" placeholder="Enter amount" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                            <input
+                              type="text"
+                              placeholder="Enter amount"
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.portfolio.amount}
+                              onChange={e => setPortfolioField('amount', e.target.value)}
+                              disabled={formsDisabled}
+                            />
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Pepayment Penalities</label>
-                            <input type="text" placeholder="Enter penalties" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Penalties</label>
+                            <input
+                              type="text"
+                              placeholder="Enter penalties"
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.portfolio.penalties}
+                              onChange={e => setPortfolioField('penalties', e.target.value)}
+                              disabled={formsDisabled}
+                            />
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties should be included Yes</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                              <option>Yes</option>
-                              <option>No</option>
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties should be included</label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.portfolio.includePenalties}
+                              onChange={e => setPortfolioField('includePenalties', e.target.value as YesNo)}
+                              disabled={formsDisabled}
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Penatilities should inlcuded w Yes/No</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                              <option>Yes/No</option>
-                              <option>Yes</option>
-                              <option>No</option>
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties included with amount</label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.portfolio.includeWithAmount}
+                              onChange={e => setPortfolioField('includeWithAmount', e.target.value as YesNo)}
+                              disabled={formsDisabled}
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Interest Adjustm Yes/No</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                              <option>Yes/No</option>
-                              <option>Yes</option>
-                              <option>No</option>
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Interest Adjustment</label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.portfolio.interestAdjustment}
+                              onChange={e => setPortfolioField('interestAdjustment', e.target.value as YesNo)}
+                              disabled={formsDisabled}
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                           </div>
                         </div>
@@ -393,7 +757,7 @@ const BauTab: React.FC = () => {
                       )}
 
                       {/* Prepayment investor Level - Only show if enabled */}
-                      {investorLevelEnabled === 'Yes' && (
+                      {bauData.prepayment.investorLevelEnabled === 'Yes' && (
                         <div className="space-y-4">
                           <h4 className="text-md font-medium text-foreground bg-gray-100 px-4 py-3 rounded-lg">Prepayment investor Level</h4>
                         
@@ -401,7 +765,13 @@ const BauTab: React.FC = () => {
                           <div>
                             <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Date</label>
                             <div className="relative">
-                              <input type="text" placeholder="dd-mm-yyyy" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                              <input
+                                type="date"
+                                className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                                value={bauData.prepayment.investor.date}
+                                onChange={e => setInvestorPrepaymentField('date', e.target.value)}
+                                disabled={formsDisabled}
+                              />
                               <div className="absolute right-3 top-3">
                                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -412,33 +782,63 @@ const BauTab: React.FC = () => {
                           
                           <div>
                             <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Amount</label>
-                            <input type="text" placeholder="Enter amount" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                            <input
+                              type="text"
+                              placeholder="Enter amount"
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.investor.amount}
+                              onChange={e => setInvestorPrepaymentField('amount', e.target.value)}
+                              disabled={formsDisabled}
+                            />
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Penalities</label>
-                            <input type="text" placeholder="Enter penalties" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Penalties</label>
+                            <input
+                              type="text"
+                              placeholder="Enter penalties"
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.investor.penalties}
+                              onChange={e => setInvestorPrepaymentField('penalties', e.target.value)}
+                              disabled={formsDisabled}
+                            />
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties should be included be shown on RePort</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                              <option>Yes</option>
-                              <option>No</option>
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties shown on report</label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.investor.showPenaltiesOnReport}
+                              onChange={e => setInvestorPrepaymentField('showPenaltiesOnReport', e.target.value as YesNo)}
+                              disabled={formsDisabled}
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Penatilities should inlcuded with prepayment amount</label>
-                            <input type="text" placeholder="Enter details" className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Penalties included with prepayment amount</label>
+                            <input
+                              type="text"
+                              placeholder="Enter details"
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.investor.details}
+                              onChange={e => setInvestorPrepaymentField('details', e.target.value)}
+                              disabled={formsDisabled}
+                            />
                           </div>
                           
                           <div>
-                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Interest A Yes/No</label>
-                            <select className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
-                              <option>Yes/No</option>
-                              <option>Yes</option>
-                              <option>No</option>
+                            <label className="block text-xs font-medium mb-2 text-gray-400">Prepayment Interest Adjustment</label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                              value={bauData.prepayment.investor.interestAdjustment}
+                              onChange={e => setInvestorPrepaymentField('interestAdjustment', e.target.value as YesNo)}
+                              disabled={formsDisabled}
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
                             </select>
                           </div>
                         </div>
@@ -453,7 +853,17 @@ const BauTab: React.FC = () => {
                         <p className="text-sm text-gray-500 italic">Penalty calculation details will be displayed here...</p>
                       </div>
                     </div>
-                  </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => persistBauState(bauData, 'Prepayment profile saved')}
+                        disabled={formsDisabled || isSaving}
+                      >
+                        {isSaving ? 'Saving…' : 'Save Prepayment Settings'}
+                      </Button>
+                    </div>
+                    </div>
+
                 )}
               </Card>
             )}
@@ -552,28 +962,10 @@ const BauTab: React.FC = () => {
                   
                   {/* Add Button */}
                   <div className="mt-6 flex justify-end">
-                    <Button 
+                    <Button
                       className="bg-success hover:bg-success/90 text-white rounded-lg"
-                      onClick={() => {
-                        if (investorChangeForm.oldInvestorName && investorChangeForm.newInvestorName && investorChangeForm.transferDate) {
-                          const newTransfer = {
-                            ...investorChangeForm,
-                            id: Date.now() // Simple ID generation
-                          };
-                          setInvestorTransfers([...investorTransfers, newTransfer]);
-                          // Reset form
-                          setInvestorChangeForm({
-                            transferType: '',
-                            oldInvestorName: '',
-                            newInvestorName: '',
-                            transferDate: '',
-                            allocationPercent: '',
-                            amount: ''
-                          });
-                        } else {
-                          alert('Please fill in at least Old Investor Name, New Investor Name, and Transfer Date before adding.');
-                        }
-                      }}
+                      onClick={handleAddTransfer}
+                      disabled={formsDisabled || isSaving}
                     >
                       Add Transfer
                     </Button>
@@ -610,9 +1002,8 @@ const BauTab: React.FC = () => {
                                 <td className="px-4 py-3 text-sm text-gray-900">
                                   <button 
                                     className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                    onClick={() => {
-                                      setInvestorTransfers(investorTransfers.filter(t => t.id !== transfer.id));
-                                    }}
+                                    onClick={() => handleRemoveTransfer(transfer.id)}
+                                    disabled={formsDisabled || isSaving}
                                   >
                                     Remove
                                   </button>
@@ -621,7 +1012,7 @@ const BauTab: React.FC = () => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500">
+                              <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">
                                 No transfers added yet. Fill out the form above and click "Add Transfer" to add entries.
                               </td>
                             </tr>
@@ -650,12 +1041,33 @@ const BauTab: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Downsize Amount</label>
-                    <input type="text" placeholder="Enter downsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="text"
+                      placeholder="Enter downsize amount"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.commitmentDownsize.amount}
+                      onChange={e => updateCommitment('commitmentDownsize', 'amount', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Downsize Date</label>
-                    <input type="date" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="date"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.commitmentDownsize.date}
+                      onChange={e => updateCommitment('commitmentDownsize', 'date', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button
+                    onClick={() => persistBauState(bauData, 'Commitment downsize saved')}
+                    disabled={formsDisabled || isSaving}
+                  >
+                    {isSaving ? 'Saving…' : 'Save Downsize'}
+                  </Button>
                 </div>
               </Card>
             )}
@@ -669,12 +1081,33 @@ const BauTab: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Upsize Amount</label>
-                    <input type="text" placeholder="Enter upsize amount" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="text"
+                      placeholder="Enter upsize amount"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.commitmentUpsize.amount}
+                      onChange={e => updateCommitment('commitmentUpsize', 'amount', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Upsize Date</label>
-                    <input type="date" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="date"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.commitmentUpsize.date}
+                      onChange={e => updateCommitment('commitmentUpsize', 'date', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button
+                    onClick={() => persistBauState(bauData, 'Commitment upsize saved')}
+                    disabled={formsDisabled || isSaving}
+                  >
+                    {isSaving ? 'Saving…' : 'Save Upsize'}
+                  </Button>
                 </div>
               </Card>
             )}
@@ -688,12 +1121,34 @@ const BauTab: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Currency Type</label>
-                    <input type="text" placeholder="Enter currency type" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="text"
+                      placeholder="Enter currency type"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.multiCurrency.currencyType}
+                      onChange={e => updateMultiCurrency('currencyType', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2 text-gray-700">Exchange Rate</label>
-                    <input type="text" placeholder="Enter exchange rate" className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input
+                      type="text"
+                      placeholder="Enter exchange rate"
+                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={bauData.multiCurrency.exchangeRate}
+                      onChange={e => updateMultiCurrency('exchangeRate', e.target.value)}
+                      disabled={formsDisabled}
+                    />
                   </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button
+                    onClick={() => persistBauState(bauData, 'Multi-currency settings saved')}
+                    disabled={formsDisabled || isSaving}
+                  >
+                    {isSaving ? 'Saving…' : 'Save Multi-Currency'}
+                  </Button>
                 </div>
               </Card>
             )}

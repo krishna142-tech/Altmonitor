@@ -387,7 +387,7 @@ function AddTransactionModal(props: AddTransactionModalProps) {
   // ManageTransactionModal removed: not used in current UI
 
 const TransactionsPage = () => {
-  const { transactions, addTransaction, updateTransaction, deleteTransaction } = useSupabaseData();
+  const { transactions, facilities, addTransaction, updateTransaction, deleteTransaction } = useSupabaseData();
   const [isModalOpen, setModalOpen] = useState(false);
   const [isFilterOpen, setFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -678,7 +678,9 @@ const TransactionsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((t, idx) => (
+                  {filteredTransactions.map((t, idx) => {
+                    const facilityForTransaction = facilities?.find(f => f.transactionId === t.id) || null;
+                    return (
                     <tr key={t.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         {editingIndex === idx ? (
@@ -739,15 +741,29 @@ const TransactionsPage = () => {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          className="px-2 py-1 bg-red-600 text-white rounded"
-                          onClick={() => deleteTransaction(t.id)}
-                        >
-                          Delete
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className={`px-2 py-1 rounded text-sm font-medium ${facilityForTransaction ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                            disabled={!facilityForTransaction}
+                            onClick={() => {
+                              if (facilityForTransaction) {
+                                navigate(`/facilities/${encodeURIComponent(facilityForTransaction.id)}`);
+                              }
+                            }}
+                          >
+                            {facilityForTransaction ? 'Edit Facility' : 'No Facility'}
+                          </button>
+                          <button
+                            className="px-2 py-1 bg-red-600 text-white rounded text-sm font-medium"
+                            onClick={() => deleteTransaction(t.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                   {filteredTransactions.length === 0 && (
                     <tr>
                       <td colSpan={9} className="px-6 py-6 text-center text-gray-500">

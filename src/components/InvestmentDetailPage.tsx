@@ -856,6 +856,8 @@ const InvestmentDetailPage = () => {
                       navigate('/bau', {
                         state: {
                           investmentId: currentInvestmentName,
+                          facilityId: selectedFacility?.id,
+                          transactionId: selectedFacility?.transactionId,
                           returnPath: location.pathname,
                         },
                       });
